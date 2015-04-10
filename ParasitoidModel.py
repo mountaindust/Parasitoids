@@ -100,7 +100,7 @@ def D(sig_x, sig_y, rho):
     return np.array([[sig_x^2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y^2]])
     
-#Probability of flying under given conditions
+#Probability of flying per unit time under given conditions
 def h(day_wind, Pf, aw, bw, a1, b1, a2, b2):
     #day_wind is a list of np.array wind directions
     #day_wind[0] = np.array([windx,windy,windr,theta])
@@ -108,4 +108,5 @@ def h(day_wind, Pf, aw, bw, a1, b1, a2, b2):
     #get just the windr values
     windary = np.array(day_wind)
     windr = windary[:,2]
-    np.sum(f(n,a1,b1,a2,b2)*g(windr,aw,bw))
+    f_times_g = f(n,a1,b1,a2,b2)*g(windr,aw,bw)
+    return Pf*f_times_g/np.sum(f_times_g) #np.array of length len(day_wind)
