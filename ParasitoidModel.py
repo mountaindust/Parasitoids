@@ -13,8 +13,7 @@ import scipy.linalg as linalg
 import scipy.stats as stats
 import pymc as pm
 
-#number of wind recordings per 24 hours:
-t_period = 48
+#we need to fix units for time. lets say t is in hours.
 
 # Reading the observed emergence data from a text file.
 def emergence_data(site_name):
@@ -78,17 +77,21 @@ def read_wind_file(site_name):
     wind_file.close()
 
     return wind_data
+    #this returns a dictionary of days, with each day pointing to
+    #an ordered list of numpy arrays. Each member of the list is a time.
 
 ##########    Model functions    ##########
 
 #Probability of flying under given wind conditions
-def g(wind, aw, bw):
-    #Expect 1x2 wind vector, two parameters
-    return 1.0 / (1. + np.exp(bw * (linalg.norm(wind) + aw)))
+def g(windr, aw, bw):
+    return 1.0 / (1. + np.exp(bw * (windr + aw)))
 
-#Probability of flying at given time of day
-def f(t, a1, b1, a2, b2):
-    t_tild = t % t_period
+#Probability of flying at n discrete times of the day, equally spaced
+def f(n, a1, b1, a2, b2):
+    #t is in hours, and denotes start time of flight.
+    #(this is sort of weird, because it looks like wind was recorded starting
+    #after the first 30 min)
+    t_tild = np.arange(0,24-24./n,n)
     return 1.0 / (1. + np.exp(b1 * (t_tild + a1))) - \
     1.0 / (1. + np.exp(b2 * (t_tild + a2)))    
 
@@ -97,4 +100,12 @@ def D(sig_x, sig_y, rho):
     return np.array([[sig_x^2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y^2]])
     
-
+#Probability of flying under given conditions
+def h(day_wind, Pf, aw, bw, a1, b1, a2, b2):
+    #day_wind is a list of np.array wind directions
+    #day_wind[0] = np.array([windx,windy,windr,theta])
+    n = len(day_wind)
+    #get just the windr values
+    windary = np.array(day_wind)
+    windr = windary[:,2]
+    np.sum(f(n,a1,b1,a2,b2)*g(windr,aw,bw))
