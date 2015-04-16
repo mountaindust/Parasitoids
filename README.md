@@ -1,2 +1,4 @@
 # model-development
-Materials for working group on moving from conceptual to computational models
+Create bug that moves around in space using object-oriented programming
+
+Creators: @KristinaRiemer, @Chrispea17, @mountaindust 
