@@ -13,11 +13,10 @@ class mybug:
             self.x = np.array([0,0])
         else: 
             self.x = np.array(y)
+        self.history = [self.x]
             
     def update_position(self):
         mean=np.array([0,0])
         y = np.random.multivariate_normal(mean,np.eye(2))
-        self.x = self.x + y 
-        
-            
-            
+        self.x = self.x + y
+        self.history.append(self.x)
