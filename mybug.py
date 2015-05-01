@@ -15,8 +15,10 @@ class mybug:
             self.x = np.array(y)
         self.history = [self.x]
             
-    def update_position(self):
+    def update_position(self,drift=None):
+        if drift is None:
+            drift = np.array([0,0])
         mean=np.array([0,0])
-        y = np.random.multivariate_normal(mean,np.eye(2))
+        y = np.random.multivariate_normal(mean,np.eye(2))+drift
         self.x = self.x + y
         self.history.append(self.x)

@@ -18,10 +18,17 @@ class myswarm:
         for ii in xrange(numbugs):
             self.swarm.append(mybug.mybug())
             
-    def update_swarm(self,n=1):
+    def update_swarm(self,n=1,wind_array=None):
+        if wind_array is None:
+            wind_array = np.zeros((n,2))
+        else:
+            assert type(wind_array is np.ndarray), \
+            'wind_array must be a numpy ndarray of shape n x 2'
+            assert wind_array.shape == (n,2), \
+            'wind_array must have shape n x 2'
         for ii in xrange(n):
             for bug in self.swarm:
-                bug.update_position()
+                bug.update_position(wind_array[ii,:])
                 
     def plot_swarm(self):
         poslist = []
