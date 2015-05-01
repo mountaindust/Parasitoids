@@ -46,4 +46,5 @@ class myswarm:
         for n,bug_hist in enumerate(swhistory):
             bug_hist = np.array(bug_hist)
             plt.plot(bug_hist[:,0],bug_hist[:,1],c=cm(clrs[n]))
+        plt.axis('scaled') #force x and y axis to be the same units
         plt.show()
