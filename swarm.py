@@ -8,6 +8,7 @@ Created on Fri Apr 17 10:35:55 2015
 
 import mybug
 from matplotlib import pyplot as plt
+import matplotlib.cm as colormp
 import numpy as np
 class myswarm:
     
@@ -38,10 +39,11 @@ class myswarm:
             swhistory.append(bug.history)
         poslist = np.array(poslist)
         #color our bugs!
+        cm = colormp.get_cmap() #get standard colormap
         clrs = np.linspace(0,1,len(self.swarm))
         plt.hold(True)
         plt.scatter(poslist[:,0],poslist[:,1],c=clrs)
         for n,bug_hist in enumerate(swhistory):
             bug_hist = np.array(bug_hist)
-            plt.plot(bug_hist[:,0],bug_hist[:,1])
+            plt.plot(bug_hist[:,0],bug_hist[:,1],c=cm(clrs[n]))
         plt.show()
