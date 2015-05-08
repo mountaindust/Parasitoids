@@ -44,3 +44,13 @@ def test_f(a1=7,b1=1.5,a2=19,b2=1.5):
     plt.ylabel('probability density of flight')
     plt.title('f func for prob of flight during time of day')
     plt.show()
+    
+#### Test h function (and therefore g and f) with data ####
+def test_h(day_wind=wind_data[1],lam=1.1):
+    day_time = np.linspace(0,24,wind_data[1].shape[0])
+    plt.figure()
+    plt.plot(day_time,PM.h(day_wind,lam,1.8,6,7,1.5,19,1.5))
+    plt.xlabel('time of day (hrs)')
+    plt.ylabel('probability density of flight')
+    plt.title('h func for prob of flight given wind')
+    plt.show()

@@ -81,7 +81,8 @@ def read_wind_file(site_name):
             windr = 0
         # theta
         if (windx == 0) & (windy == 0):
-            theta = None
+            theta = 0 #was None. but this prevents correct conversion of list
+                      # to ndarray of type 'float64' (causes array dtype=object)
         elif (windx == 0) & (windy > 0):
             theta = np.pi/2
         elif (windx == 0) & (windy < 0):
@@ -99,6 +100,7 @@ def read_wind_file(site_name):
     
     #convert each list of ndarrays to a single ndarray where rows are times,
     #  columns are the windx,windy,windr,theta. This allows fancy slicing.
+    #import pdb; pdb.set_trace()
     for day in wind_data:
         wind_data[day] = np.array(wind_data[day])
 
@@ -143,7 +145,7 @@ def h(day_wind, lam, aw, bw, a1, b1, a2, b2):
     #get just the windr values
     windr = day_wind[:,2]
     f_times_g = f(n,a1,b1,a2,b2)*g(windr,aw,bw)
-    return lam*f_times_g/np.sum(f_times_g) #np.array of length len(day_wind)
+    return lam*f_times_g/np.sum(f_times_g) #np.array of length n
     
 #Distance traveled through advection
 def mu(t_indx,day_wind,r):
