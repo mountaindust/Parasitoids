@@ -1,6 +1,10 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Drift-Diffusion Model with Bayesian inference
+Drift-Diffusion Model
+This module should implement the pieces of the model, including info about the
+    spatial mesh. These functions will then be called from an external module,
+    either for running the model or Bayesian inference.
 
 Created on Sat Mar 07 20:18:32 2015
 
@@ -12,7 +16,6 @@ import numpy as np
 import scipy.linalg as linalg
 import scipy.stats as stats
 from scipy import fftpack
-import pymc as pm
 
 #we need to fix units for time. lets say t is in hours.
 
@@ -55,6 +58,7 @@ def emergence_data(site_name):
     return em
 
 # Read the wind information from a text file.
+# I'm guessing the units here are m/s
 def read_wind_file(site_name):
     file_name = site_name + 'wind.txt'
     wind_file = open(file_name)
@@ -108,7 +112,7 @@ def read_wind_file(site_name):
 def g(windr, aw, bw):
     # windr -- wind speed
     # aw, bw -- logistic parameters (shape and bias)
-    return 1.0 / (1. + np.exp(bw * (windr + aw)))
+    return 1.0 / (1. + np.exp(bw * (windr - aw)))
 
 #Probability of flying at n discrete times of the day, equally spaced
 def f(n, a1, b1, a2, b2):
@@ -118,9 +122,9 @@ def f(n, a1, b1, a2, b2):
     #t is in hours, and denotes start time of flight.
     #(this is sort of weird, because it looks like wind was recorded starting
     #after the first 30 min)
-    t_tild = np.arange(0,24-24./n,n)
-    return 1.0 / (1. + np.exp(b1 * (t_tild + a1))) - \
-    1.0 / (1. + np.exp(b2 * (t_tild + a2)))    
+    t_tild = np.linspace(0,24-24./n,n)
+    return 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
+    1.0 / (1. + np.exp(-b2 * (t_tild - a2)))    
 
 #Covarience matrix for diffusion
 def D(sig_x, sig_y, rho):
