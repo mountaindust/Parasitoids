@@ -100,7 +100,6 @@ def read_wind_file(site_name):
     
     #convert each list of ndarrays to a single ndarray where rows are times,
     #  columns are the windx,windy,windr,theta. This allows fancy slicing.
-    #import pdb; pdb.set_trace()
     for day in wind_data:
         wind_data[day] = np.array(wind_data[day])
 
@@ -155,17 +154,20 @@ def mu(t_indx,day_wind,r):
     return r*day_wind[t_indx,0:2]
     
 #Prob density for a given day, returned as an ndarray, shape given by a global
-def p(day,wind_data):
+def p(day,wind_data,hparams,Dparams,mu_r):
     # day -- day since release
     # wind_data -- dictionary of wind data
-    stdnormal = stats.multivariate_normal(np.array([0,0]),D(sig_x,sig_y,rho))
+    # hparams -- parameters for h(...). (lam,aw,bw,a1,b1,a2,b2)
+    # Dparams -- parameters for D(...). (sig_x,sig_y,rho)
+    # mu_r -- parameter r in the function mu
+    stdnormal = stats.multivariate_normal(np.array([0,0]),D(*Dparams))
     ppdf = np.zeros((dom_len,dom_len))
     day_wind = wind_data[day]
-    hprob = h(day_wind, lam, aw, bw, a1, b1, a2, b2)
+    hprob = h(day_wind, *hparams)
     for t_indx in xrange(0,day_wind.shape[0]):
         #calculate integral in an intelligent way.
         #we know the distribution is centered around mu(t) at each t_indx
-        mu_vec = mu(t_indx,day_wind,r)
+        mu_vec = mu(t_indx,day_wind,mu_r)
         #translate into cell location
         adv_cent = np.round(mu_vec/cell_dist)+np.array([rad_res,rad_res])
         #now only worry about a normal distribution nearby this center
