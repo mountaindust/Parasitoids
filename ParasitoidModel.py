@@ -37,6 +37,13 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 
 # Reading the observed emergence data from a text file.
 def emergence_data(site_name):
+    """ Reads the observed emergence data from a text file.
+    
+    Arguments:
+        - site_name -- string
+        
+    Returns:
+        - dictionary of emergence data"""
     em = {}
 
     file_name = site_name + 'emergence.txt'
@@ -57,9 +64,15 @@ def emergence_data(site_name):
 
     return em
 
-# Read the wind information from a text file.
 # I'm guessing the units here are m/s
 def read_wind_file(site_name):
+    """ Reads the wind data from a text file
+    
+    Arguments:
+        - site_name -- string
+        
+    Returns:
+        - wind data as a dictionary of 2D ndarrays"""
     file_name = site_name + 'wind.txt'
     wind_file = open(file_name)
     wind_data = {}
@@ -109,16 +122,21 @@ def read_wind_file(site_name):
 
 ##########    Model functions    ##########
 
-#Probability of flying under given wind conditions
 def g(windr, aw, bw):
-    # windr -- wind speed
-    # aw, bw -- logistic parameters (shape and bias)
+    """Returns probability of flying under given wind conditions
+    
+    Arguments:
+        - windr -- wind speed
+        - aw, bw -- logistic parameters (shape and bias)"""
     return 1.0 / (1. + np.exp(bw * (windr - aw)))
 
 #Probability of flying at n discrete times of the day, equally spaced
 def f(n, a1, b1, a2, b2):
-    # n -- number of wind data points per day available
-    # a1,b1,a2,b2 -- logistic parameters (shape and bias)
+    """Returns probability of flying at n discrete times of day, equally spaced
+    
+    Arguments:
+        - n -- number of wind data points per day available
+        - a1,b1,a2,b2 -- logistic parameters (shape and bias)"""
 
     #t is in hours, and denotes start time of flight.
     #(this is sort of weird, because it looks like wind was recorded starting
@@ -127,18 +145,26 @@ def f(n, a1, b1, a2, b2):
     return 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
     1.0 / (1. + np.exp(-b2 * (t_tild - a2)))    
 
-#Covarience matrix for diffusion
 def D(sig_x, sig_y, rho):
+    """Returns covarience matrix for diffusion process
+    
+    Arguments:
+        - sig_x, sig_y -- Std. deviation in x and y direction respectively
+        - rho -- Covariance"""
+        
     return np.array([[sig_x^2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y^2]])
     
-#Probability of flying per unit time under given conditions
 def h(day_wind, lam, aw, bw, a1, b1, a2, b2):
-    # day_wind -- ndarray of wind directions
-    # lam -- constant
-    # aw,bw -- g function constants
-    # a1,b1,a2,b2 -- f function constants
-    #day_wind[0,:] = np.array([windx,windy,windr,theta])
+    """Returns probability of flying per unit time under given conditions
+    
+    Arguments:
+        - day_wind -- ndarray of wind directions
+        - lam -- constant
+        - aw,bw -- g function constants
+        - a1,b1,a2,b2 -- f function constants
+    
+    Note: day_wind[0,:] = np.array([windx,windy,windr,theta])"""
 
     n = day_wind.shape[0] #number of wind data entries in the day
     #get just the windr values
@@ -146,20 +172,26 @@ def h(day_wind, lam, aw, bw, a1, b1, a2, b2):
     f_times_g = f(n,a1,b1,a2,b2)*g(windr,aw,bw)
     return lam*f_times_g/np.sum(f_times_g) #np.array of length n
     
-#Distance traveled through advection
 def mu(t_indx,day_wind,r):
-    # t_indx -- index in wind data
-    # day_wind -- ndarray of wind directions
-    # r -- constant
+    """Returns distance traveled through advection
+    
+    Arguments:
+        - t_indx -- index in wind data
+        - day_wind -- ndarray of wind directions
+        - r -- constant"""
     return r*day_wind[t_indx,0:2]
     
-#Prob density for a given day, returned as an ndarray, shape given by a global
 def p(day,wind_data,hparams,Dparams,mu_r):
-    # day -- day since release
-    # wind_data -- dictionary of wind data
-    # hparams -- parameters for h(...). (lam,aw,bw,a1,b1,a2,b2)
-    # Dparams -- parameters for D(...). (sig_x,sig_y,rho)
-    # mu_r -- parameter r in the function mu
+    """Returns prob density for a given day as an ndarray.
+    The shape of the ndarray is currently determined by a global variable
+    
+    Arguments:
+        - day -- day since release
+        - wind_data -- dictionary of wind data
+        - hparams -- parameters for h(...). (lam,aw,bw,a1,b1,a2,b2)
+        - Dparams -- parameters for D(...). (sig_x,sig_y,rho)
+        - mu_r -- parameter r in the function mu"""
+        
     stdnormal = stats.multivariate_normal(np.array([0,0]),D(*Dparams))
     ppdf = np.zeros((dom_len,dom_len))
     day_wind = wind_data[day]
