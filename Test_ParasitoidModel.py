@@ -13,10 +13,28 @@ import numpy as np
 import ParasitoidModel as PM
 import matplotlib.pyplot as plt
 
+# Implementation detail:
+# Formation of each p(x,t_i), fft of each one, and ifft will need to be done in
+#   parallel when doing Bayesian inference. fft of 8000^2 is 5.6 sec.
+#   Want: number of processors = number of days to simulate
+
 #load some emergence data
 c_em = PM.emergence_data('carnarvonearl')
 #load some wind data
 wind_data = PM.read_wind_file('carnarvonearl')
+
+#SPATIAL DOMAIN:
+# Release point will be placed in the center
+# Domain will be defined in terms of distance from release and resolution
+# FUTURE: assign cells UTM values when plotting
+rad_dist = 8000.0 #distance from release point to a side of the domain (meters)
+rad_res = 4000.0 #number of cells from center to side of domain
+
+
+dom_len = rad_res*2+1 #number of cells along one dimension of domain
+dom_ticks = np.linspace(-rad_dist,rad_dist,dom_len) #label the center of each cell
+                                                    #center cell is 0
+cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 
 #Here, we really want to solve two problems at the same time
 # 1. test the functions in ParasitoidModel

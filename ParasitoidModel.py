@@ -19,23 +19,7 @@ from scipy import fftpack
 
 #we need to fix units for time. lets say t is in hours.
 
-#SPATIAL DOMAIN:
-# Release point will be placed in the center
-# Domain will be defined in terms of distance from release and resolution
-# FUTURE: assign cells UTM values when plotting
-rad_dist = 8000.0 #distance from release point to a side of the domain (meters)
-rad_res = 4000.0 #this will tranlate to a 2m^2 cell
 
-# Implementation detail:
-# Formation of each p(x,t_i), fft of each one, and ifft will need to be done in
-#   parallel when doing Bayesian inference. fft of 8000^2 is 5.6 sec.
-#   Want: number of processors = number of days to simulate
-dom_len = rad_res*2+1 #number of cells along one dimension of domain
-dom_ticks = np.linspace(-rad_dist,rad_dist,dom_len) #label the center of each cell
-                                                    #center cell is 0
-cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
-
-# Reading the observed emergence data from a text file.
 def emergence_data(site_name):
     """ Reads the observed emergence data from a text file.
     
@@ -181,7 +165,7 @@ def mu(t_indx,day_wind,r):
         - r -- constant"""
     return r*day_wind[t_indx,0:2]
     
-def p(day,wind_data,hparams,Dparams,mu_r):
+def p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     """Returns prob density for a given day as an ndarray.
     The shape of the ndarray is currently determined by a global variable
     
@@ -190,7 +174,12 @@ def p(day,wind_data,hparams,Dparams,mu_r):
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for D(...). (sig_x,sig_y,rho)
-        - mu_r -- parameter r in the function mu"""
+        - mu_r -- parameter r in the function mu
+        - rad_dist -- distance from release point to side of the domain (m)
+        - rad_res -- number of cells from center to side of the domain"""
+        
+    dom_len = rad_res*2+1 #number of cells along one dimension of domain
+    cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
         
     stdnormal = stats.multivariate_normal(np.array([0,0]),D(*Dparams))
     ppdf = np.zeros((dom_len,dom_len))
