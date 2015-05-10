@@ -167,7 +167,6 @@ def mu(t_indx,day_wind,r):
     
 def p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     """Returns prob density for a given day as an ndarray.
-    The shape of the ndarray is currently determined by a global variable
     
     Arguments:
         - day -- day since release
@@ -189,7 +188,7 @@ def p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         #calculate integral in an intelligent way.
         #we know the distribution is centered around mu(t) at each t_indx
         mu_vec = mu(t_indx,day_wind,mu_r)
-        #translate into cell location
+        #translate into cell location. [rad_res,rad_res] is the center
         adv_cent = np.round(mu_vec/cell_dist)+np.array([rad_res,rad_res])
         #now only worry about a normal distribution nearby this center
         for ii in xrange(-40,40):

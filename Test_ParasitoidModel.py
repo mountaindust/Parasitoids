@@ -72,3 +72,12 @@ def test_h(day_wind=wind_data[1],lam=1.1):
     plt.ylabel('probability density of flight')
     plt.title('h func for prob of flight given wind')
     plt.show()
+    
+#### Test p function ####
+hparams = (1.1, 1.8, 6, 7, 1.5, 19, 1.5)
+Dparams = (1, 1, 0)
+def test_p(day=1,wind_data=wind_data,hparams=hparams,Dparams=Dparams,mu_r=1,\
+rad_dist=rad_dist,rad_res=rad_res):
+    ppdf = PM.p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
+    #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
+    return ppdf
