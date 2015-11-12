@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
-
-This is a temporary script file.
-I am a bug
+I am a class file for a single bug
 
 """
 import numpy as np
+
 class mybug:
+    #initialize the object
     def __init__(self,y=None):
         if y is None:
             self.x = np.array([0,0])
         else: 
             self.x = np.array(y)
         self.history = [self.x]
-            
+    
+    #method to update the bug's position
     def update_position(self,drift=None):
         if drift is None:
             drift = np.array([0,0])

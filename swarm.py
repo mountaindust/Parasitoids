@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Swarm file
+Swarm class file, for simulating and plotting many bug objects at once
 
 Created on Fri Apr 17 10:35:55 2015
 """
@@ -12,13 +12,17 @@ import matplotlib.cm as colormp
 import numpy as np
 class myswarm:
     
+    #initialize swarm with a given number of bugs (default 1)
     def __init__(self,numbugs=None):
         if numbugs is None:
             numbugs = 1
         self.swarm = []
+        #bug objects go in a list
         for ii in xrange(numbugs):
             self.swarm.append(mybug.mybug())
-            
+    
+    #method for updating the position of the entire swarm.
+    #spatially uniform wind vector can be given
     def update_swarm(self,n=1,wind_array=None):
         if wind_array is None:
             wind_array = np.zeros((n,2))
