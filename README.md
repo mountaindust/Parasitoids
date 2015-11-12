@@ -1,4 +1,11 @@
-# model-development
-Create bug that moves around in space using object-oriented programming
+# Parasitoids
+Parasitoid wasp drift-diffusion model. Implementations include: 
+- Analytic model with Bayesian inference
+- Agent based model
+===
 
-Creators: [@KristinaRiemer](https://github.com/KristinaRiemer), [@Chrispea17](https://github.com/Chrispea17), [@mountaindust](https://github.com/mountaindust)
+Major work in progress!!!
+
+
+**Acknowledements**
+Project support from SAMSI for a working group on Physical Ecology.
