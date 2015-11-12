@@ -1,11 +1,11 @@
 # Parasitoids
-Parasitoid wasp drift-diffusion model with Bayesian inference
+Parasitoid wasp drift-diffusion model. Implementations include: 
+- Analytic model with Bayesian inference
+- Agent based model
 ===
 
 Major work in progress!!!
 
-- Task 1: Put together a working model from function defs
-- Task 2: Interface with the global functions through PyMC to do Bayesian inference on the parameters
 
 **Acknowledements**
 Project support from SAMSI for a working group on Physical Ecology.

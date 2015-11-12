@@ -80,4 +80,5 @@ def test_p(day=1,wind_data=wind_data,hparams=hparams,Dparams=Dparams,mu_r=1,\
 rad_dist=rad_dist,rad_res=rad_res):
     ppdf = PM.p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
+    #will need to implement resolution sensitive plotting
     return ppdf
