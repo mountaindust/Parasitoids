@@ -34,7 +34,8 @@ class myswarm:
         for ii in xrange(n):
             for bug in self.swarm:
                 bug.update_position(wind_array[ii,:])
-                
+    
+    #method for plotting current swarm position
     def plot_swarm(self):
         poslist = []
         swhistory = []
