@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Plot stuff
@@ -7,7 +8,6 @@ Created on Sat Mar 07 20:35:29 2015
 @author: Christopher Strickland
 """
 
-from __future__ import division
 import numpy as np
 from matplotlib import pyplot as plt
 import scipy.stats as stats
@@ -22,7 +22,7 @@ import pymc as pm
 
 x = np.linspace(0.01, 5, 1000)
 gamln = np.zeros(1000)
-for ii in xrange(len(x)):
+for ii in range(len(x)):
     gamln[ii] = pm.gamma_like(x[ii],2,1)
 plt.plot(x, np.exp(gamln))
 #plt.hold(True)

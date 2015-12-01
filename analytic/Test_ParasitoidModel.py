@@ -8,7 +8,6 @@ Created on Fri May 08 12:12:19 2015
 :author: Christopher Strickland
 """
 
-from __future__ import division
 import numpy as np
 import ParasitoidModel as PM
 import matplotlib.pyplot as plt

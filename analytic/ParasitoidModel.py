@@ -11,7 +11,6 @@ Created on Sat Mar 07 20:18:32 2015
 @author: Christopher Strickland
 """
 
-from __future__ import division
 import numpy as np
 import scipy.linalg as linalg
 import scipy.stats as stats
@@ -31,20 +30,19 @@ def emergence_data(site_name):
     em = {}
 
     file_name = site_name + 'emergence.txt'
-    em_file = open(file_name, 'r')
-
-    comment_line = em_file.readline() # e.g. #date   0  22   25   ...
-    split_comment_line = comment_line.split()
-    split_comment_line.pop(0) # remove '#data'
-    for line in em_file.readlines(): # e.g. 01  2  0    0    ...
-        split_line = line.split()
-        date = int(split_line.pop(0))
-        for ind in range(0,len(split_line)): # skips release field
-            field = split_comment_line[ind]
-            if not em.has_key(field):
-                em[field] = {}
-            em[field][date] = int(split_line[ind]) # em[field_name,date] = value
-    em_file.close()
+    
+    with open(file_name,'r') as em_file:
+        comment_line = em_file.readline() # e.g. #date   0  22   25   ...
+        split_comment_line = comment_line.split()
+        split_comment_line.pop(0) # remove '#data'
+        for line in em_file.readlines(): # e.g. 01  2  0    0    ...
+            split_line = line.split()
+            date = int(split_line.pop(0))
+            for ind in range(0,len(split_line)): # skips release field
+                field = split_comment_line[ind]
+                if field not in em:
+                    em[field] = {}
+                em[field][date] = int(split_line[ind]) # em[field_name,date] = value
 
     return em
 
@@ -58,42 +56,41 @@ def read_wind_file(site_name):
     Returns:
         - wind data as a dictionary of 2D ndarrays"""
     file_name = site_name + 'wind.txt'
-    wind_file = open(file_name)
-    wind_data = {}
-    for line in wind_file.readlines():
-        # File has data like this: day x-component y-component
-        splitline = line.split()
-        day = int(splitline[0])
-        # x-component
-        windx = float(splitline[1])
-        if abs(windx) < 10e-5: # Remove very small values
-            windx = 0
-        # y-component
-        windy = float(splitline[2])
-        if abs(windy) < 10e-5: # Remove very small values
-            windy = 0
-        # r
-        windr = np.sqrt(windx**2+windy**2)
-        if abs(windr) < 10e-5: # Remove very small values
-            windr = 0
-        # theta
-        if (windx == 0) & (windy == 0):
-            theta = 0 #was None. but this prevents correct conversion of list
-                      # to ndarray of type 'float64' (causes array dtype=object)
-        elif (windx == 0) & (windy > 0):
-            theta = np.pi/2
-        elif (windx == 0) & (windy < 0):
-            theta = -np.pi/2
-        else:
-            theta = np.arctan(windy/windx)
-        if windx < 0:
-            theta = theta+np.pi
-        # Add to our wind_data dictionary
-        if wind_data.has_key(day):
-            wind_data[day].append(np.array([windx,windy,windr,theta]))
-        else:
-            wind_data[day] = [np.array([windx,windy,windr,theta])]
-    wind_file.close()
+    with open(file_name) as wind_file:
+        wind_data = {}
+        for line in wind_file.readlines():
+            # File has data like this: day x-component y-component
+            splitline = line.split()
+            day = int(splitline[0])
+            # x-component
+            windx = float(splitline[1])
+            if abs(windx) < 10e-5: # Remove very small values
+                windx = 0
+            # y-component
+            windy = float(splitline[2])
+            if abs(windy) < 10e-5: # Remove very small values
+                windy = 0
+            # r
+            windr = np.sqrt(windx**2+windy**2)
+            if abs(windr) < 10e-5: # Remove very small values
+                windr = 0
+            # theta
+            if (windx == 0) and (windy == 0):
+                theta = 0 #was None. but this prevents correct conversion of list
+                          # to ndarray of type 'float64' (causes array dtype=object)
+            elif (windx == 0) and (windy > 0):
+                theta = np.pi/2
+            elif (windx == 0) and (windy < 0):
+                theta = -np.pi/2
+            else:
+                theta = np.arctan(windy/windx)
+            if windx < 0:
+                theta = theta+np.pi
+            # Add to our wind_data dictionary
+            if day in wind_data:
+                wind_data[day].append(np.array([windx,windy,windr,theta]))
+            else:
+                wind_data[day] = [np.array([windx,windy,windr,theta])]
     
     #convert each list of ndarrays to a single ndarray where rows are times,
     #  columns are the windx,windy,windr,theta. This allows fancy slicing.
@@ -136,8 +133,8 @@ def D(sig_x, sig_y, rho):
         - sig_x, sig_y -- Std. deviation in x and y direction respectively
         - rho -- Covariance"""
         
-    return np.array([[sig_x^2, rho*sig_x*sig_y],\
-                     [rho*sig_x*sig_y, sig_y^2]])
+    return np.array([[sig_x**2, rho*sig_x*sig_y],\
+                     [rho*sig_x*sig_y, sig_y**2]])
     
 def h(day_wind, lam, aw, bw, a1, b1, a2, b2):
     """Returns probability of flying per unit time under given conditions
@@ -184,15 +181,15 @@ def p(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     ppdf = np.zeros((dom_len,dom_len))
     day_wind = wind_data[day]
     hprob = h(day_wind, *hparams)
-    for t_indx in xrange(0,day_wind.shape[0]):
+    for t_indx in range(day_wind.shape[0]):
         #calculate integral in an intelligent way.
         #we know the distribution is centered around mu(t) at each t_indx
         mu_vec = mu(t_indx,day_wind,mu_r)
         #translate into cell location. [rad_res,rad_res] is the center
         adv_cent = np.round(mu_vec/cell_dist)+np.array([rad_res,rad_res])
         #now only worry about a normal distribution nearby this center
-        for ii in xrange(-40,40):
-            for jj in xrange(-40,40):
+        for ii in range(-40,40):
+            for jj in range(-40,40):
                 cellx = adv_cent[0]+ii
                 celly = adv_cent[1]+jj
                 #check boundaries (probably not necessary)
