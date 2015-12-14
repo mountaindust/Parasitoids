@@ -63,13 +63,13 @@ d\bv{S}_{\tilde{t}} = a\bv{w}(\tilde{t})d\tilde{t} + \bsy\sigma d\bv{W}_{\tilde{
 \end{equation*}
 during the interval $t\leq\tilde{t}\leq t+t_d$ with probability $h(\bv{w}(t),t)$. If the parasitoid does not fly at all during a period it does not diffuse via the Wiener process either, resulting in a model of zero change during that time. Since the probability distribution for position is known via Equation (\ref{eqn:pdf}) for each choice of take-off time, we need only take the weighted average of these distributions to find the posterior distribution after a single period
 \begin{equation}
-p(\bv{x},t_1) = \int_{t_0}^{t_1}h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D)dt\label{eqn:first_post}
+p(\bv{x},t_1) = \int_{t_0}^{t_1}\left[h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D) + (1 - h(\bv{w}(t),t))\delta(\bv{x})\right]dt\label{eqn:first_post}
 \end{equation}
 where $t_1$ denotes the last time a wasp can take off to fly in the first period (day).
 
 Although this model assumes that the wasp starts at the origin, we can now leverage the fact that each discrete period of flight is independent from the last. Let $\bv{X}_i$ be a random vector denoting the position of a wasp after time period $i$ given that the wasp started at the origin at the beginning of the first period. Let $\bv{U}_i$ be a random vector denoting the change in position on each day $i$ for the same wasp. Then $\bv{U}_i$ is identical to the position of a wasp that starts on the origin after period $i-1$, so that
 \begin{equation}
-\bv{U}_i \sim p(\bv{x},t_i) = \int_{t_{i-1}}^{t_i}h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D)dt.
+\bv{U}_i \sim p(\bv{x},t_i) = \int_{t_{i-1}}^{t_i}\left[h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D) + (1 - h(\bv{w}(t),t))\delta(\bv{x})\right]dt.
 \end{equation}
 Now since $\bv{X}_M$ is the sum of $M$ such movements,
 \begin{equation*}
