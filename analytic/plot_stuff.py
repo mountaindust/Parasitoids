@@ -5,7 +5,7 @@ Plot stuff
 
 Created on Sat Mar 07 20:35:29 2015
 
-@author: Christopher Strickland
+:author: Christopher Strickland
 """
 
 import numpy as np
