@@ -47,14 +47,23 @@ coverage.xml
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-
 # Sphinx documentation
 docs/_build/
 
 # PyBuilder
 target/
+
+# LaTeX Compilations
+# =========================
+
+*.aux
+*.log
+*.pdf
+*.bak
+*.sav
+*.bbl
+*.blg
+*.spl
 
 # =========================
 # Operating System Files

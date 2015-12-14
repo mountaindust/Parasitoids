@@ -1,0 +1,147 @@
+%Write-up for parasitoid model
+\documentclass[12pt,english]{article}
+
+\usepackage{mathtools,amsbsy,amsfonts,amscd,float,url,fancyhdr} %only put non-formatting stuff here. mathtools automatically loads amsmath
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+\setcounter{page}{1}
+\pagestyle{fancy}
+\lhead{Christopher Strickland}
+\chead{}
+\rhead{Parasitoid wasp model}
+\lfoot{}
+\cfoot{}
+\rfoot{\thepage} %if \thepage is unspecified, pg # will be put in the center ft. if \cfoot{} is commented out
+\newcommand{\bv}[1]{\mathbf{#1}}
+\newcommand{\bsy}{\boldsymbol}
+\newcommand{\heavi}{\mathcal{H}}
+
+\section*{Introduction}
+
+Consider a single wasp situated at the origin of a two dimensional Euclidean domain. Neglecting effects from other wasps, prey, or spatial heterogeneity, we can model the movement of the wasp as the sum of wind advection and the wasp's own efforts.
+
+Let $\tilde{t}$ be flight time for the wasp (a subset time-frame of global time $t$), and $\bsy\mu(\tilde{t})$ be the wind vector experienced by the wasp at time $\tilde{t}$. If we assume that in the moving frame of the wind, the flight effort from the wasp can be modeled by a (possibly biased) Wiener process, then the 2-dimensional position of the wasp $\bv{S}_{\tilde{t}}\in\mathbb{R}^2$ is a random variable at time $\tilde{t}$, and is given by the It\={o} stochastic differential equation
+\begin{equation}
+d\bv{S}_{\tilde{t}} = \bsy\mu(\tilde{t})d\tilde{t} + \bsy\sigma d\bv{W}_{\tilde{t}}\label{eqn:SDE}
+\end{equation}
+where $\bsy\sigma$ is a constant 2 by 2 matrix. The probability density $\tilde{p}(\bv{x},t)$ for $\bv{S}_{\tilde{t}}$ satisfies a special case of the Fokker-Planck equation
+\begin{equation}
+\frac{\partial p(\bv{x},\tilde{t})}{\partial \tilde{t}} = -\sum_{i=1}^2\frac{\partial}{\partial x_i}[\mu_i(\tilde{t})p(\bv{x},\tilde{t})] + \frac{1}{2}\sum_{i=1}^2\sum_{j=1}^2 \frac{\partial^2}{\partial x_i\partial x_j}[D_{ij}p(\bv{x},\tilde{t})]
+\end{equation}
+with drift vector $\bsy\mu=(\mu_1,\mu_2)^T$ and diffusion tensor
+\begin{equation*}
+D_{ij}=\sum_{k=1}^2 \sigma_{ik}\sigma_{jk}.
+\end{equation*}
+Given the initial condition of starting at the origin, this equation has an analytical solution with the result that
+\begin{equation}
+\bv{S}_{\tilde{t}} \sim \mathcal{N}(\int_0^{\tilde{t}}\bsy\mu(\tau)d\tau,D\tilde{t}).\label{eqn:pdf}
+\end{equation}
+
+However, scaling up to the case of multiple wasps presents us with a problem. If $N$ wasps were released from the origin and only flew at the same time as each other, the expected number of wasps at position $\bv{x}$ following a flight time of $\tilde{t}$ would be given by $N$ times the normal distribution described above. This is because every wasp would experience the same wind advection, and the Wiener process is both memoryless and position independent. But in reality, each wasp's flight time $\tilde{t}$ is almost surely a different subset of $t$ from every other wasp, and thus the experienced advection will be different from wasp to wasp. To account for this behavior, we need to model the probability that wasps will be flying at different times $t$ and take the aggregate all these possible flight periods to obtain a single probability distribution for position at time $t$.
+
+\section*{Multiple paths model}
+
+First, in order to keep the model simple, we will assume that time is broken up into periods (e.g. days), and that each parasitoid is capable of making no more than one continuous flight during each period. This allows us to treat the position of each wasp as a discrete-time Markov chain of order zero on a period to period basis, with only one flight determining the new position. That is, after each period, every parasitoid has moved at most once and the probability of any future movement is completely independent of all past movement. In an extension to this work, accommodating multiple flights per period should be possible while keeping the model analytical, specifically by using the Kolmogorov definition of conditional probability to find the probability of multiple flights as a function of previous flight conditions. In all cases, we will assume that the time duration $t_d$ of each flight is fixed.
+
+Let $\bv{w}(t)$ denote the wind vector at time $t$. We will assume that if a wasp is airborne at time $t$, it experiences advection proportional to the wind, $r\bv{w}(t)$. Thus, for a wasp that takes off at time $t$ and flies until time $t+t_d$, it's total advection for the period is
+\begin{equation}
+\bsy\mu(t) = r\int_{t}^{t+t_d}\bv{w}(\tau)d\tau.\label{eqn:advec}
+\end{equation}
+We now associate probabilities with each choice of $t_0$. Assume that the probability $h(\bv{w}(t),t)$ that a wasp will take off at time $t$ can be modeled by the equation
+\begin{equation}
+h(\bv{w}(t),t) = \lambda f(t)g(\bv{w}(t)),\label{eqn:advec_prob}
+\end{equation}
+where for any choice of the function $\bv{w}$, we require that
+\begin{equation*}
+0\leq\int_{t_{start}}^{t_{end}} h(\bv{w}(\tau),\tau)d\tau\leq 1
+\end{equation*}
+when $t_{start}$ and $t_{end}$ denote the start and end of a period (day) respectively.
+
+Combining Equations (\ref{eqn:advec}) and (\ref{eqn:advec_prob}) with Equation (\ref{eqn:SDE}), we can now say that during a given period, a single parasitoid will follow the model
+\begin{equation*}
+d\bv{S}_{\tilde{t}} = a\bv{w}(\tilde{t})d\tilde{t} + \bsy\sigma d\bv{W}_{\tilde{t}}
+\end{equation*}
+during the interval $t\leq\tilde{t}\leq t+t_d$ with probability $h(\bv{w}(t),t)$. If the parasitoid does not fly at all during a period it does not diffuse via the Wiener process either, resulting in a model of zero change during that time. Since the probability distribution for position is known via Equation (\ref{eqn:pdf}) for each choice of take-off time, we need only take the weighted average of these distributions to find the posterior distribution after a single period
+\begin{equation}
+p(\bv{x},t_1) = \int_{t_0}^{t_1}h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D)dt\label{eqn:first_post}
+\end{equation}
+where $t_1$ denotes the last time a wasp can take off to fly in the first period (day).
+
+Although this model assumes that the wasp starts at the origin, we can now leverage the fact that each discrete period of flight is independent from the last. Let $\bv{X}_i$ be a random vector denoting the position of a wasp after time period $i$ given that the wasp started at the origin at the beginning of the first period. Let $\bv{U}_i$ be a random vector denoting the change in position on each day $i$ for the same wasp. Then $\bv{U}_i$ is identical to the position of a wasp that starts on the origin after period $i-1$, so that
+\begin{equation}
+\bv{U}_i \sim p(\bv{x},t_i) = \int_{t_{i-1}}^{t_i}h(\bv{w}(t),t)\mathcal{N}(\bv{x}|\bsy\mu(t),D)dt.
+\end{equation}
+Now since $\bv{X}_M$ is the sum of $M$ such movements,
+\begin{equation*}
+\bv{X}_M = \sum_{i=1}^M \bv{U}_i.
+\end{equation*}
+Furthermore, since all $\bv{U}_i$ are independent, the probability density of $\bv{X}_M$ can be calculated by taking the convolution of each of the probability densities for $\bv{U}_i$,
+\begin{equation}
+\bv{X}_M \sim p(\bv{x},t_1)\ast p(\bv{x},t_2)\ast\ldots\ast p(\bv{x},t_M) = P(\bv{x},M).
+\end{equation}
+With this posterior distribution, we finally have an analytical, deterministic model for the expected density of wasps $y(\bv{x},M)$ at position $\bv{x}$ after day $M$, when $N$ wasps start at the origin at the beginning of day one
+\begin{equation*}
+y(\bv{x},t_i) = NP(\bv{x},M).
+\end{equation*}
+While this model does not take into account any growth in the population, one could approximate short term growth by replacing $N$ with a basic malthusian growth term, or something similar.
+
+\section*{Bayesian inference}
+
+In the last section, I derived a general deterministic model for parasitoid spread from an initial point of release, but several parameters and functions remain to be specified. Numerically, the goal is to leverage the analytical form of the model in order to use Bayesian inference to identify the shape of the functions and the values of the parameters from data. To accomplish this, some priors will have to be specified representing our general belief about the form of the functions and the value of the parameters which will then altered according to their likelihood based on data.
+
+The parameters we must consider are $r$, $D$ (the $2\times 2$ matrix of diffusion constants), and possibly $t_d$, though we will take this as fixed in the model for now, until the numerical computation demands are better understood. We must also specify information about $h(\bv{w},t)$.
+
+Wasps drift with the wind and not against it, so we can assume that $r>0$. We should not restrict $r$ with an upper bound however, since $t_d$ is relatively uncertain and likely not a constant. The parameter $r$ can also act as a scaling term that helps take into account more advanced effects not included in our model, such as parachuting or active flight behavior that takes advantage of rolling vortices. To take into account such considerations, we can specify that our belief in $r$ is Gamma distributed. Since we have some information about what $r$ might be from the genetic algorithm, this gives us a place to initialize our distribution for MCMC.
+
+The diffusion matrix $D$ must be positive definite in order to yield a non-degenerate normal distribution that has a density. In this case, given the derivation of $D$ from a Wiener process, we can write that
+\begin{equation*}
+D = \left(
+      \begin{array}{cc}
+        \sigma_x^2 & \rho\sigma_x\sigma_y \\
+        \rho\sigma_x\sigma_y & \sigma_y^2 \\
+      \end{array}
+    \right)
+\end{equation*}
+where $\sigma_x>0$ and $\sigma_y>0$ are the standard deviations in the $x$ and $y$ directions respectively, and $-1<\rho<1$ is the correlation (we omit the case where correlation is -1 or 1 to force $D$ to be positive definite - in our application, we can say that correlation is not either one of these values almost surely). We can restrict these parameters to their domains by assigning priors to $\sigma_x$ and $\sigma_y$ that are Gamma distributed, and assigning $0.5\rho+0.5$ a Beta distributed prior.
+
+We also need to specify a model for $h(\bv{w},t)$. As in Equation (\ref{eqn:advec_prob}), we begin by assuming that
+\begin{equation*}
+h(\bv{w}(t),t) = \lambda f(t)g(\bv{w}(t)).
+\end{equation*}
+where $f(t)$ is a function that takes into account the probability of flying during some parts of the day verses others, and $g(\bv{w}(t))$ restricts the probability of flying in high winds. For simplicity, we can begin by assuming that weather conditions on subsequent days are identical, so $f(t)$ has a 24 hour period. Let $\hat{t} = t\mod 24\mbox{hrs}$, so that $\hat{t}=0$ corresponds to midnight. As a first model, we may assume that no flights take place during the night, and other than some transition time corresponding roughly to dawn and dusk, the time of day plays little or no role in whether flights happen during daylight hours.
+
+To represent this dynamic mathematically, we can take the difference of two logistic functions, one to transition into daylight and the other to transition back into night
+\begin{equation}
+f(\hat{t}) = \frac{1}{1 + e^{-b_1(\hat{t} - a_1)}} - \frac{1}{1 + e^{-b_2(\hat{t} - a_2)}}.
+\end{equation}
+In this model, all parameters are expected to be positive. The middle of the dawn transition will occur at $\hat{t}=a_1$ and the middle of the dusk transition will occur at $\hat{t}=a_2$, with $b_1$ and $b_2$ controlling the length of the transition (larger parameters correspond to a shorter transition). The values for $a_1$ and $a_2$ should be restricted to the 24 hour day while $b_1$ and $b_2$ can take on any positive value, so a natural choice of priors for these parameters can be found using the Beta and Gamma distributions respectively (e.g., $a_1\sim 24\cdot\mbox{Beta}(\alpha_1,\beta_1)$ and $b_1\sim\mbox{Gamma}(k_1,\theta_1)$).
+
+Since the primary purpose $g(\bv{w}(t))$ is to decrease the probability of flight in high winds, we can once again utilize a logistic function, this time using wind speed as the independent variable and flipping the function so that it is strictly decreasing
+\begin{equation}
+g(\bv{w}) = \frac{1}{1 + e^{b_w(|\bv{w}| - a_w)}}.
+\end{equation}
+This time, $a_w$ does not have a clear upper bound on its domain, so both parameters can be modeled with Gamma distributions.
+
+Finally, we examine the parameter $\lambda$ in the function $h(\bv{w}(t),t)$. In addition to filling the role of a rate parameter, $\lambda$ must scale $h$ so that it represents a proper probability density of flying in a 24 hour period under all different wind conditions. That is, if $t_{start}$ and $t_{end}$ represent the start and the end of any day respectively, we require that
+\begin{equation}
+0\leq P_f\leq 1 \mbox{ where } P_f = \int_{t_{start}}^{t_{end}}h(\bv{w}(t),t)dt,
+\end{equation}
+where $P_f$ represents the probability of flying at all during the day. One way to attack this problem is to say that $\lambda=P_f/\lambda_1$, where
+\begin{equation}
+\lambda_1 = \int_{t_{start}}^{t_{end}}f(t)g(\bv{w}(t))dt.
+\end{equation}
+Now for any choice of $f(t)$ and $g(\bv{w}(t))$, $\lambda_1$ is determined and we must have that $0\leq P_f\leq 1$ suggesting that we specify a Beta prior for $P_f$.
+
+In summary, our list of parameters with their priors is
+\begin{align*}
+r &\sim \mbox{Gamma}(k_r,\theta_r)\\
+\sigma_x, \sigma_y &\sim \mbox{Gamma}(k_x,\theta_x), \mbox{Gamma}(k_y,\theta_y)\\
+\rho &\sim 2\cdot\mbox{Beta}(\alpha,\beta)-1\\
+a_1, a_2 &\sim 24\cdot\mbox{Beta}(\alpha_1,\beta_1), 24\cdot\mbox{Beta}(\alpha_2,\beta_2)\\
+b_1, b_2 &\sim \mbox{Gamma}(k_1,\theta_1), \mbox{Gamma}(k_2,\theta_2)\\
+a_w &\sim \mbox{Gamma}(k_a,\theta_a)\\
+b_w &\sim \mbox{Gamma}(k_b,\theta_b)\\
+P_f &\sim \mbox{Beta}(\alpha_p,\beta_p).
+\end{align*}
+For this problem, initialization of the hyper-parameters can often be chosen based on the nature of the model or information gathered from the genetic algorithm model. The next step is to implement the inference in PyMC.
+\end{document} 
