@@ -217,6 +217,9 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
                 celly = adv_cent[1]+jj
                 #check boundaries (probably not necessary)
                 if 0<=cellx<dom_len and 0<=celly<dom_len:
-                    ppdf[cellx,celly] = ppdf[cellx,celly] + hprob[t_indx]\
+                    ppdf[cellx,celly] += hprob[t_indx]\
                     *stdnormal.pdf(np.array([ii*cell_dist,jj*cell_dist]))
+    #1-np.sum(ppdf) is now the probability of not flying.
+    #Place this probability at the origin
+    ppdf[rad_res,rad_res] += 1-ppdf.sum()
     return ppdf
