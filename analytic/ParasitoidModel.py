@@ -188,6 +188,10 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     origin. The final position of all wasps based on the previous day's
     position is then updated via convolution with this function.
     
+    INT_RANGE is currently an arbitrary value representing how far we want to
+    integrate around the origin of the mean-shifted normal distribution.
+    TODO: In reality, this value should be based on Dmat.
+    
     Arguments:
         - day -- day since release
         - wind_data -- dictionary of wind data
@@ -199,26 +203,40 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         
     dom_len = rad_res*2+1 #number of cells along one dimension of domain
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
+    
+    INT_RANGE = 40
         
     stdnormal = stats.multivariate_normal(np.array([0,0]),Dmat(*Dparams))
     ppdf = np.zeros((dom_len,dom_len))
     day_wind = wind_data[day]
     hprob = h_flight_prob(day_wind, *hparams)
     for t_indx in range(day_wind.shape[0]):
+        
         #calculate integral in an intelligent way.
         #we know the distribution is centered around mu(t) at each t_indx
         mu_vec = mu(t_indx,day_wind,mu_r)
         #translate into cell location. [rad_res,rad_res] is the center
         adv_cent = np.round(mu_vec/cell_dist)+np.array([rad_res,rad_res])
         #now only worry about a normal distribution nearby this center
-        for ii in range(-40,40):
-            for jj in range(-40,40):
-                cellx = adv_cent[0]+ii
-                celly = adv_cent[1]+jj
-                #check boundaries (probably not necessary)
-                if 0<=cellx<dom_len and 0<=celly<dom_len:
-                    ppdf[cellx,celly] += hprob[t_indx]\
-                    *stdnormal.pdf(np.array([ii*cell_dist,jj*cell_dist]))
+        
+        #We will get the normal distribution +/- INT_RANGE from the center
+        cellx_min = int(max(0,adv_cent[0]-INT_RANGE))
+        cellx_max = int(min(dom_len,adv_cent[0]+INT_RANGE))
+        celly_min = int(max(0,adv_cent[1]-INT_RANGE))
+        celly_max = int(min(dom_len,adv_cent[1]+INT_RANGE))
+        
+        #want to pass list of [x,y] values to stdnormal.pdf, centered at origin
+        xlist = np.arange(cellx_min,cellx_max+1)-adv_cent[0]
+        ylist = np.arange(celly_min,celly_max+1)-adv_cent[1]
+        #need list of all coordinates. This fancyness accomplishes it
+        xylist = np.vstack(np.meshgrid(xlist,ylist)).reshape(2,-1).T
+        
+        #approximate integral over time
+        #here, we are assuming that time is in hours and each recorded
+        #   period is 1 hr long. probably should change this for robustness.
+        ppdf[cellx_min:cellx_max+1,celly_min:celly_max+1] += hprob[t_indx]*\
+            stdnormal.pdf(xylist*cell_dist).reshape(xlist.size,ylist.size)
+        
     #1-np.sum(ppdf) is now the probability of not flying.
     #Place this probability at the origin
     ppdf[rad_res,rad_res] += 1-ppdf.sum()

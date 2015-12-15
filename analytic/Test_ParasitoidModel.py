@@ -28,6 +28,7 @@ wind_data = PM.read_wind_file('carnarvonearl')
 # FUTURE: assign cells UTM values when plotting
 rad_dist = 8000.0 #distance from release point to a side of the domain (meters)
 rad_res = 4000 #number of cells from center to side of domain
+               #so, each cell is 2 m**2
 
 
 dom_len = rad_res*2+1 #number of cells along one dimension of domain
