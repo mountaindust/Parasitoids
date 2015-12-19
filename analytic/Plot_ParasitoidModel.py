@@ -41,7 +41,7 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 # 2. play with them to get some reasonable dummy parameters
 
 #### Test g function for prob. during different wind speeds ####
-def test_g(aw=1.8,bw=6):
+def plot_g_wind_prob(aw=1.8,bw=6):
     windr_range = np.arange(0,3.1,0.1) #a range of wind speeds
     plt.figure()
     #first scalar centers the logistic. Second one stretches it.
@@ -52,7 +52,7 @@ def test_g(aw=1.8,bw=6):
     plt.show()
 
 #### Test f function for prob. during different times of the day    
-def test_f(a1=7,b1=1.5,a2=19,b2=1.5):
+def plot_f_time_prob(a1=7,b1=1.5,a2=19,b2=1.5):
     n = 240 #throw in a lot of increments to see a smooth 24hr plot
     day_time = np.linspace(0,24,n)
     #first scalar centers the logistic. Second one stretches it.
@@ -64,7 +64,7 @@ def test_f(a1=7,b1=1.5,a2=19,b2=1.5):
     plt.show()
     
 #### Test h function (and therefore g and f) with data ####
-def test_h(day_wind=wind_data[1],lam=1.1):
+def plot_h_flight_prob(day_wind=wind_data[1],lam=1.1):
     day_time = np.linspace(0,24,wind_data[1].shape[0])
     plt.figure()
     plt.plot(day_time,PM.h_flight_prob(day_wind,lam,1.8,6,7,1.5,19,1.5))
@@ -78,8 +78,8 @@ hparams = (1.1, 1.8, 6, 7, 1.5, 19, 1.5)
 Dparams = (1, 1, 0)
 # This seems to be returning an array that sums to a value less than one.
 #   Should sum to one as a probability density?
-def test_p(day=1,wind_data=wind_data,hparams=hparams,Dparams=Dparams,mu_r=1,\
-rad_dist=rad_dist,rad_res=rad_res):
+def plot_prob_density(day=1,wind_data=wind_data,hparams=hparams,\
+Dparams=Dparams,mu_r=1,rad_dist=rad_dist,rad_res=rad_res):
     ppdf = PM.prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
