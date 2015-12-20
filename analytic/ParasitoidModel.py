@@ -14,7 +14,6 @@ Created on Sat Mar 07 20:18:32 2015
 
 import numpy as np
 import scipy.linalg as linalg
-import scipy.stats as stats
 from scipy.stats import mvn
 from scipy import fftpack
 
@@ -185,32 +184,68 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     return lam*f_times_g/(np.sum(f_times_g)*24/n) #np.array of length n
 
 
-def get_mvn_cdf_values(centers,cell_length,S):
+def get_mvn_cdf_values(cell_length,S):
     """Get cdf values for a multivariate normal centered at (0,0) 
     inside regular cells. To do this fast, we use a secret Fortran mulivariate
-    normal CDF (mvn) due to Dr. Alan Genz
+    normal CDF (mvn) due to Dr. Alan Genz.
     
-    This function cannot be jit nopython compiled with numba
-        - doesn't recognize mvn
+    This function will return a variable sized 2D array with its shape
+    dependent on the support of the normal distribution.
+    
+    This function cannot be jit nopython compiled with numba due to mvn
     
     Args:
-        centers: 2D ndarray with each row an x,y coordinate for the center of
-                    the cell
-        cell_length: length of each cell
+        cell_length: length of a side of each cell
         S: covariance matrix
         
     Returns:
-        cdf_vals: array of cdf values, one for each row in centers
-        inform: should be all zeros if normal completion with ERROR < EPS"""
+        cdf_mat: 2D array of cdf values, one for each cell"""
     
-    cdf_vals = np.empty(centers.shape[0])
-    inform = np.empty(centers.shape[0])
-    for ii in range(centers.shape[0]):
-        low = centers[ii] - cell_length/2.
-        upp = centers[ii] + cell_length/2.
-        cdf_vals[ii],inform = mvn.mvnun(low,upp,np.array([0,0]),S)
+    cdf_eps = 0.0001    # integrate until the area of the square is within
+                        #   cdf_eps of 1.0
+    
+    r = cell_length/2 # in meters. will want to integrate +/- this amount
+    mu = np.array([0,0])
+    h = 0 # h*2+1 is the length of one side of the support in cells (int).
+    
+    # Integrate center cell
+    low = np.array([-r,-r])
+    upp = np.array([r,r])
+    val, inform = mvn.mvnun(low,upp,mu,S)
+    assert inform == 0 # integration finished with error < EPS
+    # cdf_vals is a dict that takes x,y coordinate pairs (cell center locations)
+    #   to probability mass values.
+    cdf_vals = {(0,0):val}
+    val_sum = val # keep track of the total sum of the integration
+    
+    # Start loop
+    while 1 - val_sum >= cdf_eps:
+        h += 1 # increase the size of the domain
         
-    return cdf_vals,inform
+        # Integrate the four sides of the square
+        for ii in [-h,h]:
+            for jj in range(-h,h+1):
+                low = np.array([ii,jj])*cell_length - r
+                upp = low + cell_length
+                val, inform = mvn.mvnun(low,upp,mu,S)
+                assert inform == 0 #integration finished with error < EPS
+                cdf_vals[(ii,jj)] = val
+                val_sum += val
+        for jj in [-h,h]:
+            for ii in range(-h+1,h): #leave off corners, they're already done
+                low = np.array([ii,jj])*cell_length - r
+                upp = low + cell_length
+                val, inform = mvn.mvnun(low,upp,mu,S)
+                assert inform == 0 #integration finished with error < EPS
+                cdf_vals[(ii,jj)] = val
+                val_sum += val
+        
+    # We've now integrated to the required accuracy. Form an ndarray.
+    # We need to translate x,y coordinate pairs to row and column numbers
+    cdf_mat = np.array([[cdf_vals[(x,y)] for x in range(-h,h+1)] 
+        for y in range(h,-h-1,-1)])
+        
+    return cdf_mat
 
     
 def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
@@ -238,13 +273,13 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         
     dom_len = rad_res*2+1 #number of cells along one dimension of domain
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
-    
-    INT_RANGE = 40
         
-    stdnormal = stats.multivariate_normal(np.array([0,0]),Dmat(*Dparams))
     pmf = np.zeros((dom_len,dom_len))
+    
     day_wind = wind_data[day]
+    
     hprob = h_flight_prob(day_wind, *hparams)
+    
     for t_indx in range(day_wind.shape[0]):
         # Get the advection velocity and put in units = m/(unit time)
         mu_v = day_wind[t_indx,0:2] # km/hr
@@ -253,36 +288,54 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         #   of the unit time that the wasp spends flying times a scaling term
         #   that takes wind speed to advection speed.
         mu_v *= mu_r
+        # Note: this is in (x,y) coordinates
         
-        #calculate integral in an intelligent way.
-        #we know the distribution is centered around mu(t) at each t_indx
-        #translate into cell location. [rad_res,rad_res] is the center
-        adv_cent = np.round(mu_v/cell_dist)+np.array([rad_res,rad_res])
-        #now only worry about a normal distribution nearby this center
+        # calculate spatial integral in an intelligent way #
         
-        #We will get the normal distribution +/- INT_RANGE from the center
-        cellx_min = int(max(0,adv_cent[0]-INT_RANGE))
-        cellx_max = int(min(dom_len,adv_cent[0]+INT_RANGE))
-        celly_min = int(max(0,adv_cent[1]-INT_RANGE))
-        celly_max = int(min(dom_len,adv_cent[1]+INT_RANGE))
+        #we know the distribution is centered around mu_v(t) at each t_indx, and
+        #   that it has very limited support. Translate the normal distribution
+        #   back to the origin and let get_mvn_cdf_values integrate until
+        #   the support is exhausted.
         
-        #want to pass list of [x,y] values to get_mvn_cdf_vals, 
-        #   centered at origin
-        xlist = np.arange(cellx_min,cellx_max+1)-adv_cent[0]
-        ylist = np.arange(celly_min,celly_max+1)-adv_cent[1]
+        # NOTE: We can make this all run just once if we assume that the
+        #   diffusion covarience matrix will remain constant. Let's not
+        #   implement such a mechanic quite yet. 
+        #   (Dmat can flag when it is called)
         
-        #need list of all coordinates. This fancyness accomplishes it
-        xylist = np.vstack(np.meshgrid(xlist,ylist)).reshape(2,-1).T
+        cdf_mat = get_mvn_cdf_values(cell_dist,Dmat(*Dparams))
         
-        #Get multivariate normal cdf at each cell under consideration
-        cdf_vals,inform = \
-        get_mvn_cdf_values(xylist*cell_dist,cell_dist,Dmat(*Dparams))
-        #Check that the integration converged to less than EPS in each cell
-        assert np.all(inform == 0)
+        #translate into mu_v from (x,y) coordinates to cell location.
+        #   [rad_res,rad_res] is the center cell.
+        
+        # TODO: this rounds the mean to the nearest cell center.
+        #       ... WE CAN DO BETTER! Just need to pass offset to
+        #       get_mvn_cdf_values as a mean (mu) value.
+        col_offset = int(np.round(mu_v[0]/cell_dist))
+        row_offset = int(np.round(-mu_v[1]/cell_dist))
+        # Do some (probably needless) boundary checking
+        row_cent = np.max((0,np.min((dom_len,rad_res+row_offset))))
+        col_cent = np.max((0,np.min((dom_len,rad_res+col_offset))))
+        adv_cent = np.array([row_cent,col_cent])
+        
+        #now we want to plop the normal distribution around this center
+        
+        norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
+        
+        # More (probably needless) boundary checking
+        row_min = int(max((0,adv_cent[0]-norm_r)))
+        nrow_min = row_min - (adv_cent[0]-norm_r)
+        row_max = int(min((dom_len,adv_cent[0]+norm_r)))
+        nrow_max = row_max - row_min
+        col_min = int(max((0,adv_cent[1]-norm_r)))
+        ncol_min = col_min - (adv_cent[1]-norm_r)
+        col_max = int(min((dom_len,adv_cent[1]+norm_r)))
+        ncol_max = col_max - col_min
+        
         
         #approximate integral over time
-        pmf[cellx_min:cellx_max+1,celly_min:celly_max+1] += (hprob[t_indx]*
-            cdf_vals.reshape(xlist.size,ylist.size)*24/wind_data[day].shape[0])
+        pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
+            cdf_mat[nrow_min:nrow_max+1,ncol_min:ncol_max+1]*
+            24/wind_data[day].shape[0])
 
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.

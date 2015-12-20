@@ -161,6 +161,48 @@ def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
         assert np.all(flight_prob >= 0)
         #integral divided by lambda should be equal to 1
         assert math.isclose(flight_prob.sum()*24/day_wind.shape[0]/lam,1)
+        
+def test_get_mvn_cdf_values():
+    # This test should make sure (x,y) coordinate pairs are correctly
+    #   translated to row/columns, among other things.
+    
+    # Use a covarience matrix with some correlation. Test one with high varience
+    #   vs. one with small varience to make sure that the adaptive integration
+    #   is working properly.
+    
+    cell_length = 2
+    
+    sig_x1 = 4; sig_y1 = 4 # (in meters)
+    corr1 = 0.5
+    S1 = np.array([[sig_x1**2, corr1*sig_x1*sig_y1],
+                   [corr1*sig_x1*sig_y1, sig_y1**2]])
+    # bigger
+    sig_x2 = 10; sig_y2 = 10
+    corr2 = corr1
+    S2 = np.array([[sig_x2**2, corr2*sig_x2*sig_y2],
+                   [corr2*sig_x2*sig_y2, sig_y2**2]])
+                   
+    # Get cdf values
+    cdf_mat1 = PM.get_mvn_cdf_values(cell_length,S1)
+    cdf_mat2 = PM.get_mvn_cdf_values(cell_length,S2)
+    
+    # should behave like an approximation to a probability mass function
+    assert 0.99 < cdf_mat1.sum() < 1
+    assert 0.99 < cdf_mat2.sum() < 1
+    
+    # 2 should be bigger than 1
+    assert cdf_mat2.size > cdf_mat1.size
+    
+    # With positive correlation, we expect more probability in the first and
+    #   third quadrants.
+    assert cdf_mat1[0,0] < cdf_mat1[0,-1]
+    # The mean is at the origin, so this should be the location with the
+    #   most probability
+    mdpt = int(cdf_mat1.shape[0]/2) #shape is an odd number. flooring should
+                                    #   get us where we want in a 0-based index
+    assert cdf_mat1.max() == cdf_mat1[mdpt,mdpt]
+    
+    
     
 def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
     f_time_prob_params,domain_info):
@@ -176,6 +218,11 @@ def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
     
     # parameters for h_flight_prob
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
+    
+    # Run over just one 30 min period to see what happens in detail before
+    #   aggregating
+    
+    # TODO
     
     # get the day's probability density for location of a parasitoid
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,*domain_info)
