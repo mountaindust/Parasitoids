@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Test suite for ParasitoidModel
+Plotting suite for ParasitoidModel
 
 Created on Fri May 08 12:12:19 2015
 
@@ -11,6 +11,7 @@ Created on Fri May 08 12:12:19 2015
 import numpy as np
 import ParasitoidModel as PM
 import matplotlib.pyplot as plt
+import time
 
 # Implementation detail:
 # Formation of each p(x,t_i), fft of each one, and ifft will need to be done in
@@ -43,13 +44,13 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 #### Test g function for prob. during different wind speeds ####
 def plot_g_wind_prob(aw=1.8,bw=6):
     windr_range = np.arange(0,3.1,0.1) #a range of wind speeds
+    plt.ion()
     plt.figure()
     #first scalar centers the logistic. Second one stretches it.
     plt.plot(windr_range,PM.g_wind_prob(windr_range,aw,bw))
     plt.xlabel('wind speed')
     plt.ylabel('probability of flight')
     plt.title('g func for prob of flight during given wind speed')
-    plt.show()
 
 #### Test f function for prob. during different times of the day    
 def plot_f_time_prob(a1=7,b1=1.5,a2=19,b2=1.5):
@@ -57,24 +58,25 @@ def plot_f_time_prob(a1=7,b1=1.5,a2=19,b2=1.5):
     day_time = np.linspace(0,24,n)
     #first scalar centers the logistic. Second one stretches it.
     #first set of two scalars is the first logistic
+    plt.ion()
+    plt.figure()
     plt.plot(day_time,PM.f_time_prob(n,a1,b1,a2,b2))
     plt.xlabel('time of day (hrs)')
     plt.ylabel('probability density of flight')
     plt.title('f func for prob of flight during time of day')
-    plt.show()
     
 #### Test h function (and therefore g and f) with data ####
-def plot_h_flight_prob(day_wind=wind_data[1],lam=1.1):
+def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
     day_time = np.linspace(0,24,wind_data[1].shape[0])
+    plt.ion()
     plt.figure()
-    plt.plot(day_time,PM.h_flight_prob(day_wind,lam,1.8,6,7,1.5,19,1.5))
+    plt.plot(day_time,PM.h_flight_prob(day_wind,lam,1.8,6,7,2,19,2))
     plt.xlabel('time of day (hrs)')
     plt.ylabel('probability density of flight')
     plt.title('h func for prob of flight given wind')
-    plt.show()
     
 #### Test p function, which gives the 2-D probability density####
-hparams = (1.1, 1.8, 6, 7, 1.5, 19, 1.5)
+hparams = (1., 1.8, 6, 7, 2., 19, 2.)
 Dparams = (1, 1, 0)
 # This seems to be returning an array that sums to a value less than one.
 #   Should sum to one as a probability density?

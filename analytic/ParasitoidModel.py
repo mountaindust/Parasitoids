@@ -120,20 +120,28 @@ def read_wind_file(site_name):
 ##########    Model functions    ##########
 
 def g_wind_prob(windr, aw, bw):
-    """Returns probability of flying under given wind conditions
+    """Returns probability of flying under given wind conditions.
+    If the wind has no effect on flight probability, returns 1.
+    Otherwise, scales down from 1 to 0 as wind speed increases.
     
     Arguments:
         - windr -- wind speed
-        - aw, bw -- logistic parameters (shape and bias)"""
+        - aw -- wind speed at which flight prob. is scaled by 0.5
+        - bw -- steepness at which scaling changes (larger numbers = steeper)"""
     return 1.0 / (1. + np.exp(bw * (windr - aw)))
 
 #Probability of flying at n discrete times of the day, equally spaced
 def f_time_prob(n, a1, b1, a2, b2):
-    """Returns probability of flying at n discrete times of day, equally spaced
+    """Returns probability of flying based on time at n equally spaced times
+    If the time of day as no effect on flight probability, returns 1.
+    Otherwise, scales down from 1 to 0 as time is more unfavorable.
     
     Arguments:
         - n -- number of wind data points per day available
-        - a1,b1,a2,b2 -- logistic parameters (shape and bias)"""
+        - a1 -- time of morning at which to return 0.5
+        - b1 -- steepness of morning curve (larger numbers = steeper)
+        - a2 -- time of afternoon at which to return 0.5
+        - b2 -- steepness of afternoon curve (larger numbers = steeper)"""
 
     #t is in hours, and denotes start time of flight.
     #(this is sort of weird, because it looks like wind was recorded starting
