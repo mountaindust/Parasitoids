@@ -78,11 +78,10 @@ def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
 #### Test p function, which gives the 2-D probability density####
 hparams = (1., 1.8, 6, 7, 2., 19, 2.)
 Dparams = (1, 1, 0)
-# This seems to be returning an array that sums to a value less than one.
-#   Should sum to one as a probability density?
-def plot_prob_density(day=1,wind_data=wind_data,hparams=hparams,\
+
+def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
 Dparams=Dparams,mu_r=1,rad_dist=rad_dist,rad_res=rad_res):
-    ppdf = PM.prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
+    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
-    return ppdf
+    return pmf

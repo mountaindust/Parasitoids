@@ -15,6 +15,7 @@ Created on Sat Mar 07 20:18:32 2015
 import numpy as np
 import scipy.linalg as linalg
 import scipy.stats as stats
+from scipy.stats import mvn
 from scipy import fftpack
 
 __author__ = "Christopher Strickland"
@@ -162,10 +163,10 @@ def Dmat(sig_x, sig_y, rho):
                      [rho*sig_x*sig_y, sig_y**2]])
     
 def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
-    """Returns probability of flying per unit time under given conditions
+    """Returns probability density of flying during a given day's wind.
     This is given by f times g times the constant lambda. Lambda can be thought
     of as the probability of flight under perfect conditions at an ideal time
-    of day.
+    of day
     
     Arguments:
         - day_wind -- ndarray of wind directions
@@ -179,22 +180,44 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     #get just the windr values
     windr = day_wind[:,2]
     f_times_g = f_time_prob(n,a1,b1,a2,b2)*g_wind_prob(windr,aw,bw)
-    return lam*f_times_g/np.sum(f_times_g) #np.array of length n
+    # normalize f_times_g by the integral with respect to time.
+    #   dt in hours can be had by dividing 24 hrs/day by samples/day
+    return lam*f_times_g/(np.sum(f_times_g)*24/n) #np.array of length n
+
+
+def get_mvn_cdf_values(centers,cell_length,S):
+    """Get cdf values for a multivariate normal centered at (0,0) 
+    inside regular cells. To do this fast, we use a secret Fortran mulivariate
+    normal CDF (mvn) due to Dr. Alan Genz
     
-def mu(t_indx,day_wind,r):
-    """Returns distance traveled through advection
+    This function cannot be jit nopython compiled with numba
+        - doesn't recognize mvn
     
-    Arguments:
-        - t_indx -- index in wind data
-        - day_wind -- ndarray of wind directions
-        - r -- constant"""
-    return r*day_wind[t_indx,0:2]
+    Args:
+        centers: 2D ndarray with each row an x,y coordinate for the center of
+                    the cell
+        cell_length: length of each cell
+        S: covariance matrix
+        
+    Returns:
+        cdf_vals: array of cdf values, one for each row in centers
+        inform: should be all zeros if normal completion with ERROR < EPS"""
     
-def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
-    """Returns prob density for a given day as an ndarray.
+    cdf_vals = np.empty(centers.shape[0])
+    inform = np.empty(centers.shape[0])
+    for ii in range(centers.shape[0]):
+        low = centers[ii] - cell_length/2.
+        upp = centers[ii] + cell_length/2.
+        cdf_vals[ii],inform = mvn.mvnun(low,upp,np.array([0,0]),S)
+        
+    return cdf_vals,inform
+
+    
+def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
+    """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
-    position is then updated via convolution with this function.
+    position can then be updated via convolution with this function.
     
     INT_RANGE is currently an arbitrary value representing how far we want to
     integrate around the origin of the mean-shifted normal distribution.
@@ -205,9 +228,13 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
-        - mu_r -- parameter r in the function mu
+        - mu_r -- parameter to scale flight duration and distance vs. windspeed
         - rad_dist -- distance from release point to side of the domain (m)
-        - rad_res -- number of cells from center to side of the domain"""
+        - rad_res -- number of cells from center to side of the domain
+        
+    Returns:
+        - pmf -- 2D spatial probability mass function of finding the parasitoid
+                    in each spatial cell according to given resolution"""
         
     dom_len = rad_res*2+1 #number of cells along one dimension of domain
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
@@ -215,16 +242,22 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     INT_RANGE = 40
         
     stdnormal = stats.multivariate_normal(np.array([0,0]),Dmat(*Dparams))
-    ppdf = np.zeros((dom_len,dom_len))
+    pmf = np.zeros((dom_len,dom_len))
     day_wind = wind_data[day]
     hprob = h_flight_prob(day_wind, *hparams)
     for t_indx in range(day_wind.shape[0]):
+        # Get the advection velocity and put in units = m/(unit time)
+        mu_v = day_wind[t_indx,0:2] # km/hr
+        mu_v *= 1000*24/wind_data[day].shape[0] # m/(unit time)
+        # We also need to scale this by a constant which represents the fraction
+        #   of the unit time that the wasp spends flying times a scaling term
+        #   that takes wind speed to advection speed.
+        mu_v *= mu_r
         
         #calculate integral in an intelligent way.
         #we know the distribution is centered around mu(t) at each t_indx
-        mu_vec = mu(t_indx,day_wind,mu_r)
         #translate into cell location. [rad_res,rad_res] is the center
-        adv_cent = np.round(mu_vec/cell_dist)+np.array([rad_res,rad_res])
+        adv_cent = np.round(mu_v/cell_dist)+np.array([rad_res,rad_res])
         #now only worry about a normal distribution nearby this center
         
         #We will get the normal distribution +/- INT_RANGE from the center
@@ -233,19 +266,27 @@ def prob_density(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         celly_min = int(max(0,adv_cent[1]-INT_RANGE))
         celly_max = int(min(dom_len,adv_cent[1]+INT_RANGE))
         
-        #want to pass list of [x,y] values to stdnormal.pdf, centered at origin
+        #want to pass list of [x,y] values to get_mvn_cdf_vals, 
+        #   centered at origin
         xlist = np.arange(cellx_min,cellx_max+1)-adv_cent[0]
         ylist = np.arange(celly_min,celly_max+1)-adv_cent[1]
+        
         #need list of all coordinates. This fancyness accomplishes it
         xylist = np.vstack(np.meshgrid(xlist,ylist)).reshape(2,-1).T
         
-        #approximate integral over time
-        #here, we are assuming that time is in hours and each recorded
-        #   period is 1 hr long. probably should change this for robustness.
-        ppdf[cellx_min:cellx_max+1,celly_min:celly_max+1] += hprob[t_indx]*\
-            stdnormal.pdf(xylist*cell_dist).reshape(xlist.size,ylist.size)
+        #Get multivariate normal cdf at each cell under consideration
+        cdf_vals,inform = \
+        get_mvn_cdf_values(xylist*cell_dist,cell_dist,Dmat(*Dparams))
+        #Check that the integration converged to less than EPS in each cell
+        assert np.all(inform == 0)
         
-    #1-np.sum(ppdf) is now the probability of not flying.
-    #Place this probability at the origin
-    ppdf[rad_res,rad_res] += 1-ppdf.sum()
-    return ppdf
+        #approximate integral over time
+        pmf[cellx_min:cellx_max+1,celly_min:celly_max+1] += (hprob[t_indx]*
+            cdf_vals.reshape(xlist.size,ylist.size)*24/wind_data[day].shape[0])
+
+    # pmf now has probabilities per cell of flying there.
+    # 1-np.sum(ppdf) is the probability of not flying.
+    # Add this probability to the origin cell.
+    assert pmf.sum() <= 1
+    pmf[rad_res,rad_res] += 1-pmf.sum()
+    return pmf

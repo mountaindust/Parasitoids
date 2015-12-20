@@ -149,7 +149,7 @@ def test_f_prob_of_flying_by_time_of_day(f_time_prob_params):
 def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
     # lambda constant controlling probability of flying in a given day
     #   under ideal conditions.
-    lam = 1.0
+    lam = 1.
     
     # try a few days of wind data
     for ii in range(1,4):
@@ -157,11 +157,12 @@ def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
         # get the probability function for the day
         flight_prob = PM.h_flight_prob(day_wind,lam,
             *g_wind_prob_params,*f_time_prob_params)
-        # test that it has proper probability properties
+        # test that it has proper probability density properties
         assert np.all(flight_prob >= 0)
-        assert flight_prob.sum() <= 1
+        #integral divided by lambda should be equal to 1
+        assert math.isclose(flight_prob.sum()*24/day_wind.shape[0]/lam,1)
     
-def test_prob_density_after_one_day(wind_data,g_wind_prob_params,
+def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
     f_time_prob_params,domain_info):
     
     # day to test
@@ -170,16 +171,15 @@ def test_prob_density_after_one_day(wind_data,g_wind_prob_params,
     lam = 1.0
     # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
     Dparams = (1., 1., 0.0)
-    # meters to travel in advection per m/hr wind speed
-    # TODO: EACH TIME PERIOD IS TYPICALLY 30 MIN. ARE WE DIVIDING BY 2 ?????
+    # meters to travel in advection per km/hr wind speed
     mu_r = 1.
     
     # parameters for h_flight_prob
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
     
     # get the day's probability density for location of a parasitoid
-    ppdf = PM.prob_density(day,wind_data,hparams,Dparams,mu_r,*domain_info)
+    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,*domain_info)
     
-    # should be a probability density
-    assert math.isclose(ppdf.sum(),1)
+    # should be a probability mass function
+    assert math.isclose(pmf.sum(),1)
     # need more tests here...
