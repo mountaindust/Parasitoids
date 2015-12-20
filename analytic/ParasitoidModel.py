@@ -184,7 +184,7 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     return lam*f_times_g/(np.sum(f_times_g)*24/n) #np.array of length n
 
 
-def get_mvn_cdf_values(cell_length,S):
+def get_mvn_cdf_values(cell_length,mu,S):
     """Get cdf values for a multivariate normal centered at (0,0) 
     inside regular cells. To do this fast, we use a secret Fortran mulivariate
     normal CDF (mvn) due to Dr. Alan Genz.
@@ -195,7 +195,8 @@ def get_mvn_cdf_values(cell_length,S):
     This function cannot be jit nopython compiled with numba due to mvn
     
     Args:
-        cell_length: length of a side of each cell
+        cell_length: length of a side of each cell (in meters)
+        mu: mean of the distribution (in meters)
         S: covariance matrix
         
     Returns:
@@ -205,7 +206,6 @@ def get_mvn_cdf_values(cell_length,S):
                         #   cdf_eps of 1.0
     
     r = cell_length/2 # in meters. will want to integrate +/- this amount
-    mu = np.array([0,0])
     h = 0 # h*2+1 is the length of one side of the support in cells (int).
     
     # Integrate center cell
@@ -297,19 +297,14 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         #   back to the origin and let get_mvn_cdf_values integrate until
         #   the support is exhausted.
         
-        # NOTE: We can make this all run just once if we assume that the
-        #   diffusion covarience matrix will remain constant. Let's not
-        #   implement such a mechanic quite yet. 
-        #   (Dmat can flag when it is called)
+        # We will translate to the nearest cell center given by mu_v below.
+        #   Pass the remainder of the translation to get_mvn_cdf_values as mu.
+        cdf_mu = np.round(mu_v/cell_dist) - mu_v/cell_dist
         
-        cdf_mat = get_mvn_cdf_values(cell_dist,Dmat(*Dparams))
+        cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,Dmat(*Dparams))
         
-        #translate into mu_v from (x,y) coordinates to cell location.
-        #   [rad_res,rad_res] is the center cell.
-        
-        # TODO: this rounds the mean to the nearest cell center.
-        #       ... WE CAN DO BETTER! Just need to pass offset to
-        #       get_mvn_cdf_values as a mean (mu) value.
+        #translate mu_v from (x,y) coordinates to nearest cell-center location.
+        #   [rad_res,rad_res] is the center cell of the domain.
         col_offset = int(np.round(mu_v[0]/cell_dist))
         row_offset = int(np.round(-mu_v[1]/cell_dist))
         # Do some (probably needless) boundary checking

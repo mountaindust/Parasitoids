@@ -171,6 +171,7 @@ def test_get_mvn_cdf_values():
     #   is working properly.
     
     cell_length = 2
+    mu = np.zeros(2)
     
     sig_x1 = 4; sig_y1 = 4 # (in meters)
     corr1 = 0.5
@@ -183,8 +184,8 @@ def test_get_mvn_cdf_values():
                    [corr2*sig_x2*sig_y2, sig_y2**2]])
                    
     # Get cdf values
-    cdf_mat1 = PM.get_mvn_cdf_values(cell_length,S1)
-    cdf_mat2 = PM.get_mvn_cdf_values(cell_length,S2)
+    cdf_mat1 = PM.get_mvn_cdf_values(cell_length,mu,S1)
+    cdf_mat2 = PM.get_mvn_cdf_values(cell_length,mu,S2)
     
     # should behave like an approximation to a probability mass function
     assert 0.99 < cdf_mat1.sum() < 1
