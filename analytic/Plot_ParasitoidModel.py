@@ -80,8 +80,27 @@ hparams = (1., 1.8, 6, 7, 2., 19, 2.)
 Dparams = (1, 1, 0)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
-Dparams=Dparams,mu_r=1,rad_dist=rad_dist,rad_res=rad_res):
+Dparams=Dparams,mu_r=0.2,rad_dist=rad_dist,rad_res=rad_res):
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
-    return pmf
+    
+    # for now, just plot the center cells
+    res = 150
+    cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
+    xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 
+        cell_dist/3,cell_dist)
+    # mask the view at negligible probabilities
+    center = np.ma.masked_less(
+        pmf[rad_res-res:rad_res+res+1,rad_res-res:rad_res+res+1],0.0001)
+    # flip result
+    center = np.flipud(center)
+    plt.ion()
+    plt.figure()
+    plt.pcolormesh(xmesh,xmesh,np.flipud(center),cmap='viridis')
+    plt.axis([xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]])
+    plt.xlabel('East-West (meters)')
+    plt.ylabel('North-South (meters)')
+    plt.title('Parasitoid prob. after one day')
+    plt.colorbar()
+    return center

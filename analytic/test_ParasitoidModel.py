@@ -215,15 +215,13 @@ def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
     # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
     Dparams = (1., 1., 0.0)
     # meters to travel in advection per km/hr wind speed
-    mu_r = 1.
+    mu_r = 0.2 #maybe 6 min total of flight time per day?
     
     # parameters for h_flight_prob
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
     
     # Run over just one 30 min period to see what happens in detail before
-    #   aggregating
-    
-    # TODO
+    #   aggregating? TODO.
     
     # get the day's probability density for location of a parasitoid
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,*domain_info)

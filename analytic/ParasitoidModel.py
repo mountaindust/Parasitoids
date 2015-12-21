@@ -276,7 +276,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         
     pmf = np.zeros((dom_len,dom_len))
     
-    day_wind = wind_data[day]
+    day_wind = np.array(wind_data[day]) #this is mutable. need a copy.
     
     hprob = h_flight_prob(day_wind, *hparams)
     
@@ -299,7 +299,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         
         # We will translate to the nearest cell center given by mu_v below.
         #   Pass the remainder of the translation to get_mvn_cdf_values as mu.
-        cdf_mu = np.round(mu_v/cell_dist) - mu_v/cell_dist
+        cdf_mu = mu_v - np.round(mu_v/cell_dist)*cell_dist
         
         cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,Dmat(*Dparams))
         
