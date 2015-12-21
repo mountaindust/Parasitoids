@@ -148,10 +148,9 @@ def f_time_prob(n, a1, b1, a2, b2):
             during the day"""
 
     # t is in hours, and denotes start time of flight.
-    #(this is sort of weird, because it looks like wind was recorded starting
-    #after the first 30 min)
-    #Maybe we should shift this all 30 min...?
-    t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
+    # wind was recorded starting after the first 30 min, so exclude midnight
+    #   at the start, include it at the end.
+    t_tild = np.linspace(0+24./n,24,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
     likelihood = 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
