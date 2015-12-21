@@ -323,30 +323,31 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         #   [rad_res,rad_res] is the center cell of the domain.
         col_offset = int(np.round(mu_v[0]/cell_dist))
         row_offset = int(np.round(-mu_v[1]/cell_dist))
-        # Do some (probably needless) boundary checking
-        row_cent = np.max((0,np.min((dom_len,rad_res+row_offset))))
-        col_cent = np.max((0,np.min((dom_len,rad_res+col_offset))))
+        row_cent = rad_res+row_offset
+        col_cent = rad_res+col_offset
         adv_cent = np.array([row_cent,col_cent])
         
         #now we want to plop the normal distribution around this center
         
         norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
         
-        # More (probably needless) boundary checking
-        row_min = int(max((0,adv_cent[0]-norm_r)))
-        nrow_min = row_min - (adv_cent[0]-norm_r)
-        row_max = int(min((dom_len,adv_cent[0]+norm_r)))
-        nrow_max = row_max - row_min
-        col_min = int(max((0,adv_cent[1]-norm_r)))
-        ncol_min = col_min - (adv_cent[1]-norm_r)
-        col_max = int(min((dom_len,adv_cent[1]+norm_r)))
-        ncol_max = col_max - col_min
+        # Get indices in pmf array
+        row_min, col_min = adv_cent - norm_r
+        row_max, col_max = adv_cent + norm_r
         
         
         #approximate integral over time
-        pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
-            cdf_mat[nrow_min:nrow_max+1,ncol_min:ncol_max+1]*
-            24/wind_data[day].shape[0])
+        #   This try/except will probably need to be removed when we do the
+        #   Bayesian stuff, subtracting from the total probability of pmf and
+        #   returning a pmf.sum() < 1.
+        try:
+            pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
+                cdf_mat*24/periods)
+        except IndexError:
+            print('Index error in calculating prob_mass.\n'+
+            'Most likely, wind is sending parasitoids clear off the domain'+
+            ' in a single time period.')
+            raise
 
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.

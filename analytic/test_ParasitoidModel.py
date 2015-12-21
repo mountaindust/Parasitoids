@@ -263,6 +263,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # Midday on the first day had wind. Most of the probability will be at the
     #   origin because wind decreases the likelihood of flight, but other than
     #   this point, most of the probabiilty should be away from the origin.
+    # assert np.unravel_index(pmf.argmax(), pmf.shape) != (midpt,midpt)
     pmf[midpt,midpt] = 0
     assert pmf.sum() > 0
     assert pmf[midpt-5:midpt+6,midpt-5:midpt+6].sum() == 0
