@@ -115,7 +115,7 @@ def test_f_prob_of_flying_by_time_of_day(f_time_prob_params):
     ii = 1
     while time_of_day[-ii] >= 22:
         try:
-            assert flight_prob[-ii] < 0.01
+            assert flight_prob[-ii] < 0.01/n
         except:
             # Give some feedback on time of failure
             print('Time of failure: {0}\n'.format(time_of_day[-ii]))
@@ -126,7 +126,7 @@ def test_f_prob_of_flying_by_time_of_day(f_time_prob_params):
     ii = 0
     while time_of_day[ii] <= 3:
         try:
-            assert flight_prob[ii] < 0.01
+            assert flight_prob[ii] < 0.01/n
         except:
             # Give some feedback on time of failure
             print('Time of failure: {0}\n'.format(time_of_day[ii]))
@@ -140,7 +140,7 @@ def test_f_prob_of_flying_by_time_of_day(f_time_prob_params):
         ii += 1
     while time_of_day[ii] <= 15:
         try:
-            assert flight_prob[ii] > 0.99
+            assert flight_prob[ii] > 0.99/n
         except:
             print('Time of failure: {0}\n'.format(time_of_day[ii]))
             raise
@@ -159,8 +159,9 @@ def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
             *g_wind_prob_params,*f_time_prob_params)
         # test that it has proper probability density properties
         assert np.all(flight_prob >= 0)
-        #integral divided by lambda should be equal to 1
-        assert math.isclose(flight_prob.sum()*24/day_wind.shape[0]/lam,1)
+        #integral should be less than or equal to 1
+        assert flight_prob.sum()*24/day_wind.shape[0] <= 1
+        #assert math.isclose(flight_prob.sum()*24/day_wind.shape[0]/lam,1)
         
 def test_get_mvn_cdf_values():
     # This test should make sure (x,y) coordinate pairs are correctly

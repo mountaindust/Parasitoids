@@ -141,15 +141,23 @@ def f_time_prob(n, a1, b1, a2, b2):
         - a1 -- time of morning at which to return 0.5
         - b1 -- steepness of morning curve (larger numbers = steeper)
         - a2 -- time of afternoon at which to return 0.5
-        - b2 -- steepness of afternoon curve (larger numbers = steeper)"""
+        - b2 -- steepness of afternoon curve (larger numbers = steeper)
+        
+    Returns:
+        - A probability mass function for flying in each of n intervals
+            during the day"""
 
-    #t is in hours, and denotes start time of flight.
+    # t is in hours, and denotes start time of flight.
     #(this is sort of weird, because it looks like wind was recorded starting
     #after the first 30 min)
     #Maybe we should shift this all 30 min...?
     t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
-    return 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
-    1.0 / (1. + np.exp(-b2 * (t_tild - a2)))    
+    # Calculate the likelihood of flight at each time of day, giving a number
+    #   between 0 and 1. Combination of two logistic functions.
+    likelihood = 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
+                    1.0 / (1. + np.exp(-b2 * (t_tild - a2)))
+    # Scale the likelihood into a proper probability mass function, and return
+    return likelihood/likelihood.sum()
 
 def Dmat(sig_x, sig_y, rho):
     """Returns covarience matrix for diffusion process
@@ -164,8 +172,7 @@ def Dmat(sig_x, sig_y, rho):
 def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     """Returns probability density of flying during a given day's wind.
     This is given by f times g times the constant lambda. Lambda can be thought
-    of as the probability of flight under perfect conditions at an ideal time
-    of day
+    of as the probability of flight during a day with constant ideal wind
     
     Arguments:
         - day_wind -- ndarray of wind directions
@@ -183,9 +190,13 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
         windr = day_wind[2] # for testing prob_mass
         n = 1
     f_times_g = f_time_prob(n,a1,b1,a2,b2)*g_wind_prob(windr,aw,bw)
-    # normalize f_times_g by the integral with respect to time.
-    #   dt in hours can be had by dividing 24 hrs/day by samples/day
-    return lam*f_times_g/(np.sum(f_times_g)*24/n) #np.array of length n
+    # TODO: The problem here is that a bug that waits to fly at a given time
+    #   may decide to fly later. not so with this model.
+    #   Better is probably to make g_wind_prob a mass function (convolute two
+    #   mass functions?), then make lambda a function of total wind or somesuch.
+    
+    #  dt in hours can be had by dividing 24 hrs/day by samples/day
+    return lam*f_times_g/(24/n) #np.array of length n
 
 
 def get_mvn_cdf_values(cell_length,mu,S):
