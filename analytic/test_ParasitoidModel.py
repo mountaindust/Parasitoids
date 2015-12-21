@@ -179,7 +179,7 @@ def test_get_mvn_cdf_values():
                    [corr1*sig_x1*sig_y1, sig_y1**2]])
     # bigger
     sig_x2 = 10; sig_y2 = 10
-    corr2 = corr1
+    corr2 = -corr1
     S2 = np.array([[sig_x2**2, corr2*sig_x2*sig_y2],
                    [corr2*sig_x2*sig_y2, sig_y2**2]])
                    
@@ -194,18 +194,28 @@ def test_get_mvn_cdf_values():
     # 2 should be bigger than 1
     assert cdf_mat2.size > cdf_mat1.size
     
+    cdf_len = cdf_mat1.shape[0] #odd number
+    cdf_cent = int(cdf_len/2) #center of cdf_mat
     # With positive correlation, we expect more probability in the first and
     #   third quadrants.
-    assert cdf_mat1[0,0] < cdf_mat1[0,-1]
-    # The mean is at the origin, so this should be the location with the
-    #   most probability
+    # compare 2nd quadrant and 1st quadrant
+    assert cdf_mat1[0:cdf_cent,0:cdf_cent].sum() < \
+           cdf_mat1[0:cdf_cent,cdf_cent+1:].sum()
+    # With negative correlation, we expect more probability in the second and
+    #   fourth quadrants.
+    # compare 3rd quadrant and 4th quadrant
+    assert cdf_mat2[cdf_cent+1:,0:cdf_cent].sum() < \
+           cdf_mat1[cdf_cent+1:,cdf_cent+1:].sum()
+    
+    # The mean is within the origin cell, so this should be the location with 
+    #   the most probability
     mdpt = int(cdf_mat1.shape[0]/2) #shape is an odd number. flooring should
                                     #   get us where we want in a 0-based index
     assert cdf_mat1.max() == cdf_mat1[mdpt,mdpt]
     
     
     
-def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
+def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     f_time_prob_params,domain_info):
     
     # day to test
@@ -217,11 +227,51 @@ def test_prob_mass_after_one_day(wind_data,g_wind_prob_params,
     # meters to travel in advection per km/hr wind speed
     mu_r = 0.2 #maybe 6 min total of flight time per day?
     
+    midpt = domain_info[1] #this is rad_res, the center
+    
+    #### Run over a single 30 min period to see what happens in detail ####
+    
+    #   to do this, we pass in wind_data with only a single time period in the
+    #   first day.
+    
+    # Data has only day one, with one time period (chosen from middle of day)
+    sing_wind_data = {1:wind_data[1][24,:]}
+    # Need to alter parameters to f function a bit to get probability of flying
+    #   around midnight, when the time period will start...
+    hparams1 = (lam,*g_wind_prob_params,-4.,2.,19.,2.)
+    # This will give us one 24hr time period. mu_r has to scale accoringly
+    mu_r1 = mu_r/48
+    
+    #pytest.set_trace()
+    pmf = PM.prob_mass(1,sing_wind_data,hparams1,Dparams,mu_r1,*domain_info)
+    
+    # Check that the shifted normal distribution is in the correct quadrant
+    #   given the wind vector's direction
+    wind_sign = np.sign(sing_wind_data[1][0:2]) #signum, (x,y)
+    if wind_sign[0] < 0: # x < 0, column < midpt
+        if wind_sign[1] < 0: # y < 0, row > midpt
+            assert pmf[midpt+5:,0:midpt-5].sum() > 0
+        else: # y > 0, row < midpt
+            assert pmf[0:midpt-5,0:midpt-5].sum() > 0
+    else: # x > 0, column > midpt
+        if wind_sign[1] < 0: # y < 0, row > midpt
+            assert pmf[midpt+5:,midpt+5:].sum() > 0
+        else: # y > 0, row < midpt
+            assert pmf[0:midpt-5,midpt+5:].sum() > 0
+    
+    # DO THIS BLOCK LAST! ALTERS pmf
+    # Midday on the first day had wind. Most of the probability will be at the
+    #   origin because wind decreases the likelihood of flight, but other than
+    #   this point, most of the probabiilty should be away from the origin.
+    pmf[midpt,midpt] = 0
+    assert pmf.sum() > 0
+    assert pmf[midpt-5:midpt+6,midpt-5:midpt+6].sum() == 0
+    
+    
+    #### Run for the entire day, using full wind_data dictionary ####
+    
     # parameters for h_flight_prob
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
-    
-    # Run over just one 30 min period to see what happens in detail before
-    #   aggregating? TODO.
     
     # get the day's probability density for location of a parasitoid
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,*domain_info)

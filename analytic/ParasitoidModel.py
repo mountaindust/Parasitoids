@@ -174,10 +174,14 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
         - a1,b1,a2,b2 -- f function constants
     
     Note: day_wind[0,:] = np.array([windx,windy,windr,theta])"""
-
+    
     n = day_wind.shape[0] #number of wind data entries in the day
     #get just the windr values
-    windr = day_wind[:,2]
+    try:
+        windr = day_wind[:,2]
+    except IndexError:
+        windr = day_wind[2] # for testing prob_mass
+        n = 1
     f_times_g = f_time_prob(n,a1,b1,a2,b2)*g_wind_prob(windr,aw,bw)
     # normalize f_times_g by the integral with respect to time.
     #   dt in hours can be had by dividing 24 hrs/day by samples/day
@@ -280,10 +284,22 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     
     hprob = h_flight_prob(day_wind, *hparams)
     
-    for t_indx in range(day_wind.shape[0]):
+    # Check for single (primarily for testing) vs. multiple time periods
+    if day_wind.ndim > 1:
+        periods = day_wind.shape[0]
+        MULTI_RUN = True
+    else:
+        periods = 1
+        MULTI_RUN = False
+    
+    for t_indx in range(periods):
         # Get the advection velocity and put in units = m/(unit time)
-        mu_v = day_wind[t_indx,0:2] # km/hr
-        mu_v *= 1000*24/wind_data[day].shape[0] # m/(unit time)
+        if MULTI_RUN:
+            mu_v = day_wind[t_indx,0:2] # km/hr
+        else:
+            # mu_v only has one entry. Probably a testing run.
+            mu_v = day_wind[0:2]
+        mu_v *= 1000*24/periods # m/(unit time)
         # We also need to scale this by a constant which represents the fraction
         #   of the unit time that the wasp spends flying times a scaling term
         #   that takes wind speed to advection speed.

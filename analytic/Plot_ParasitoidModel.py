@@ -103,4 +103,3 @@ Dparams=Dparams,mu_r=0.2,rad_dist=rad_dist,rad_res=rad_res):
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid prob. after one day')
     plt.colorbar()
-    return center
