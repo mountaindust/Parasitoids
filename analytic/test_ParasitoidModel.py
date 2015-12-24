@@ -108,8 +108,9 @@ def test_f_prob_of_flying_by_time_of_day(f_time_prob_params):
     
     # test for desirable properties #
     
-    # check that all scaling values are between 0 and 1
-    assert (np.all(0 <= flight_prob) and np.all(flight_prob <= 1))
+    # check that f is a probability mass function
+    assert np.all(flight_prob >= 0)
+    assert math.isclose(flight_prob.sum(),1)
     
     # no flights between 10 pm and midnight
     ii = 1
@@ -154,14 +155,28 @@ def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
     # try a few days of wind data
     for ii in range(1,4):
         day_wind = wind_data[ii]
+        # get f and g to test for certain properties in comparison with h
+        n = day_wind.shape[0] #number of wind data entries in the day
+        #get just the windr values
+        try:
+            windr = day_wind[:,2]
+        except IndexError:
+            windr = day_wind[2] # for testing prob_mass
+            n = 1
+        f_func = PM.f_time_prob(n,*f_time_prob_params)
+        g_func = PM.g_wind_prob(windr,*g_wind_prob_params)
+        assert np.all(f_func*g_func <= f_func)
+        assert (f_func-f_func*g_func).sum() <=1
         # get the probability function for the day
         flight_prob = PM.h_flight_prob(day_wind,lam,
             *g_wind_prob_params,*f_time_prob_params)
-        # test that it has proper probability density properties
+        # test that it has proper probability properties
         assert np.all(flight_prob >= 0)
-        #integral should be less than or equal to 1
-        assert flight_prob.sum()*24/day_wind.shape[0] <= 1
-        #assert math.isclose(flight_prob.sum()*24/day_wind.shape[0]/lam,1)
+        # should be add up to less than or equal to 1,
+        #   1-sum is prob. of not flying
+        assert flight_prob.sum() <= 1
+        # we should be strictly adding probability to f_func*g_func
+        assert np.all(flight_prob >= f_func*g_func)
         
 def test_get_mvn_cdf_values():
     # This test should make sure (x,y) coordinate pairs are correctly

@@ -181,20 +181,20 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     Note: day_wind[0,:] = np.array([windx,windy,windr,theta])"""
     
     n = day_wind.shape[0] #number of wind data entries in the day
+    alpha_pow = 1 # new parameter?
     #get just the windr values
     try:
         windr = day_wind[:,2]
     except IndexError:
         windr = day_wind[2] # for testing prob_mass
         n = 1
-    f_times_g = f_time_prob(n,a1,b1,a2,b2)*g_wind_prob(windr,aw,bw)
-    # TODO: The problem here is that a bug that waits to fly at a given time
-    #   may decide to fly later. not so with this model.
-    #   Better is probably to make g_wind_prob a mass function (convolute two
-    #   mass functions?), then make lambda a function of total wind or somesuch.
+    f_func = f_time_prob(n,a1,b1,a2,b2)
+    g_func = g_wind_prob(windr,aw,bw)
+    t_vec = np.arange(1,n+1)
+    integral_avg = g_func/t_vec*np.cumsum((1-np.cumsum(f_func)**alpha_pow)*
+        (f_func-f_func*g_func))
     
-    #  dt in hours can be had by dividing 24 hrs/day by samples/day
-    return lam*f_times_g/(24/n) #np.array of length n
+    return f_func*g_func + integral_avg #np.array of length n
 
 
 def get_mvn_cdf_values(cell_length,mu,S):
@@ -351,7 +351,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         #   returning a pmf.sum() < 1.
         try:
             pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
-                cdf_mat*24/periods)
+                cdf_mat)
         except IndexError:
             print('Index error in calculating prob_mass.\n'+
             'Most likely, wind is sending parasitoids clear off the domain'+
@@ -361,6 +361,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.
     # Add this probability to the origin cell.
-    assert pmf.sum() <= 1
-    pmf[rad_res,rad_res] += 1-pmf.sum()
+    total_flight_prob = pmf.sum()
+    assert total_flight_prob <= 1
+    pmf[rad_res,rad_res] += 1-total_flight_prob
     return pmf
