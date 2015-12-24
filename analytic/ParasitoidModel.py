@@ -132,9 +132,8 @@ def g_wind_prob(windr, aw, bw):
 
 #Probability of flying at n discrete times of the day, equally spaced
 def f_time_prob(n, a1, b1, a2, b2):
-    """Returns probability of flying based on time at n equally spaced times
-    If the time of day as no effect on flight probability, returns 1.
-    Otherwise, scales down from 1 to 0 as time is more unfavorable.
+    """Returns probability mass function of flying based on time at n equally
+    spaced times.
     
     Arguments:
         - n -- number of wind data points per day available
