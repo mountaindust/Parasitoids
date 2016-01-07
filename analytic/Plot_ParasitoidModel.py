@@ -1,11 +1,10 @@
 #! /usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Plotting suite for ParasitoidModel
 
 Created on Fri May 08 12:12:19 2015
 
-:author: Christopher Strickland
+Author: Christopher Strickland
 """
 
 import numpy as np
@@ -19,9 +18,9 @@ import time
 #   Want: number of processors = number of days to simulate
 
 #load some emergence data
-c_em = PM.emergence_data('carnarvonearl')
+c_em = PM.emergence_data('data\carnarvonearl')
 #load some wind data
-wind_data = PM.read_wind_file('carnarvonearl')
+wind_data = PM.read_wind_file('data\carnarvonearl')
 
 #SPATIAL DOMAIN:
 # Release point will be placed in the center

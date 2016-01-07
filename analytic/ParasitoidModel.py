@@ -8,20 +8,20 @@ This module should implement the pieces of the model, including info about the
 
 Created on Sat Mar 07 20:18:32 2015
 
-:author: Christopher Strickland
-:email: cstrickland@samsi.info
+Author: Christopher Strickland  
+Email: cstrickland@samsi.info  
 """
-
-import numpy as np
-import scipy.linalg as linalg
-from scipy.stats import mvn
-from scipy import fftpack
 
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
 __version__ = "0.1"
 __copyright__ = "Copyright 2015, Christopher Strickland"
+
+import numpy as np
+import scipy.linalg as linalg
+from scipy.stats import mvn
+from scipy import fftpack
 
 #we need to fix units for time. lets say t is in hours.
 
@@ -266,10 +266,6 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
     position can then be updated via convolution with this function.
-    
-    INT_RANGE is currently an arbitrary value representing how far we want to
-    integrate around the origin of the mean-shifted normal distribution.
-    TODO: In reality, this value should be based on Dmat.
     
     Arguments:
         - day -- day since release

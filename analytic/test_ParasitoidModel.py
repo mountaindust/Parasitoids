@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 Test suite for ParasitoidModel, for use with py.test
 
 Created on Fri May 08 12:12:19 2015
 
-:author: Christopher Strickland
+Author: Christopher Strickland
 """
 
 import pytest
@@ -48,12 +47,12 @@ def domain_info():
 
 @pytest.fixture(scope="module") #run only once
 def emerg_data():
-    emerg_data = PM.emergence_data('carnarvonearl')
+    emerg_data = PM.emergence_data('data\carnarvonearl')
     return emerg_data
 
 @pytest.fixture(scope="module") 
 def wind_data():
-    wind_data = PM.read_wind_file('carnarvonearl')
+    wind_data = PM.read_wind_file('data\carnarvonearl')
     return wind_data
 
 
@@ -295,4 +294,4 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     
     # should be a probability mass function
     assert math.isclose(pmf.sum(),1)
-    # need more tests here...
+    # need more tests here...?
