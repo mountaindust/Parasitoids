@@ -20,7 +20,7 @@ import time
 #load some emergence data
 c_em = PM.emergence_data('data\carnarvonearl')
 #load some wind data
-wind_data = PM.read_wind_file('data\carnarvonearl')
+wind_data,days = PM.read_wind_file('data\carnarvonearl')
 
 #SPATIAL DOMAIN:
 # Release point will be placed in the center

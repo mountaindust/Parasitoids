@@ -46,13 +46,17 @@ def domain_info():
     return (rad_dist,rad_res)
 
 @pytest.fixture(scope="module") #run only once
-def emerg_data():
-    emerg_data = PM.emergence_data('data\carnarvonearl')
+def site_name():
+    return 'data\carnarvonearl'
+
+@pytest.fixture(scope="module")
+def emerg_data(site_name):
+    emerg_data = PM.emergence_data(site_name)
     return emerg_data
 
 @pytest.fixture(scope="module") 
-def wind_data():
-    wind_data = PM.read_wind_file('data\carnarvonearl')
+def wind_data(site_name):
+    wind_data,days = PM.read_wind_file(site_name)
     return wind_data
 
 
@@ -63,20 +67,30 @@ def wind_data():
 ###############################################################################
     
     
-def test_emerg_data(emerg_data):
+def test_emerg_data(site_name):
     # Basic tests for expected structure in emerg_data dict
+    emerg_data = PM.emergence_data(site_name)
     assert isinstance(emerg_data,dict)
     for field in emerg_data: #these should be fields.
         #emerg_data[field] is a dict
         for date in emerg_data[field]: #these should be dates since release
             assert isinstance(date,int)
     
-def test_wind_data(wind_data):
-    # Basic tests for expected structure in wind_data dict
+def test_wind_data(site_name):
+    # Basic tests for expected structure in wind_data dict and days list
+    wind_data,days = PM.read_wind_file(site_name)
     assert isinstance(wind_data,dict)
+    assert isinstance(days,list)
+    for day in days:
+        assert days.count(day) == 1
+        assert day in wind_data
+        assert all(days[ii] < days[ii+1] for ii in range(len(days)-1))
     for key in wind_data:
         assert isinstance(key,int) #date should be int since release
-        assert wind_data[key].shape[1] == 4 #windx,windy,windr,theta
+        assert wind_data[key].shape[1] == 3 #windx,windy,windr
+        
+def test_get_wind_data():
+    pass
 
 def test_g_prob_of_flying_by_wind_speed(g_wind_prob_params):
     ds = 0.1 #interval at which to test function

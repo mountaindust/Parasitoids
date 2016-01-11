@@ -25,7 +25,6 @@ from scipy import fftpack
 
 #we need to fix units for time. lets say t is in hours.
 
-
 def emergence_data(site_name):
     """ Reads the observed emergence data from a text file.
     
@@ -60,7 +59,8 @@ def emergence_data(site_name):
 
     return em
 
-# I'm guessing the units here are m/s
+    
+    
 def read_wind_file(site_name):
     """ Reads the wind data from a text file
     
@@ -68,11 +68,14 @@ def read_wind_file(site_name):
         - site_name -- string
         
     Returns:
-        - wind_data -- wind data as a dictionary of 2D ndarrays, 
-                        keys are date since release"""
+        - wind_data -- wind data as a dictionary of 2D ndarrays. 
+                       Keys are date since release. In each ndarray, 
+                       rows are times, columns are the windx,windy,windr
+        - days -- sorted list of days found in wind file"""
     file_name = site_name + 'wind.txt'
     with open(file_name) as wind_file:
         wind_data = {}
+        days = []
         for line in wind_file.readlines():
             # File has data like this: day x-component y-component
             splitline = line.split()
@@ -90,32 +93,137 @@ def read_wind_file(site_name):
             # Remove very small values
             if abs(windr) < 10e-5: 
                 windr = 0
-            # Angle of wind vector, theta
-            if (windx == 0) and (windy == 0):
-                theta = 0
-            elif (windx == 0) and (windy > 0):
-                theta = np.pi/2
-            elif (windx == 0) and (windy < 0):
-                theta = -np.pi/2
-            else:
-                theta = np.arctan(windy/windx)
-            if windx < 0:
-                theta = theta+np.pi
+                
+            # Wind angle was unused, so this block commented.
+            # Theta has also been removed from the output of this function
+            # # Angle of wind vector, theta
+            # if (windx == 0) and (windy == 0):
+                # theta = 0
+            # elif (windx == 0) and (windy > 0):
+                # theta = np.pi/2
+            # elif (windx == 0) and (windy < 0):
+                # theta = -np.pi/2
+            # else:
+                # theta = np.arctan(windy/windx)
+            # if windx < 0:
+                # theta = theta+np.pi
+                
             # Add to our wind_data dictionary.
             # Each date is an ordered list of wind data (ndarray) by hour.
             if day in wind_data:
-                wind_data[day].append(np.array([windx,windy,windr,theta]))
+                wind_data[day].append(np.array([windx,windy,windr]))
             else:
-                wind_data[day] = [np.array([windx,windy,windr,theta])]
+                wind_data[day] = [np.array([windx,windy,windr])]
+                days.append(day)
     
     #convert each list of ndarrays to a single ndarray where rows are times,
-    #  columns are the windx,windy,windr,theta. This allows fancy slicing.
+    #  columns are the windx,windy,windr. This allows fancy slicing.
     for day in wind_data:
         wind_data[day] = np.array(wind_data[day]) #lists of ndarrays become 2D
+        
+    days.sort()
 
-    return wind_data
+    return (wind_data,days)
     #this returns a dictionary of days, with each day pointing to
-    #a 2-D ndarray. Rows are times, columns are the windx,windy,windr,theta
+    #a 2-D ndarray. Rows are times, columns are the windx,windy,windr
+
+    
+    
+#there is abiguity as to whether or not midnight belongs to one day or the other
+#   In fact, one of our data sets starts at 00:00, the other at 00:30! Each,
+#   however, keeps 48 30min periods in a day. So we will have the user specify
+#   at which time the data set starts, and infer the convention used accordingly    
+def get_wind_data(site_name,interp_num,start_time):
+    '''Calls read_wind_file, interpolates the data linearly.
+    This function will also handle the midnight vs. 00:30 starting problem.
+    We need a convention for output, so we will say that the day starts at 00:00
+    and runs until 23:59.
+    
+    This procedure will not be under MCMC, so it doesn't have to really fast.
+    
+    Args:
+        site_name: string
+        interp_num: number of time points to have in each data-point interval,
+            [data1,data2), including the data point itself.
+        start_time: string, '00:00' or '00:30', time of first data point
+        
+    Returns:
+        wind_data: dictionary of wind arrays, one array for each day.
+                   each row is one time point, each column is windx,windy,windr'''
+                   
+    wind_data_raw,days = read_wind_file(site_name)
+    
+    # No matter if the data starts at 00:00 or 00:30, we have a fencepost problem
+    #   in linearly interpolating our data either at the beginning or the end.
+    #   Fortunately, this occurs at the middle of the night, so it shouldn't
+    #   make much of a difference.
+    
+    wind_data = {}
+    time_pts = wind_data_raw[days[0]].shape[0]
+    scaling = np.linspace(0,1,interp_num+1)[:-1]
+    scaling_mat = np.tile(scaling,(3,1)).T
+    scaling_mat_dec = 1 - scaling_mat
+    
+    if start_time == '00:00':
+        for day in days[:-1]:
+            interp_wind = np.zeros((time_pts*interp_num,3))
+            for data_indx in range(time_pts-1):
+                interp_wind[data_indx*interp_num:(data_indx+1)*interp_num,:] = (
+                    scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                    scaling_mat*wind_data_raw[day][data_indx+1,:])
+                # this calculation is incorrect for windr (triangle inequality).
+            interp_wind[(time_pts-1)*interp_num:,:] = (
+                scaling_mat_dec*wind_data_raw[day][-1,:] +
+                scaling_mat*wind_data_raw[day+1][0,:])
+            # recalculate windr before adding to wind_data
+            interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
+            wind_data[day] = interp_wind
+        
+        # last day
+        interp_wind = np.zeros((time_pts*interp_num,3))
+        day = days[-1]
+        for data_indx in range(time_pts-1):
+            interp_wind[data_indx*interp_num:(data_indx+1)*interp_num,:] = (
+                scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                scaling_mat*wind_data_raw[day][data_indx+1,:])
+        # recalculate windr before adding to wind_data
+        interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
+        # just repeat the last data point throughout the last interpolation period
+        interp_wind[(time_pts-1)*interp_num:,:] = wind_data_raw[day][-1,:]
+        wind_data[day] = interp_wind
+        
+    elif start_time == '00:30':
+        # in this case, we assume that midnight is included in the previous day
+        interp_wind = np.zeros((time_pts*interp_num,3))
+        day = days[0]
+        # just repeat backward the first data point for the interpolation period
+        interp_wind[:interp_num,:] = wind_data_raw[day][0,:]
+        for data_indx in range(time_pts-1):
+            interp_wind[(data_indx+1)*interp_num:(data_indx+2)*interp_num,:] = (
+                scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                scaling_mat*wind_data_raw[day][data_indx+1,:])
+        # recalculate windr before adding to wind_data
+        interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
+        wind_data[day] = interp_wind
+        
+        # after first day
+        for day in days[1:]:
+            interp_wind = np.zeros((time_pts*interp_num,3))
+            interp_wind[:interp_num,:] = (
+                scaling_mat_dec*wind_data_raw[day-1][-1,:] + 
+                scaling_mat*wind_data_raw[day][0,:])
+            for data_indx in range(time_pts-1):
+                interp_wind[(data_indx+1)*interp_num:(data_indx+2)*interp_num,:] = (
+                    scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                    scaling_mat*wind_data_raw[day][data_indx+1,:])
+            # recalculate windr before adding to wind_data
+            interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
+            wind_data[day] = interp_wind
+            
+    else:
+        raise ValueError("start_time must be either '00:00' or '00:30'")
+        
+    return (wind_data,days)
 
 ##########    Model functions    ##########
 
@@ -149,6 +257,7 @@ def f_time_prob(n, a1, b1, a2, b2):
     # t is in hours, and denotes start time of flight.
     # wind was recorded starting after the first 30 min, so exclude midnight
     #   at the start, include it at the end.
+    # CORRECTION: started at midnight in kalbar, 00:30 in carnarvonearl.
     t_tild = np.linspace(0+24./n,24,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
