@@ -50,6 +50,13 @@ def site_name():
     return 'data\carnarvonearl'
 
 @pytest.fixture(scope="module")
+def start_time(site_name):
+    if site_name == 'data\carnarvonearl':
+        return '00:30'
+    elif site_name == 'data\kalbar':
+        return '00:00'
+
+@pytest.fixture(scope="module")
 def emerg_data(site_name):
     emerg_data = PM.emergence_data(site_name)
     return emerg_data
@@ -89,8 +96,34 @@ def test_wind_data(site_name):
         assert isinstance(key,int) #date should be int since release
         assert wind_data[key].shape[1] == 3 #windx,windy,windr
         
-def test_get_wind_data():
-    pass
+def test_get_wind_data(site_name,start_time):
+    interp_num = 30
+    
+    wind_data_raw,days_raw = PM.read_wind_file(site_name)
+    wind_data,days = PM.get_wind_data(site_name,interp_num,start_time)
+    
+    assert wind_data[days[0]].shape[0] == interp_num*wind_data_raw[days[0]].shape[0]
+    assert days_raw == days
+    
+    if start_time == '00:30':
+        assert all(wind_data[days[0]][0,:] == wind_data_raw[days[0]][0,:])
+        assert all(wind_data[days[0]][interp_num-1,:] == 
+            wind_data_raw[days[0]][0,:])
+        for ii in range(wind_data_raw[days[0]].shape[0]-1):
+            assert all(wind_data[days[0]][interp_num*(1+ii),:] ==
+                wind_data_raw[days[0]][ii,:])
+        assert all(wind_data[days[1]][0,:] == wind_data_raw[days[0]][-1,:])
+    elif start_time == '00:00':
+        assert all(wind_data[days[-1]][-1,:] == wind_data_raw[days[-1]][-1,:])
+        assert all(wind_data[days[-1]][-interp_num+1,:] == 
+            wind_data_raw[days[-1]][-1,:])
+        for ii in range(wind_data_raw[days[0]].shape[0]-1):
+            assert all(wind_data[days[0]][interp_num*(ii),:] ==
+                wind_data_raw[days[0]][ii,:])
+    for key in wind_data_raw:
+        assert key in wind_data
+        assert all(np.sqrt(wind_data[key][:,0]**2+wind_data[key][:,1]**2) == 
+            wind_data[key][:,2])
 
 def test_g_prob_of_flying_by_wind_speed(g_wind_prob_params):
     ds = 0.1 #interval at which to test function
