@@ -62,8 +62,8 @@ def emerg_data(site_name):
     return emerg_data
 
 @pytest.fixture(scope="module") 
-def wind_data(site_name):
-    wind_data,days = PM.read_wind_file(site_name)
+def wind_data(site_name,start_time):
+    wind_data,days = PM.get_wind_data(site_name,30,start_time)
     return wind_data
 
 
@@ -287,7 +287,9 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
     Dparams = (1., 1., 0.0)
     # meters to travel in advection per km/hr wind speed
-    mu_r = 0.2 #maybe 6 min total of flight time per day?
+    mu_r = 1 # scaling flight advection to wind advection
+    # number of time periods (minutes) in one flight
+    n_periods = 6
     
     midpt = domain_info[1] #this is rad_res, the center
     
@@ -297,15 +299,19 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     #   first day.
     
     # Data has only day one, with one time period (chosen from middle of day)
-    sing_wind_data = {1:wind_data[1][24,:]}
+    sing_wind_data = {1:wind_data[1][24*30,:]}
+    sing_wind_data_cpy = dict(sing_wind_data)
     # Need to alter parameters to f function a bit to get probability of flying
     #   around midnight, when the time period will start...
     hparams1 = (lam,*g_wind_prob_params,-4.,2.,19.,2.)
     # This will give us one 24hr time period. mu_r has to scale accoringly
-    mu_r1 = mu_r/48
+    mu_r1 = 0.1/24 # 6 min flight at full wind advection
     
     #pytest.set_trace()
-    pmf = PM.prob_mass(1,sing_wind_data,hparams1,Dparams,mu_r1,*domain_info)
+    pmf = PM.prob_mass(1,sing_wind_data,hparams1,Dparams,mu_r1,1,*domain_info)
+    
+    # sing_wind_data is mutable. Verify that it is unchanged.
+    assert sing_wind_data == sing_wind_data_cpy
     
     # Check that the shifted normal distribution is in the correct quadrant
     #   given the wind vector's direction
@@ -321,7 +327,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
         else: # y > 0, row < midpt
             assert pmf[0:midpt-5,midpt+5:].sum() > 0
     
-    # DO THIS BLOCK LAST! ALTERS pmf
+    # DO THIS BLOCK LAST FOR SINGLE RUN! ALTERS pmf
     # Midday on the first day had wind. Most of the probability will be at the
     #   origin because wind decreases the likelihood of flight, but other than
     #   this point, most of the probabiilty should be away from the origin.
@@ -336,8 +342,14 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # parameters for h_flight_prob
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
     
+    # wind_data is mutable. have a copy on hand to check against
+    wind_data_cpy = dict(wind_data)
+    
     # get the day's probability density for location of a parasitoid
-    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,*domain_info)
+    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,*domain_info)
+    
+    # wind_data should be unchanged
+    assert wind_data == wind_data_cpy
     
     # should be a probability mass function
     assert math.isclose(pmf.sum(),1)

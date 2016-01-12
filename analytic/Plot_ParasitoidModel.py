@@ -20,7 +20,7 @@ import time
 #load some emergence data
 c_em = PM.emergence_data('data\carnarvonearl')
 #load some wind data
-wind_data,days = PM.read_wind_file('data\carnarvonearl')
+wind_data,days = PM.get_wind_data('data\carnarvonearl',30,'00:30')
 
 #SPATIAL DOMAIN:
 # Release point will be placed in the center
@@ -43,44 +43,50 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 #### Test g function for prob. during different wind speeds ####
 def plot_g_wind_prob(aw=1.8,bw=6):
     windr_range = np.arange(0,3.1,0.1) #a range of wind speeds
+    g = PM.g_wind_prob(windr_range,aw,bw)
     plt.ion()
     plt.figure()
     #first scalar centers the logistic. Second one stretches it.
-    plt.plot(windr_range,PM.g_wind_prob(windr_range,aw,bw))
+    plt.plot(windr_range,g)
     plt.xlabel('wind speed')
     plt.ylabel('probability of flight')
     plt.title('g func for prob of flight during given wind speed')
+    return g
 
 #### Test f function for prob. during different times of the day    
-def plot_f_time_prob(a1=7,b1=1.5,a2=19,b2=1.5):
-    n = 240 #throw in a lot of increments to see a smooth 24hr plot
-    day_time = np.linspace(0,24,n)
+def plot_f_time_prob(a1=7,b1=1.5,a2=17,b2=1.5):
+    n = 24*60 #throw in a lot of increments to see a smooth 24hr plot
+    day_time = np.linspace(0,24-24./n,n)
     #first scalar centers the logistic. Second one stretches it.
     #first set of two scalars is the first logistic
+    f = PM.f_time_prob(n,a1,b1,a2,b2)
     plt.ion()
     plt.figure()
-    plt.plot(day_time,PM.f_time_prob(n,a1,b1,a2,b2))
+    plt.plot(day_time,f)
     plt.xlabel('time of day (hrs)')
-    plt.ylabel('probability density of flight')
+    plt.ylabel('probability mass of flight')
     plt.title('f func for prob of flight during time of day')
+    return f
     
 #### Test h function (and therefore g and f) with data ####
 def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
-    day_time = np.linspace(0,24,wind_data[1].shape[0])
+    day_time = np.linspace(0,24,day_wind.shape[0]+1)[:-1]
+    h = PM.h_flight_prob(day_wind,lam,1.8,6,7,1.5,17,1.5)
     plt.ion()
     plt.figure()
-    plt.plot(day_time,PM.h_flight_prob(day_wind,lam,1.8,6,7,2,19,2))
+    plt.plot(day_time,h)
     plt.xlabel('time of day (hrs)')
     plt.ylabel('probability density of flight')
     plt.title('h func for prob of flight given wind')
+    return h
     
 #### Test p function, which gives the 2-D probability density####
-hparams = (1., 1.8, 6, 7, 2., 19, 2.)
+hparams = (1., 1.8, 6, 7, 1.5, 17, 1.5)
 Dparams = (1, 1, 0)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
-Dparams=Dparams,mu_r=0.2,rad_dist=rad_dist,rad_res=rad_res):
-    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res)
+Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
+    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
     
@@ -92,11 +98,11 @@ Dparams=Dparams,mu_r=0.2,rad_dist=rad_dist,rad_res=rad_res):
     # mask the view at negligible probabilities
     center = np.ma.masked_less(
         pmf[rad_res-res:rad_res+res+1,rad_res-res:rad_res+res+1],0.0001)
-    # flip result
+    # flip result for proper plotting orientation
     center = np.flipud(center)
     plt.ion()
     plt.figure()
-    plt.pcolormesh(xmesh,xmesh,np.flipud(center),cmap='viridis')
+    plt.pcolormesh(xmesh,xmesh,center,cmap='viridis')
     plt.axis([xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]])
     plt.xlabel('East-West (meters)')
     plt.ylabel('North-South (meters)')

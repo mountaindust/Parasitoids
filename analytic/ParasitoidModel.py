@@ -228,7 +228,7 @@ def get_wind_data(site_name,interp_num,start_time):
 ##########    Model functions    ##########
 
 def g_wind_prob(windr, aw, bw):
-    """Returns probability of flying under given wind conditions.
+    """Returns probability of take-off under given wind conditions.
     If the wind has no effect on flight probability, returns 1.
     Otherwise, scales down from 1 to 0 as wind speed increases.
     
@@ -240,7 +240,7 @@ def g_wind_prob(windr, aw, bw):
 
 #Probability of flying at n discrete times of the day, equally spaced
 def f_time_prob(n, a1, b1, a2, b2):
-    """Returns probability mass function of flying based on time at n equally
+    """Returns probability mass function of take-off based on time at n equally
     spaced times.
     
     Arguments:
@@ -251,14 +251,12 @@ def f_time_prob(n, a1, b1, a2, b2):
         - b2 -- steepness of afternoon curve (larger numbers = steeper)
         
     Returns:
-        - A probability mass function for flying in each of n intervals
+        - A probability mass function for take-off in each of n intervals
             during the day"""
 
     # t is in hours, and denotes start time of flight.
-    # wind was recorded starting after the first 30 min, so exclude midnight
-    #   at the start, include it at the end.
-    # CORRECTION: started at midnight in kalbar, 00:30 in carnarvonearl.
-    t_tild = np.linspace(0+24./n,24,n) #divide 24 hours into n equally spaced times
+    # By convention, we will start each day at 00:00:00.
+    t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
     likelihood = 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
@@ -277,7 +275,7 @@ def Dmat(sig_x, sig_y, rho):
                      [rho*sig_x*sig_y, sig_y**2]])
     
 def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
-    """Returns probability density of flying during a given day's wind.
+    """Returns probability density of flying (take-off) during a given day's wind.
     This is given by f times g times the constant lambda. Lambda can be thought
     of as the probability of flight during a day with constant ideal wind
     
@@ -287,7 +285,7 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
         - aw,bw -- g function constants
         - a1,b1,a2,b2 -- f function constants
     
-    Note: day_wind[0,:] = np.array([windx,windy,windr,theta])"""
+    Note: day_wind[0,:] = np.array([windx,windy,windr])"""
     
     n = day_wind.shape[0] #number of wind data entries in the day
     alpha_pow = 1 # new parameter?
@@ -299,9 +297,9 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
         n = 1
     f_func = f_time_prob(n,a1,b1,a2,b2)
     g_func = g_wind_prob(windr,aw,bw)
-    t_vec = np.arange(1,n+1)
-    integral_avg = g_func/t_vec*np.cumsum((1-np.cumsum(f_func)**alpha_pow)*
-        (f_func-f_func*g_func))
+    t_vec = np.linspace(1,n,n)
+    integral_avg = f_func*g_func/t_vec/np.max(f_func)*np.cumsum(
+        (1-np.cumsum(f_func)**alpha_pow)*(f_func-f_func*g_func))
     
     return f_func*g_func + integral_avg #np.array of length n
 
@@ -370,7 +368,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
     return cdf_mat
 
     
-def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
+def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
@@ -381,7 +379,8 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
-        - mu_r -- parameter to scale flight duration and distance vs. windspeed
+        - mu_r -- parameter to scale distance vs. windspeed
+        - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
         - rad_res -- number of cells from center to side of the domain
         
@@ -394,33 +393,59 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,rad_dist,rad_res):
         
     pmf = np.zeros((dom_len,dom_len))
     
-    day_wind = np.array(wind_data[day]) #this is mutable. need a copy.
+    day_wind = wind_data[day] #alias the current day
     
     hprob = h_flight_prob(day_wind, *hparams)
     
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
         periods = day_wind.shape[0]
-        MULTI_RUN = True
+        TEST_RUN = False
     else:
         periods = 1
-        MULTI_RUN = False
+        TEST_RUN = True
     
     for t_indx in range(periods):
-        # Get the advection velocity and put in units = m/(unit time)
-        if MULTI_RUN:
-            mu_v = day_wind[t_indx,0:2] # km/hr
+        ### Get the advection velocity and put in units = m/(unit time) ###
+        
+        if (not TEST_RUN) and n_periods > 1:
+            if t_indx+n_periods-1 < periods:
+                # effective flight advection over n periods in km/hr
+                mu_v = np.sum(day_wind[t_indx:t_indx+n_periods,0:2],0)/n_periods
+            elif day+1 in wind_data:
+                # wrap sum into next day
+                if t_indx != periods-1:
+                    mu_v = np.sum(day_wind[t_indx:,0:2],0)
+                else:
+                    mu_v = np.array(day_wind[-1,0:2])
+                wrap_periods = n_periods - (periods - t_indx)
+                if wrap_periods != 1:
+                    mu_v += np.sum(wind_data[day+1][:wrap_periods,0:2],0)
+                else:
+                    mu_v += wind_data[day+1][0,0:2]
+                mu_v /= n_periods
+            else:
+                # last day in the data. Just extrapolate what's there to full time
+                if t_indx != periods-1:
+                    mu_v = np.sum(day_wind[t_indx:,0:2],0)/(periods-t_indx)
+                else:
+                    mu_v = np.array(day_wind[-1,0:2])
+        elif not TEST_RUN:
+            mu_v = np.array(day_wind[t_indx,0:2])
         else:
-            # mu_v only has one entry. Probably a testing run.
-            mu_v = day_wind[0:2]
-        mu_v *= 1000*24/periods # m/(unit time)
-        # We also need to scale this by a constant which represents the fraction
-        #   of the unit time that the wasp spends flying times a scaling term
-        #   that takes wind speed to advection speed.
+            # mu_v only has one entry. Typically a testing run to check behavior
+            mu_v = np.array(day_wind[0:2])
+        
+        # mu_v is now in km/hr. convert to m/(n_periods)     
+        mu_v *= 1000*24/(periods/n_periods) # m/(n_periods)
+        
+        # We also need to scale this by a constant which represents a scaling 
+        # term that takes wind advection to flight advection.
         mu_v *= mu_r
         # Note: this is in (x,y) coordinates
         
-        # calculate spatial integral in an intelligent way #
+        
+        ### calculate spatial integral (in a spatially limited way) ###
         
         #we know the distribution is centered around mu_v(t) at each t_indx, and
         #   that it has very limited support. Translate the normal distribution
