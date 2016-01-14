@@ -21,7 +21,8 @@ __copyright__ = "Copyright 2015, Christopher Strickland"
 import numpy as np
 import scipy.linalg as linalg
 from scipy.stats import mvn
-from scipy import fftpack
+from scipy.fftpack import fft2, ifft2
+from scipy import sparse
 
 #we need to fix units for time. lets say t is in hours.
 
@@ -495,3 +496,25 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     assert total_flight_prob <= 1
     pmf[rad_res,rad_res] += 1-total_flight_prob
     return pmf
+    
+
+    
+def sconv2(A,B):
+    '''Return the sparse matrix convolution of the two inputs.
+    Return shape is given by A.shape and is a coo type sparse matrix.
+    
+    Credit for this algorithm: Bruno Luong'''
+    Ai,Aj,Avals = sparse.find(A)
+    Bi,Bj,Bvals = sparse.find(B)
+    
+    AI,BI = np.meshgrid(Ai,Bi,indexing='ij')
+    AJ,BJ = np.meshgrid(Aj,Bj,indexing='ij')
+    
+    C = np.outer(Avals,Bvals) # this is going to be the slow part... parallelize?
+    
+    ii = AI.flatten()+BI.flatten() - np.floor(B.shape[0]/2)
+    jj = AJ.flatten()+BJ.flatten() - np.floor(B.shape[1]/2)
+    b = np.logical_and.reduce((ii>=0, ii<A.shape[0], jj>=0, jj< A.shape[1]))
+    
+    C_conv = sparse.coo_matrix((C.flatten()[b],(ii[b],jj[b])),A.shape)
+    return C_conv

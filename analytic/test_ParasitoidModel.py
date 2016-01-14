@@ -9,6 +9,7 @@ Author: Christopher Strickland
 import pytest
 import numpy as np
 import math
+from scipy import sparse,signal
 import ParasitoidModel as PM
 
 ###############################################################################
@@ -354,3 +355,18 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # should be a probability mass function
     assert math.isclose(pmf.sum(),1)
     # need more tests here...?
+    
+    
+    
+def test_sconv2():
+    # Get some matrices
+    A = np.outer(range(10),range(1,11))
+    B = np.outer(range(4,-1,-1),range(8,-1,-2))
+    C = PM.sconv2(A,B)
+    assert sparse.issparse(C)
+    # check that the result matches signal.convolve2d
+    assert np.all(C == signal.convolve2d(A,B,'same'))
+    # make sure sparse matrices work as well
+    A_coo = sparse.coo_matrix(A)
+    B_coo = sparse.coo_matrix(B)
+    assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
