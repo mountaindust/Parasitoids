@@ -67,6 +67,13 @@ def wind_data(site_name,start_time):
     wind_data,days = PM.get_wind_data(site_name,30,start_time)
     return wind_data
 
+@pytest.fixture
+def wind_data_days(site_name,start_time):
+    return PM.get_wind_data(site_name,30,start_time)
+    
+    
+slow = pytest.mark.skipif(not pytest.config.getoption('--runslow'),
+    reason = 'need --runslow option to run')
 
 ###############################################################################
 #                                                                             #
@@ -355,18 +362,52 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # should be a probability mass function
     assert math.isclose(pmf.sum(),1)
     # need more tests here...?
-    
-    
+      
     
 def test_sconv2():
     # Get some matrices
     A = np.outer(range(10),range(1,11))
     B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    C = PM.sconv2(A,B)
+    C = PM.sconv2(A,B,False)
     assert sparse.issparse(C)
     # check that the result matches signal.convolve2d
     assert np.all(C == signal.convolve2d(A,B,'same'))
     # make sure sparse matrices work as well
     A_coo = sparse.coo_matrix(A)
     B_coo = sparse.coo_matrix(B)
-    assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
+    assert np.all(PM.sconv2(A_coo,B_coo,False) == signal.convolve2d(A,B,'same'))
+    
+@slow
+def test_cuda_outer():
+    from cuda_lib import outer
+    A = np.outer(range(10),range(1,11))
+    B = np.outer(range(4,-1,-1),range(8,-1,-2))
+    C = outer(A,B)
+    assert np.all(np.outer(A,B) == C)
+    
+@slow
+def test_two_days(wind_data_days,g_wind_prob_params,f_time_prob_params,
+        domain_info):
+        
+    wind_data = wind_data_days[0]
+    days = wind_data_days[1]
+    
+    # lambda constant in h_flight_prob
+    lam = 1.0
+    # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
+    Dparams = (1., 1., 0.0)
+    # meters to travel in advection per km/hr wind speed
+    mu_r = 1 # scaling flight advection to wind advection
+    # number of time periods (minutes) in one flight
+    n_periods = 6
+    
+    hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
+    
+    pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,Dparams,
+        mu_r,n_periods,*domain_info))
+        
+    pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,Dparams,
+        mu_r,n_periods,*domain_info))
+        
+    # convolution
+    sol = PM.sconv2(pmf1,pmf2)
