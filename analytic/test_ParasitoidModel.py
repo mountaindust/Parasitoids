@@ -311,8 +311,6 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # lambda constant in h_flight_prob
     lam = flight_consts[0]
     
-    midpt = domain_info[1] #this is rad_res, the center
-    
     #### Run over a single 30 min period to see what happens in detail ####
     
     #   to do this, we pass in wind_data with only a single time period in the
@@ -329,6 +327,10 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     
     #pytest.set_trace()
     pmf = PM.prob_mass(1,sing_wind_data,hparams1,D_params,mu_r1,1,*domain_info)
+    pmf = pmf.tocsr()
+    
+    # Find the center. pmf is always square
+    midpt = int(pmf.shape[0]/2)
     
     # sing_wind_data is mutable. Verify that it is unchanged.
     assert sing_wind_data == sing_wind_data_cpy

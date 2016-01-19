@@ -85,24 +85,24 @@ hparams = (1., 1.8, 6, 7, 1.5, 17, 1.5)
 Dparams = (4, 4, 0)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
-Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res,res=150):
+Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
     
     # res is how far (# of cells) to plot away from the center
+    res = int((pmf.shape[0]-1)/2) # pmf is always square
     
-    cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
+    cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell (meters).
     xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 
         cell_dist/3,cell_dist)
     # mask the view at negligible probabilities
-    center = np.ma.masked_less(
-        pmf[rad_res-res:rad_res+res+1,rad_res-res:rad_res+res+1],0.0001)
+    pmf_masked = np.ma.masked_less(pmf.toarray(),0.0001)
     # flip result for proper plotting orientation
-    center = np.flipud(center)
+    pmf_masked = np.flipud(pmf_masked)
     plt.ion()
     plt.figure()
-    plt.pcolormesh(xmesh,xmesh,center,cmap='viridis')
+    plt.pcolormesh(xmesh,xmesh,pmf_masked,cmap='viridis')
     plt.axis([xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]])
     plt.xlabel('East-West (meters)')
     plt.ylabel('North-South (meters)')

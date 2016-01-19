@@ -499,7 +499,13 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     total_flight_prob = pmf.sum()
     assert total_flight_prob <= 1
     pmf[rad_res,rad_res] += 1-total_flight_prob
-    return pmf
+    
+    # shrink the domain down as much as possible and return a sparse array
+    I,J,V = sparse.find(pmf)
+    rad = int(max(np.fabs(I-rad_res).max(),np.fabs(J-rad_res).max()))
+    I = I - rad_res + rad
+    J = J - rad_res + rad
+    return sparse.coo_matrix((V,(I,J)),shape=(rad*2+1,rad*2+1))
     
 
     
