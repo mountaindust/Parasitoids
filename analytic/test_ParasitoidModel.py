@@ -330,7 +330,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     pmf = pmf.tocsr()
     
     # Find the center. pmf is always square
-    midpt = int(pmf.shape[0]/2)
+    midpt = pmf.shape[0]//2
     
     # sing_wind_data is mutable. Verify that it is unchanged.
     assert sing_wind_data == sing_wind_data_cpy
@@ -370,27 +370,41 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # get the day's probability density for location of a parasitoid
     pmf = PM.prob_mass(day,wind_data,hparams,D_params,
         *flight_consts[1:],*domain_info)
-    
+        
     # wind_data should be unchanged
     assert wind_data == wind_data_cpy
     
-    # should be a probability mass function
-    assert math.isclose(pmf.sum(),1)
-    # need more tests here...?
-      
+    #check offseting algorithm
+    offset = domain_info[1] - pmf.shape[0]//2
+    dom_len = domain_info[1]*2 + 1
+    firstsol = sparse.coo_matrix((pmf.data, 
+        (pmf.row+offset,pmf.col+offset)),shape=(dom_len,dom_len))
     
-def test_sconv2():
-    # Get some matrices
-    A = np.outer(range(10),range(1,11))
-    B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    C = PM.sconv2(A,B)
-    assert sparse.issparse(C)
-    # check that the result matches signal.convolve2d
-    assert np.all(C == signal.convolve2d(A,B,'same'))
-    # make sure sparse matrices work as well
-    A_coo = sparse.coo_matrix(A)
-    B_coo = sparse.coo_matrix(B)
-    assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
+    # should be a probability mass function, before/after conversion
+    firstsol = firstsol.tocsr()
+    assert math.isclose(pmf.sum(),1)
+    assert math.isclose(firstsol.sum(),1)
+    
+    # most of the probability should still be at the origin
+    midpt = firstsol.shape[0]//2
+    assert firstsol[midpt,midpt] > firstsol.sum() - firstsol[midpt,midpt]
+    # but not all
+    assert not math.isclose(firstsol[midpt,midpt],1)
+    
+  
+    
+# def test_sconv2():
+    # # Get some matrices
+    # A = np.outer(range(10),range(1,11))
+    # B = np.outer(range(4,-1,-1),range(8,-1,-2))
+    # C = PM.sconv2(A,B)
+    # assert sparse.issparse(C)
+    # # check that the result matches signal.convolve2d
+    # assert np.all(C == signal.convolve2d(A,B,'same'))
+    # # make sure sparse matrices work as well
+    # A_coo = sparse.coo_matrix(A)
+    # B_coo = sparse.coo_matrix(B)
+    # assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
     
 # @slow
 # def test_cuda_outer():
