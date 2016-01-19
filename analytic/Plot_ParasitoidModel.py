@@ -27,7 +27,7 @@ wind_data,days = PM.get_wind_data('data\carnarvonearl',30,'00:30')
 # Domain will be defined in terms of distance from release and resolution
 # FUTURE: assign cells UTM values when plotting
 rad_dist = 8000.0 #distance from release point to a side of the domain (meters)
-rad_res = 4000 #number of cells from center to side of domain
+rad_res = 2000 #number of cells from center to side of domain
                #so, each cell is 2 m**2
 
 
@@ -82,16 +82,16 @@ def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
     
 #### Test p function, which gives the 2-D probability density####
 hparams = (1., 1.8, 6, 7, 1.5, 17, 1.5)
-Dparams = (1, 1, 0)
+Dparams = (4, 4, 0)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
-Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
+Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res,res=150):
     pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
     
-    # for now, just plot the center cells
-    res = 150
+    # res is how far (# of cells) to plot away from the center
+    
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
     xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 
         cell_dist/3,cell_dist)

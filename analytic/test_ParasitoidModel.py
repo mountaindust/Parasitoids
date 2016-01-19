@@ -34,19 +34,36 @@ def f_time_prob_params():
     b2 = 2.
     return (a1,b1,a2,b2)
 
-@pytest.fixture    
+@pytest.fixture(scope="module")
+def D_params():
+    sig_x = 4.0 # std deviation in meters
+    sig_y = 4.0
+    corr = 0.
+    return (sig_x,sig_y,corr)
+
+@pytest.fixture(scope="module")    
+def flight_consts():
+    # lambda constant in h_flight_prob
+    lam = 1.0   
+    # meters to travel in advection per km/hr wind speed
+    mu_r = 1 # scaling flight advection to wind advection
+    # number of time periods (minutes) in one flight
+    n_periods = 6
+    return (lam,mu_r,n_periods)
+
+@pytest.fixture(scope="module")   
 def domain_info():
     # Return infomation about the domain size and refinement
     
     # distance from release point to a side of the domain in meters
     rad_dist = 8000.0
     # number of cells from the center to side of domain
-    rad_res = 4000
+    rad_res = 2000
     
     # (each cell is thus rad_dist/rad_res meters squared in size)
     return (rad_dist,rad_res)
 
-@pytest.fixture(scope="module") #run only once
+@pytest.fixture(scope="module")
 def site_name():
     return 'data\carnarvonearl'
 
@@ -62,7 +79,7 @@ def emerg_data(site_name):
     emerg_data = PM.emergence_data(site_name)
     return emerg_data
 
-@pytest.fixture(scope="module") 
+@pytest.fixture(scope="module")
 def wind_data(site_name,start_time):
     wind_data,days = PM.get_wind_data(site_name,30,start_time)
     return wind_data
@@ -286,18 +303,13 @@ def test_get_mvn_cdf_values():
     
     
 def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
-    f_time_prob_params,domain_info):
+    f_time_prob_params,D_params,flight_consts,domain_info):
     
     # day to test
     day = 1
+    
     # lambda constant in h_flight_prob
-    lam = 1.0
-    # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
-    Dparams = (1., 1., 0.0)
-    # meters to travel in advection per km/hr wind speed
-    mu_r = 1 # scaling flight advection to wind advection
-    # number of time periods (minutes) in one flight
-    n_periods = 6
+    lam = flight_consts[0]
     
     midpt = domain_info[1] #this is rad_res, the center
     
@@ -316,7 +328,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     mu_r1 = 0.1/24 # 6 min flight at full wind advection
     
     #pytest.set_trace()
-    pmf = PM.prob_mass(1,sing_wind_data,hparams1,Dparams,mu_r1,1,*domain_info)
+    pmf = PM.prob_mass(1,sing_wind_data,hparams1,D_params,mu_r1,1,*domain_info)
     
     # sing_wind_data is mutable. Verify that it is unchanged.
     assert sing_wind_data == sing_wind_data_cpy
@@ -354,7 +366,8 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     wind_data_cpy = dict(wind_data)
     
     # get the day's probability density for location of a parasitoid
-    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,*domain_info)
+    pmf = PM.prob_mass(day,wind_data,hparams,D_params,
+        *flight_consts[1:],*domain_info)
     
     # wind_data should be unchanged
     assert wind_data == wind_data_cpy
@@ -368,46 +381,49 @@ def test_sconv2():
     # Get some matrices
     A = np.outer(range(10),range(1,11))
     B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    C = PM.sconv2(A,B,False)
+    C = PM.sconv2(A,B)
     assert sparse.issparse(C)
     # check that the result matches signal.convolve2d
     assert np.all(C == signal.convolve2d(A,B,'same'))
     # make sure sparse matrices work as well
     A_coo = sparse.coo_matrix(A)
     B_coo = sparse.coo_matrix(B)
-    assert np.all(PM.sconv2(A_coo,B_coo,False) == signal.convolve2d(A,B,'same'))
+    assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
     
-@slow
-def test_cuda_outer():
-    from cuda_lib import outer
-    A = np.outer(range(10),range(1,11))
-    B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    C = outer(A,B)
-    assert np.all(np.outer(A,B) == C)
+# @slow
+# def test_cuda_outer():
+    # from cuda_lib import outer
+    # A = np.outer(range(10),range(1,11))
+    # B = np.outer(range(4,-1,-1),range(8,-1,-2))
+    # C = outer(A,B)
+    # assert np.all(np.outer(A,B) == C)
+    
+def test_fftconv2():
+    A = sparse.coo_matrix(np.outer(range(10),range(1,11)))
+    B = sparse.coo_matrix(np.outer(range(4,-1,-1),range(8,-1,-2)))
+    C = PM.fftconv2(A,B,False)
+    assert sparse.issparse(C)
+    assert np.all(C.shape == A.shape)
+    C = C.toarray()
+    assert np.allclose(signal.fftconvolve(A.toarray(),B.toarray(),'same'),C)
     
 @slow
 def test_two_days(wind_data_days,g_wind_prob_params,f_time_prob_params,
-        domain_info):
+        D_params,flight_consts,domain_info):
         
     wind_data = wind_data_days[0]
     days = wind_data_days[1]
     
     # lambda constant in h_flight_prob
-    lam = 1.0
-    # parameters for diffusion covariance matrix, (sig_x,sig_y,rho)
-    Dparams = (1., 1., 0.0)
-    # meters to travel in advection per km/hr wind speed
-    mu_r = 1 # scaling flight advection to wind advection
-    # number of time periods (minutes) in one flight
-    n_periods = 6
+    lam = flight_consts[0]
     
     hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
     
-    pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,Dparams,
-        mu_r,n_periods,*domain_info))
+    pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,D_params,
+        *flight_consts[0:],*domain_info))
         
-    pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,Dparams,
-        mu_r,n_periods,*domain_info))
+    pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,D_params,
+        *flight_consts[0:],*domain_info))
         
     # convolution
     sol = PM.sconv2(pmf1,pmf2)
