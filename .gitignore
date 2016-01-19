@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Model output
+output/
+
 # Juypter notebook generated files
 .ipynb_checkpoints/
 
