@@ -10,6 +10,10 @@ import ParasitoidModel as PM
 
 class Params():
     '''Class definition to keep track with parameters for a model run'''
+    ### Simulation flags ### (shared among all Params instances)
+    NO_OUTPUT = False
+    NO_PLOT = False # doesn't currently do anything
+    NO_CUDA = True # doesn't currently do anything
     
     def __init__(self):
         ### DEFAULT PARAMETERS ###
@@ -56,43 +60,60 @@ class Params():
         #   <param name>=<new value>
         
         for argstr in args:
-            arg,eq,val = argstr.partition('=')
-            try:
-                if arg == 'outfile':
-                    self.outfile = val
-                elif arg == 'site_name':
-                    self.site_name = val
-                elif arg == 'start_time':
-                    self.start_time = val
-                elif arg == 'domain_info':
-                    strinfo = val.strip('()').split(',')
-                    self.domain_info = (float(strinfo[0]),int(strinfo[1]))
-                elif arg == 'interp_num':
-                    self.interp_num = int(val)
-                elif arg == 'ndays':
-                    self.ndays = int(val)
-                elif arg == 'g_params':
-                    strinfo = val.strip('()').split(',')
-                    self.g_params = (float(strinfo[0]),float(strinfo[1]))
-                elif arg == 'f_params':
-                    strinfo = val.strip('()').split(',')
-                    self.f_params = (float(strinfo[0]),float(strinfo[1]),
-                        float(strinfo[2]),float(strinfo[3]))
-                elif arg == 'Dparams':
-                    strinfo = val.strip('()').split(',')
-                    self.Dparams = (float(strinfo[0]),float(strinfo[1]),
-                        float(strinfo[2]))
-                elif arg == 'lam':
-                    self.lam = float(val)
-                elif arg == 'mu_r':
-                    self.mu_r = float(val)
-                elif arg == 'n_periods':
-                    self.n_periods = int(val)
+            if argstr[0:2] == '--':
+                # Flag set by option
+                if argstr[2:].lower() == 'no_output':
+                    self.NO_OUTPUT = True
+                elif argstr[2:].lower() == 'output':
+                    self.NO_OUTPUT = False
+                elif argstr[2:].lower() == 'no_plot':
+                    self.NO_PLOT = True
+                elif argstr[2:].lower() == 'plot':
+                    self.NO_PLOT = False
+                elif argstr[2:].lower() == 'no_cuda':
+                    self.NO_CUDA = True
+                elif argstr[2:].lower() == 'cuda':
+                    self.NO_CUDA =False
                 else:
-                    raise ValueError('Unrecognized parameter.')
-            except:
-                print('Could not parse {0}.'.format(arg))
-                raise
+                    raise ValueError('Unrecognized option {0}.'.format(argstr))
+            else:
+                arg,eq,val = argstr.partition('=')
+                try:
+                    if arg == 'outfile':
+                        self.outfile = val
+                    elif arg == 'site_name':
+                        self.site_name = val
+                    elif arg == 'start_time':
+                        self.start_time = val
+                    elif arg == 'domain_info':
+                        strinfo = val.strip('()').split(',')
+                        self.domain_info = (float(strinfo[0]),int(strinfo[1]))
+                    elif arg == 'interp_num':
+                        self.interp_num = int(val)
+                    elif arg == 'ndays':
+                        self.ndays = int(val)
+                    elif arg == 'g_params':
+                        strinfo = val.strip('()').split(',')
+                        self.g_params = (float(strinfo[0]),float(strinfo[1]))
+                    elif arg == 'f_params':
+                        strinfo = val.strip('()').split(',')
+                        self.f_params = (float(strinfo[0]),float(strinfo[1]),
+                            float(strinfo[2]),float(strinfo[3]))
+                    elif arg == 'Dparams':
+                        strinfo = val.strip('()').split(',')
+                        self.Dparams = (float(strinfo[0]),float(strinfo[1]),
+                            float(strinfo[2]))
+                    elif arg == 'lam':
+                        self.lam = float(val)
+                    elif arg == 'mu_r':
+                        self.mu_r = float(val)
+                    elif arg == 'n_periods':
+                        self.n_periods = int(val)
+                    else:
+                        raise ValueError('Unrecognized parameter.')
+                except:
+                    print('Could not parse {0}.'.format(arg))
+                    raise
                 
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
@@ -112,10 +133,10 @@ class Params():
 
 def main(argv):
     params = Params()
-    # pull together some of the parameters
-    # hparams = (lam,*g_params,*f_params)
-    # get wind data and ordered list of days
-    # wind_data,days = PM.get_wind_data(site_name,interp_num,start_time)
+    
+    if len(argv) > 0:
+        params.cmd_line_chg(argv)
+        
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
     ### run model ###
@@ -145,21 +166,22 @@ def main(argv):
     print('Done.')
     
     ### save result ###
-    print('Saving...')
-    def outputGenerator():
-        # Creates generator for output formatting
-        for n,day in enumerate(days[:ndays]):
-            yield (str(day)+'_data', modelsol[n].data)
-            yield (str(day)+'_row', modelsol[n].row)
-            yield (str(day)+'_col', modelsol[n].col)
-        yield ('days',days[:ndays])
+    if not params.NO_OUTPUT:
+        print('Saving...')
+        def outputGenerator():
+            # Creates generator for output formatting
+            for n,day in enumerate(days[:ndays]):
+                yield (str(day)+'_data', modelsol[n].data)
+                yield (str(day)+'_row', modelsol[n].row)
+                yield (str(day)+'_col', modelsol[n].col)
+            yield ('days',days[:ndays])
             
-    outgen = outputGenerator()
-    np.savez(params.outfile,**{x: y for (x,y) in outgen})
-    
-    ### save parameters ###
-    with open(params.outfile+'.json','w') as fobj:
-        json.dump(params.__dict__,fobj)
+        outgen = outputGenerator()
+        np.savez_compressed(params.outfile,**{x: y for (x,y) in outgen})
+        
+        ### save parameters ###
+        with open(params.outfile+'.json','w') as fobj:
+            json.dump(params.__dict__,fobj)
     
     ### plot result ###
     pass
