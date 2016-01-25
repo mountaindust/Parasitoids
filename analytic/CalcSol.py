@@ -92,28 +92,3 @@ def r_small_vals(A,negval=1e-6):
             rowlist.append(key[0])
             collist.append(key[1])
     return sparse.coo_matrix((vallist,(rowlist,collist)),A.shape)
-    
-    
-# def sconv2(A,B):
-    # '''Return the sparse matrix convolution of the two inputs.
-    # Return shape is given by A.shape and is a coo type sparse matrix.
-    # This algorithm does not use fft, and is therefore going to be SLOW for
-    # anything but the first convolution!
-    
-    # Credit for this algorithm: Bruno Luong'''
-    # Ai,Aj,Avals = sparse.find(A) #Avals.size = 92001
-    # Bi,Bj,Bvals = sparse.find(B) #Bvals.size = 3697
-    
-    # # these are freakishly enormous after the first conv...
-    # # all sizes are 340,127,697 in length!!!
-    # AI,BI = np.meshgrid(Ai,Bi,indexing='ij')
-    # AJ,BJ = np.meshgrid(Aj,Bj,indexing='ij')
-    
-    # C = np.outer(Avals,Bvals)
-    
-    # ii = AI.flatten()+BI.flatten() - np.floor(B.shape[0]/2)
-    # jj = AJ.flatten()+BJ.flatten() - np.floor(B.shape[1]/2)
-    # b = np.logical_and.reduce((ii>=0, ii<A.shape[0], jj>=0, jj< A.shape[1]))
-    
-    # C_conv = sparse.coo_matrix((C.flatten()[b],(ii[b],jj[b])),A.shape)
-    # return C_conv

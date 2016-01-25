@@ -390,26 +390,3 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     assert firstsol[midpt,midpt] > firstsol.sum() - firstsol[midpt,midpt]
     # but not all
     assert not math.isclose(firstsol[midpt,midpt],1)
-    
-    
-    
-# @slow
-# def test_two_days(wind_data_days,g_wind_prob_params,f_time_prob_params,
-        # D_params,flight_consts,domain_info):
-        
-    # wind_data = wind_data_days[0]
-    # days = wind_data_days[1]
-    
-    # # lambda constant in h_flight_prob
-    # lam = flight_consts[0]
-    
-    # hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
-    
-    # pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,D_params,
-        # *flight_consts[0:],*domain_info))
-        
-    # pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,D_params,
-        # *flight_consts[0:],*domain_info))
-        
-    # # convolution
-    # sol = signal.fftconvolve2d(pmf1,pmf2)
