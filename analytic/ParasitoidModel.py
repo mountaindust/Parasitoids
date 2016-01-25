@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Drift-Diffusion Model
@@ -20,13 +19,7 @@ __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import numpy as np
 from scipy.stats import mvn
-from scipy import sparse, fftpack
-
-# try:
-    # import cuda_lib
-    # NO_CUDA = False
-# except ImportError:
-    # NO_CUDA = True
+from scipy import sparse
 
 #we need to fix units for time. lets say t is in hours.
 
@@ -506,54 +499,3 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     I = I - rad_res + rad
     J = J - rad_res + rad
     return sparse.coo_matrix((V,(I,J)),shape=(rad*2+1,rad*2+1))
-    
-
-    
-def fftconv2(A,B,CUDA_FLAG=False):#(not NO_CUDA)):
-    '''Return the fft matrix convolution of the two sparse inputs.
-    Return shape is given by A.shape and is a coo type sparse matrix.
-    
-    The work to be done in here is padding A and B appropriately, and then
-    shifting B so that the center is at B[0,0] with wrap-around.'''
-    mmid = (np.array(B.shape)/2).astype(int)
-    pad_shape = A.shape + mmid
-    if CUDA_FLAG:
-        return sparse.coo_matrix(cuda_lib.fftconv2(A,B))
-    else:
-        A_hat = np.zeros(pad_shape)
-        A_hat[:A.shape[0],:A.shape[1]] = A.toarray()
-        A_hat = fftpack.fft2(A_hat)
-        B_hat = np.zeros(pad_shape)
-        B_lil = B.tolil()
-        B_hat[:mmid[0]+1,:mmid[1]+1] = B_lil[mmid[0]:,mmid[1]:].toarray()
-        B_hat[:mmid[0]+1,-mmid[1]:] = B_lil[mmid[0]:,:mmid[1]].toarray()
-        B_hat[-mmid[0]:,-mmid[1]:] = B_lil[:mmid[0],:mmid[1]].toarray()
-        B_hat[-mmid[0]:,:mmid[1]+1] = B_lil[:mmid[0],mmid[1]:].toarray()
-        B_hat = fftpack.fft2(B_hat)
-        return sparse.coo_matrix(
-            fftpack.ifft2(A_hat*B_hat)[:A.shape[0],:A.shape[1]])
-    
-    
-# def sconv2(A,B):
-    # '''Return the sparse matrix convolution of the two inputs.
-    # Return shape is given by A.shape and is a coo type sparse matrix.
-    # This algorithm does not use fft, and is therefore going to be SLOW for
-    # anything but the first convolution!
-    
-    # Credit for this algorithm: Bruno Luong'''
-    # Ai,Aj,Avals = sparse.find(A) #Avals.size = 92001
-    # Bi,Bj,Bvals = sparse.find(B) #Bvals.size = 3697
-    
-    # # these are freakishly enormous after the first conv...
-    # # all sizes are 340,127,697 in length!!!
-    # AI,BI = np.meshgrid(Ai,Bi,indexing='ij')
-    # AJ,BJ = np.meshgrid(Aj,Bj,indexing='ij')
-    
-    # C = np.outer(Avals,Bvals)
-    
-    # ii = AI.flatten()+BI.flatten() - np.floor(B.shape[0]/2)
-    # jj = AJ.flatten()+BJ.flatten() - np.floor(B.shape[1]/2)
-    # b = np.logical_and.reduce((ii>=0, ii<A.shape[0], jj>=0, jj< A.shape[1]))
-    
-    # C_conv = sparse.coo_matrix((C.flatten()[b],(ii[b],jj[b])),A.shape)
-    # return C_conv

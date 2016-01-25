@@ -4,6 +4,7 @@ import sys
 import json
 import numpy as np
 from scipy import sparse
+import config
 import ParasitoidModel as PM
 
 ### Parameters ###
@@ -13,7 +14,7 @@ class Params():
     ### Simulation flags ### (shared among all Params instances)
     NO_OUTPUT = False
     NO_PLOT = False # doesn't currently do anything
-    NO_CUDA = True # doesn't currently do anything
+    NO_CUDA = True
     
     def __init__(self):
         ### DEFAULT PARAMETERS ###
@@ -132,11 +133,19 @@ class Params():
         
 
 def main(argv):
+    ### Get and set parameters ###
     params = Params()
     
     if len(argv) > 0:
         params.cmd_line_chg(argv)
         
+    if params.NO_CUDA:
+        config.cuda = False
+    else:
+        config.cuda = True
+        
+    import CalcSol as CS
+    
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
     ### run model ###
@@ -144,29 +153,47 @@ def main(argv):
         ndays = params.ndays
     else:
         ndays = len(days)
-        
+    
+    # First, get spread probability for each day as a coo sparse matrix
+    pmf_list = []
+    max_shape = np.array([0,0])
     for day in days[:ndays]:
         print('Calculating spread for day {0}'.format(day))
-        # get prob mass function for the current day and make it sparse.
-        # pmf = PM.prob_mass(
-            # day,wind_data,hparams,Dparams,mu_r,n_periods,*domain_info)
-        pmf = PM.prob_mass(day,wind_data,*params.get_model_params())
-        
+        pmf_list.append(PM.prob_mass(day,wind_data,*params.get_model_params()))
+        # record the largest shape of these
+        for dim in range(2):
+            if pmf_list[-1].shape[dim] > max_shape[dim]:
+                max_shape[dim] = pmf_list[-1].shape[dim]
+                
+    # Next, find the cumulative fft convolution of these
+    modelsol = [] # holds actual model solutions
+    for n,day in enumerate(days[:ndays]):
         if day == days[0]:
-            offset = params.domain_info[1] - pmf.shape[0]//2
+            print('Reshaping day 1 solution')
+            offset = params.domain_info[1] - pmf_list[0].shape[0]//2
             dom_len = params.domain_info[1]*2 + 1
-            firstsol = sparse.coo_matrix((pmf.data, 
-                (pmf.row+offset,pmf.col+offset)),shape=(dom_len,dom_len))
-            modelsol = [firstsol]
+            modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
+                (pmf_list[0].row+offset,pmf_list[0].col+offset)),
+                shape=(dom_len,dom_len)))
+            
+            fft_cursol = CS.fft2(modelsol[0],max_shape) # returns fft
         else:
-            # convolute with previous day and then add solution
-            print('Finding convolution with previous solution...')
-            modelsol.append(PM.fftconv2(modelsol[-1],pmf))
+            # convolute with previous day
+            print('Update convolution for day {0}...'.format(day))
+            CS.fftconv2(fft_cursol,pmf_list[n].toarray())
+            # here we need to add the new fft_cursol to a queue to be ifft-d
+            #   This will be done by a separate processor while we continue
+            #   For now, just ifft to make it all run.
+            modelsol.append(CS.ifft2(fft_cursol,[dom_len,dom_len]))
+            
     # done.
     print('Done.')
     
     ### save result ###
     if not params.NO_OUTPUT:
+        # print('Removing small values from solutions...')
+        # for n,sol in enumerate(modelsol):
+            # modelsol[n] = PM.r_small_vals(sol)
         print('Saving...')
         def outputGenerator():
             # Creates generator for output formatting
@@ -177,7 +204,7 @@ def main(argv):
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
-        np.savez_compressed(params.outfile,**{x: y for (x,y) in outgen})
+        np.savez(params.outfile,**{x: y for (x,y) in outgen})
         
         ### save parameters ###
         with open(params.outfile+'.json','w') as fobj:

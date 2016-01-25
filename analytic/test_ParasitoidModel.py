@@ -9,7 +9,7 @@ Author: Christopher Strickland
 import pytest
 import numpy as np
 import math
-from scipy import sparse,signal
+from scipy import sparse, signal
 import ParasitoidModel as PM
 
 ###############################################################################
@@ -391,55 +391,25 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # but not all
     assert not math.isclose(firstsol[midpt,midpt],1)
     
-  
     
-# def test_sconv2():
-    # # Get some matrices
-    # A = np.outer(range(10),range(1,11))
-    # B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    # C = PM.sconv2(A,B)
-    # assert sparse.issparse(C)
-    # # check that the result matches signal.convolve2d
-    # assert np.all(C == signal.convolve2d(A,B,'same'))
-    # # make sure sparse matrices work as well
-    # A_coo = sparse.coo_matrix(A)
-    # B_coo = sparse.coo_matrix(B)
-    # assert np.all(PM.sconv2(A_coo,B_coo) == signal.convolve2d(A,B,'same'))
     
 # @slow
-# def test_cuda_outer():
-    # from cuda_lib import outer
-    # A = np.outer(range(10),range(1,11))
-    # B = np.outer(range(4,-1,-1),range(8,-1,-2))
-    # C = outer(A,B)
-    # assert np.all(np.outer(A,B) == C)
-    
-def test_fftconv2():
-    A = sparse.coo_matrix(np.outer(range(10),range(1,11)))
-    B = sparse.coo_matrix(np.outer(range(4,-1,-1),range(8,-1,-2)))
-    C = PM.fftconv2(A,B,False)
-    assert sparse.issparse(C)
-    assert np.all(C.shape == A.shape)
-    C = C.toarray()
-    assert np.allclose(signal.fftconvolve(A.toarray(),B.toarray(),'same'),C)
-    
-@slow
-def test_two_days(wind_data_days,g_wind_prob_params,f_time_prob_params,
-        D_params,flight_consts,domain_info):
+# def test_two_days(wind_data_days,g_wind_prob_params,f_time_prob_params,
+        # D_params,flight_consts,domain_info):
         
-    wind_data = wind_data_days[0]
-    days = wind_data_days[1]
+    # wind_data = wind_data_days[0]
+    # days = wind_data_days[1]
     
-    # lambda constant in h_flight_prob
-    lam = flight_consts[0]
+    # # lambda constant in h_flight_prob
+    # lam = flight_consts[0]
     
-    hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
+    # hparams = (lam,*g_wind_prob_params,*f_time_prob_params)
     
-    pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,D_params,
-        *flight_consts[0:],*domain_info))
+    # pmf1 = sparse.coo_matrix(PM.prob_mass(days[0],wind_data,hparams,D_params,
+        # *flight_consts[0:],*domain_info))
         
-    pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,D_params,
-        *flight_consts[0:],*domain_info))
+    # pmf2 = sparse.coo_matrix(PM.prob_mass(days[1],wind_data,hparams,D_params,
+        # *flight_consts[0:],*domain_info))
         
-    # convolution
-    sol = PM.sconv2(pmf1,pmf2)
+    # # convolution
+    # sol = signal.fftconvolve2d(pmf1,pmf2)
