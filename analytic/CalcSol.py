@@ -41,7 +41,7 @@ def fft2(A,Ashape):
     
     
     
-def ifft2(A_hat,Ashape,CUDA_FLAG=(config.cuda and not NO_CUDA)):
+def ifft2(A_hat,Ashape):
     '''Return the ifft of A_hat truncated to Ashape as a coo matrix.
     
     This is the slowest function call.'''
@@ -50,7 +50,7 @@ def ifft2(A_hat,Ashape,CUDA_FLAG=(config.cuda and not NO_CUDA)):
     
     
     
-def fftconv2(A_hat,B,CUDA_FLAG=(config.cuda and not NO_CUDA)):
+def fftconv2(A_hat,B):
     '''Update A_hat as A_hat *= B_hat
     
     Args:
@@ -65,19 +65,15 @@ def fftconv2(A_hat,B,CUDA_FLAG=(config.cuda and not NO_CUDA)):
     
     mmid = (np.array(B.shape)/2).astype(int)
     pad_shape = A_hat.shape
-    if CUDA_FLAG: #needs to be redone based on new function definition
-        # return sparse.coo_matrix(cuda_lib.fftconv2(A,B))
-        pass
-    else:
-        B_hat = np.zeros(pad_shape)
-        B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
-        B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
-        B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
-        B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
-        B_hat = fftpack.fft2(B_hat)
-        A_hat *= B_hat
-        # return sparse.coo_matrix(
-            # fftpack.ifft2(B_hat,overwrite_x=True)[:A.shape[0],:A.shape[1]].real)
+    B_hat = np.zeros(pad_shape)
+    B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
+    B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
+    B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
+    B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
+    B_hat = fftpack.fft2(B_hat)
+    A_hat *= B_hat
+    # return sparse.coo_matrix(
+        # fftpack.ifft2(B_hat,overwrite_x=True)[:A.shape[0],:A.shape[1]].real)
             
             
 
@@ -89,7 +85,7 @@ def r_small_vals(A,negval=1e-6):
     
     mask = np.empty(A.data.shape,dtype=bool)
     for n,val in enumerate(A.data):
-        if val < 1e-6: # this is roundoff error territory for fft
+        if val < negval: # this is roundoff error territory for fft
             mask[n] = False
         else:
             mask[n] = True
@@ -124,7 +120,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         print('Updating convolution for day {0}...'.format(day))
         # modifies cursol_hat
         fftconv2(cursol_hat,pmf_list[n+1].toarray())
-        print('Finding solution...')
+        print('Finding ifft for day {0}...'.format(day))
         big_sol = ifft2(cursol_hat,[dom_len,dom_len])
-        print('Reducing...')
+        print('Reducing solution...')
         modelsol.append(r_small_vals(big_sol))

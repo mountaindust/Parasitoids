@@ -7,6 +7,7 @@ from scipy import sparse
 import config
 import ParasitoidModel as PM
 from CalcSol import get_solutions
+import Plot_Result
 
 ### Parameters ###
 
@@ -14,7 +15,7 @@ class Params():
     '''Class definition to keep track with parameters for a model run'''
     ### Simulation flags ### (shared among all Params instances)
     NO_OUTPUT = False
-    NO_PLOT = False # doesn't currently do anything
+    NO_PLOT = False
     NO_CUDA = True
     
     def __init__(self):
@@ -196,6 +197,7 @@ def main(argv):
 
     # Pass the first solution, pmf_list, and other info to convolution solver
     #   This updates modelsol with the rest of the solutions.
+    import pdb; pdb.set_trace()
     get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
     
     # done.
@@ -223,7 +225,8 @@ def main(argv):
             json.dump(params.__dict__,fobj)
     
     ### plot result ###
-    pass
+    if not params.NO_PLOT:
+        Plot_Result.plot_all(modelsol,days,params.domain_info)
     
 
 if __name__ == "__main__":
