@@ -6,6 +6,7 @@ import numpy as np
 from scipy import sparse
 import config
 import ParasitoidModel as PM
+from CalcSol import get_solutions
 
 ### Parameters ###
 
@@ -131,6 +132,25 @@ class Params():
         return (self.site_name,self.interp_num,self.start_time)
         
         
+        
+def ifft_sol(q_in,q_out,dom_len):
+    '''Function for taking the ifft of solutions in parallel.
+    
+    Args:
+        q_in: multiprocessing queue of solutions in Fourier space
+        q_out: multiprocessing queue of processed solutions
+        dom_len: domain length, int'''
+    while True:
+        fft_sol = q_in.get()
+        if fft_sol is None:
+            q_in.task_done()
+            q_out.put(None)
+            break
+        else:
+            solution = CS.ifft2(fft_sol,[dom_len,dom_len])
+            q_out.put(solution)
+            q_in.task_done()
+        
 
 def main(argv):
     ### Get and set parameters ###
@@ -139,12 +159,11 @@ def main(argv):
     if len(argv) > 0:
         params.cmd_line_chg(argv)
         
+    # This sends a message to CalcSol to not use CUDA
     if params.NO_CUDA:
         config.cuda = False
     else:
         config.cuda = True
-        
-    import CalcSol as CS
     
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
@@ -165,27 +184,20 @@ def main(argv):
             if pmf_list[-1].shape[dim] > max_shape[dim]:
                 max_shape[dim] = pmf_list[-1].shape[dim]
                 
-    # Next, find the cumulative fft convolution of these
     modelsol = [] # holds actual model solutions
-    for n,day in enumerate(days[:ndays]):
-        if day == days[0]:
-            print('Reshaping day 1 solution')
-            offset = params.domain_info[1] - pmf_list[0].shape[0]//2
-            dom_len = params.domain_info[1]*2 + 1
-            modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
-                (pmf_list[0].row+offset,pmf_list[0].col+offset)),
-                shape=(dom_len,dom_len)))
-            
-            fft_cursol = CS.fft2(modelsol[0],max_shape) # returns fft
-        else:
-            # convolute with previous day
-            print('Update convolution for day {0}...'.format(day))
-            CS.fftconv2(fft_cursol,pmf_list[n].toarray())
-            # here we need to add the new fft_cursol to a queue to be ifft-d
-            #   This will be done by a separate processor while we continue
-            #   For now, just ifft to make it all run.
-            modelsol.append(CS.ifft2(fft_cursol,[dom_len,dom_len]))
-            
+    
+    # Reshape the first probability mass function into a solution
+    print('Reshaping day 1 solution')
+    offset = params.domain_info[1] - pmf_list[0].shape[0]//2
+    dom_len = params.domain_info[1]*2 + 1
+    modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
+        (pmf_list[0].row+offset,pmf_list[0].col+offset)),
+        shape=(dom_len,dom_len)))
+
+    # Pass the first solution, pmf_list, and other info to convolution solver
+    #   This updates modelsol with the rest of the solutions.
+    get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
+    
     # done.
     print('Done.')
     
