@@ -120,7 +120,36 @@ class Params():
                 
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
-        pass
+        if filename.rstrip()[-5:] != '.json':
+            filename = filename.rstrip()+'.json'
+
+        def get_param(pdict,pname):
+            try:
+                return pdict[pname]
+            except KeyError as e:
+                print('Could not load parameter value {0}'.format(e.args[0]))
+                print('Using default value...')
+
+        try:
+            with open(filename) as fobj:
+                param_dict = json.load(fobj)
+        except FileNotFoundError as e:
+            print('Could not open file {0}.'.format(filename))
+            raise
+        self.outfile = get_param(param_dict,'outfile')
+        self.site_name = get_param(param_dict,'site_name')
+        self.start_time = get_param(param_dict,'start_time')
+        self.domain_info = get_param(param_dict,'domain_info')
+        self.interp_num = get_param(param_dict,'interp_num')
+        self.ndays = get_param(param_dict,'ndays')
+        self.g_params = get_param(param_dict,'g_params')
+        self.f_params = get_param(param_dict,'f_params')
+        self.Dparams = get_param(param_dict,'Dparams')
+        self.lam = get_param(param_dict,'lam')
+        self.mu_r = get_param(param_dict,'mu_r')
+        self.n_periods = get_param(param_dict,'n_periods')
+
+        
         
     def get_model_params(self):
         '''Return params in order necessary to run model, 
@@ -132,25 +161,6 @@ class Params():
         '''Return wind params to pass to PM.get_wind_data'''
         return (self.site_name,self.interp_num,self.start_time)
         
-        
-        
-def ifft_sol(q_in,q_out,dom_len):
-    '''Function for taking the ifft of solutions in parallel.
-    
-    Args:
-        q_in: multiprocessing queue of solutions in Fourier space
-        q_out: multiprocessing queue of processed solutions
-        dom_len: domain length, int'''
-    while True:
-        fft_sol = q_in.get()
-        if fft_sol is None:
-            q_in.task_done()
-            q_out.put(None)
-            break
-        else:
-            solution = CS.ifft2(fft_sol,[dom_len,dom_len])
-            q_out.put(solution)
-            q_in.task_done()
         
 
 def main(argv):
