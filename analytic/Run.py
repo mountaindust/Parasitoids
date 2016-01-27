@@ -31,7 +31,7 @@ class Params():
         # time of day at which the data starts ('00:00' or '00:30')
         self.start_time = '00:30'
         # domain info, (dist (m), cells) from release point to side of domain 
-        self.domain_info = (8000.0,2000) # (float, int!)
+        self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
@@ -41,12 +41,12 @@ class Params():
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
-        self.g_params = (5.5, 4) #(1.8, 6)
+        self.g_params = (2.2, 5)
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
-        self.f_params = (7, 1.5, 17, 1.5)
-        # Diffusion coefficients, sig_x, sig_y, rho
-        self.Dparams = (4, 4, 0)
+        self.f_params = (6, 3, 18, 3)
+        # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
+        self.Dparams = (4,4,0)
 
         ### general flight parameters
         # Probability of any flight during the day under ideal circumstances
@@ -54,7 +54,7 @@ class Params():
         # scaling flight advection to wind advection
         self.mu_r = 1.
         # number of time periods (based on interp_num) in one flight
-        self.n_periods = 6 # if interp_num = 30, this is # of minutes
+        self.n_periods = 10 # if interp_num = 30, this is # of minutes
         
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''

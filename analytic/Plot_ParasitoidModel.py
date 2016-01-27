@@ -27,7 +27,7 @@ wind_data,days = PM.get_wind_data('data\carnarvonearl',30,'00:30')
 # Domain will be defined in terms of distance from release and resolution
 # FUTURE: assign cells UTM values when plotting
 rad_dist = 8000.0 #distance from release point to a side of the domain (meters)
-rad_res = 2000 #number of cells from center to side of domain
+rad_res = 1600 #number of cells from center to side of domain
                #so, each cell is 2 m**2
 
 
@@ -41,7 +41,7 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 # 2. play with them to get some reasonable dummy parameters
 
 #### Test g function for prob. during different wind speeds ####
-def plot_g_wind_prob(aw=5.5,bw=4):
+def plot_g_wind_prob(aw=2.2,bw=5):
     windr_range = np.arange(0,8,0.2) #a range of wind speeds
     g = PM.g_wind_prob(windr_range,aw,bw)
     plt.ion()
@@ -54,7 +54,7 @@ def plot_g_wind_prob(aw=5.5,bw=4):
     return g
 
 #### Test f function for prob. during different times of the day    
-def plot_f_time_prob(a1=7,b1=1.5,a2=17,b2=1.5):
+def plot_f_time_prob(a1=6,b1=3,a2=18,b2=3):
     n = 24*60 #throw in a lot of increments to see a smooth 24hr plot
     day_time = np.linspace(0,24-24./n,n)
     #first scalar centers the logistic. Second one stretches it.
@@ -71,7 +71,7 @@ def plot_f_time_prob(a1=7,b1=1.5,a2=17,b2=1.5):
 #### Test h function (and therefore g and f) with data ####
 def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
     day_time = np.linspace(0,24,day_wind.shape[0]+1)[:-1]
-    h = PM.h_flight_prob(day_wind,lam,1.8,6,7,1.5,17,1.5)
+    h = PM.h_flight_prob(day_wind,lam, 2.2, 5, 6, 3, 18, 3)
     plt.ion()
     plt.figure()
     plt.plot(day_time,h)
@@ -81,7 +81,7 @@ def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
     return h
     
 #### Test p function, which gives the 2-D probability density####
-hparams = (1., 5.5, 4, 7, 1.5, 17, 1.5) # (lam,aw,bw,a1,b1,a2,b2)
+hparams = (1., 2.2, 5, 6, 3, 18, 3) # (lam,aw,bw,a1,b1,a2,b2)
 Dparams = (4, 4, 0) # (sig_x,sig_y,rho)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
@@ -91,7 +91,7 @@ Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
     #will need to implement resolution sensitive plotting
     
     # res is how far (# of cells) to plot away from the center
-    res = int((pmf.shape[0]-1)/2) # pmf is always square
+    res = (pmf.shape[0]-1)//2 # pmf is always square
     
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell (meters).
     xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 

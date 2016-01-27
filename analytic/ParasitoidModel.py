@@ -20,6 +20,7 @@ __copyright__ = "Copyright 2015, Christopher Strickland"
 import numpy as np
 from scipy.stats import mvn
 from scipy import sparse
+from CalcSol import r_small_vals
 
 #we need to fix units for time. lets say t is in hours.
 
@@ -494,7 +495,14 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     pmf[rad_res,rad_res] += 1-total_flight_prob
     
     # shrink the domain down as much as possible and return a sparse array
-    I,J,V = sparse.find(pmf)
+
+    # first, remove the really small data values from the array
+    #   In some large pmf arrays, this can significantly reduce the size
+    pmf_coo = r_small_vals(sparse.coo_matrix(pmf))
+    I = pmf_coo.row
+    J = pmf_coo.col
+    V = pmf_coo.data
+    # now shrink domain and return a sparse array
     rad = int(max(np.fabs(I-rad_res).max(),np.fabs(J-rad_res).max()))
     I = I - rad_res + rad
     J = J - rad_res + rad
