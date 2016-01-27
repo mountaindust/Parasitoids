@@ -49,7 +49,7 @@ def plot_all(modelsol,days,domain_info):
             rmax*cell_dist+cell_dist/2,rmax*2+2)
         sol_fm = np.flipud(np.ma.masked_less(
             sol.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
-            0.0001))
+            0.00001))
         plt.clf()
         plt.pcolormesh(xmesh,xmesh,sol_fm,norm=clrnorm,cmap=clrmp)
         plt.axis([xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]])

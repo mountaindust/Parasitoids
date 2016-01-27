@@ -41,8 +41,8 @@ cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
 # 2. play with them to get some reasonable dummy parameters
 
 #### Test g function for prob. during different wind speeds ####
-def plot_g_wind_prob(aw=1.8,bw=6):
-    windr_range = np.arange(0,3.1,0.1) #a range of wind speeds
+def plot_g_wind_prob(aw=5.5,bw=4):
+    windr_range = np.arange(0,8,0.2) #a range of wind speeds
     g = PM.g_wind_prob(windr_range,aw,bw)
     plt.ion()
     plt.figure()
@@ -81,8 +81,8 @@ def plot_h_flight_prob(day_wind=wind_data[1],lam=1.):
     return h
     
 #### Test p function, which gives the 2-D probability density####
-hparams = (1., 1.8, 6, 7, 1.5, 17, 1.5)
-Dparams = (4, 4, 0)
+hparams = (1., 5.5, 4, 7, 1.5, 17, 1.5) # (lam,aw,bw,a1,b1,a2,b2)
+Dparams = (4, 4, 0) # (sig_x,sig_y,rho)
 
 def plot_prob_mass(day=1,wind_data=wind_data,hparams=hparams,\
 Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
@@ -97,7 +97,7 @@ Dparams=Dparams,mu_r=1,n_periods=6,rad_dist=rad_dist,rad_res=rad_res):
     xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 
         cell_dist/3,cell_dist)
     # mask the view at negligible probabilities
-    pmf_masked = np.ma.masked_less(pmf.toarray(),0.0001)
+    pmf_masked = np.ma.masked_less(pmf.toarray(),0.00001)
     # flip result for proper plotting orientation
     pmf_masked = np.flipud(pmf_masked)
     plt.ion()

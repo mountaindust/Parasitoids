@@ -239,8 +239,9 @@ def test_h_flight_prob(wind_data,g_wind_prob_params,f_time_prob_params):
         assert np.all(f_func*g_func <= f_func)
         assert (f_func-f_func*g_func).sum() <=1
         # get the probability function for the day
+        flight_params = (*g_wind_prob_params,*f_time_prob_params)
         flight_prob = PM.h_flight_prob(day_wind,lam,
-            *g_wind_prob_params,*f_time_prob_params)
+            *flight_params)
         # test that it has proper probability properties
         assert np.all(flight_prob >= 0)
         # should be add up to less than or equal to 1,
@@ -368,8 +369,8 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     wind_data_cpy = dict(wind_data)
     
     # get the day's probability density for location of a parasitoid
-    pmf = PM.prob_mass(day,wind_data,hparams,D_params,
-        *flight_consts[1:],*domain_info)
+    params = (*flight_consts[1:],*domain_info)
+    pmf = PM.prob_mass(day,wind_data,hparams,D_params,*params)
         
     # wind_data should be unchanged
     assert wind_data == wind_data_cpy

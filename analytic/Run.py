@@ -41,7 +41,7 @@ class Params():
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
-        self.g_params = (1.8, 6)
+        self.g_params = (5.5, 4) #(1.8, 6)
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (7, 1.5, 17, 1.5)
@@ -197,7 +197,6 @@ def main(argv):
 
     # Pass the first solution, pmf_list, and other info to convolution solver
     #   This updates modelsol with the rest of the solutions.
-    import pdb; pdb.set_trace()
     get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
     
     # done.

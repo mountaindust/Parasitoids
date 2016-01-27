@@ -118,3 +118,8 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Visual studio
+.vs/
+*.pyproj
+*.sln
