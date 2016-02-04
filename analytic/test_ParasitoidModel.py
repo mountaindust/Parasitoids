@@ -11,6 +11,7 @@ import numpy as np
 import math
 from scipy import sparse, signal
 import ParasitoidModel as PM
+import config
 
 ###############################################################################
 #                                                                             #
@@ -88,9 +89,13 @@ def wind_data(site_name,start_time):
 def wind_data_days(site_name,start_time):
     return PM.get_wind_data(site_name,30,start_time)
     
-    
+############                    Decorators                ############
+
 slow = pytest.mark.skipif(not pytest.config.getoption('--runslow'),
     reason = 'need --runslow option to run')
+    
+cuda_run = pytest.mark.skipif(not config.cuda,
+    reason = 'need config.cuda == True')
 
 ###############################################################################
 #                                                                             #
