@@ -11,6 +11,7 @@ import numpy as np
 import math
 from scipy import sparse, signal
 import ParasitoidModel as PM
+import config
 
 ###############################################################################
 #                                                                             #
@@ -65,13 +66,13 @@ def domain_info():
 
 @pytest.fixture(scope="module")
 def site_name():
-    return 'data\carnarvonearl'
+    return 'data/carnarvonearl'
 
 @pytest.fixture(scope="module")
 def start_time(site_name):
-    if site_name == 'data\carnarvonearl':
+    if site_name == 'data/carnarvonearl':
         return '00:30'
-    elif site_name == 'data\kalbar':
+    elif site_name == 'data/kalbar':
         return '00:00'
 
 @pytest.fixture(scope="module")
@@ -88,9 +89,13 @@ def wind_data(site_name,start_time):
 def wind_data_days(site_name,start_time):
     return PM.get_wind_data(site_name,30,start_time)
     
-    
+############                    Decorators                ############
+
 slow = pytest.mark.skipif(not pytest.config.getoption('--runslow'),
     reason = 'need --runslow option to run')
+    
+cuda_run = pytest.mark.skipif(not config.cuda,
+    reason = 'need config.cuda == True')
 
 ###############################################################################
 #                                                                             #

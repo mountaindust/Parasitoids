@@ -8,32 +8,16 @@ import numpy as np
 from scipy import sparse, fftpack
 import config
 
-if config.cuda:
-    try:
-        import cuda_lib
-        NO_CUDA = False
-    except ImportError:
-        print('CUDA libraries not found. Running with NO_CUDA option.')
-        config.cuda = False
-        NO_CUDA = True
-    except Exception as e:
-        print('Error encountered while importing CUDA:')
-        print(str(e))
-        config.cuda = False
-        NO_CUDA = True
-else:
-    NO_CUDA = True
-
-def fft2(A,Ashape):
+def fft2(A,filt_shape):
     '''Return the fft of a coo sparse matrix signal A.
     
     Args:
         A: Coo sparse matrix
-        Ashape: Shape of output array
+        filt_shape: Shape of filter largest array
         
     Returns:
-        fft2 of A padded with zeros in the shape of Ashape'''
-    mmid = (Ashape/2).astype(int)
+        fft2 of A padded with zeros in the shape of filt_shape'''
+    mmid = (filt_shape/2).astype(int)
     pad_shape = A.shape + mmid
     A_hat = np.zeros(pad_shape)
     A_hat[:A.shape[0],:A.shape[1]] = A.toarray()
@@ -78,10 +62,14 @@ def fftconv2(A_hat,B):
             
 
 def r_small_vals(A,negval=1e-6):
-    '''Remove negligible values from the given coo sparse matrix. This process significantly decreases the size of a solution, 
+    '''Remove negligible values from the given coo sparse matrix. 
+    This process significantly decreases the size of a solution, 
     saving storage and decreasing the time it takes to write to disk.
+    The sum of the removed values is added back to the origin to maintain a
+    probability mass function.
     
     A CUDA version might be warranted if really fast save time needed.'''
+    midpt = A.shape[0]//2 #assume domain is square
     
     mask = np.empty(A.data.shape,dtype=bool)
     for n,val in enumerate(A.data):
@@ -89,7 +77,9 @@ def r_small_vals(A,negval=1e-6):
             mask[n] = False
         else:
             mask[n] = True
-    return sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
+    return sparse.coo_matrix((np.hstack((A.data[mask],1-A.data[mask].sum())),
+        (np.hstack((A.row[mask],midpt)),np.hstack((A.col[mask],midpt)))),
+        A.shape)
     
 def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
@@ -103,24 +93,47 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         days: list of day dictionary keys, mostly for feedback
         ndays: number of days to run simulation
         dom_len: number of cells across one side of the domain
-        max_shape: largest necessary fft shape, based on largest in pmf_list
+        max_shape: largest filter shape, based on largest in pmf_list
             
     Modifies:
         modelsol
     '''
     
+    if config.cuda:
+        try:
+            import cuda_lib
+            NO_CUDA = False
+        except ImportError:
+            print('CUDA libraries not found. Running with NO_CUDA option.')
+            config.cuda = False
+            NO_CUDA = True
+        except Exception as e:
+            print('Error encountered while importing CUDA:')
+            print(str(e))
+            config.cuda = False
+            NO_CUDA = True
+    else:
+        NO_CUDA = True
+    
     if config.cuda and not NO_CUDA:
-        # go to GPU
-        return
-    
-    print('Finding fft of first day...')
-    cursol_hat = fft2(modelsol[0],max_shape)
-    
-    for n,day in enumerate(days[1:ndays]):
-        print('Updating convolution for day {0}...'.format(day))
-        # modifies cursol_hat
-        fftconv2(cursol_hat,pmf_list[n+1].toarray())
-        print('Finding ifft for day {0}...'.format(day))
-        big_sol = ifft2(cursol_hat,[dom_len,dom_len])
-        print('Reducing solution...')
-        modelsol.append(r_small_vals(big_sol))
+        # go to GPU.
+        print('Sending to GPU and finding fft of first day...')
+        gpu_solver = cuda_lib.CudaSolve(modelsol[0],max_shape)
+        # update and return solution for each day
+        for n,day in enumerate(days[1:ndays]):
+            print('Updating convolution for day {0}...'.format(day))
+            gpu_solver.fftconv2(pmf_list[n+1].toarray())
+            print('Finding ifft for day {0} and reducing...'.format(day))
+            modelsol.append(gpu_solver.get_cursol(dom_len))
+    else:
+        print('Finding fft of first day...')
+        cursol_hat = fft2(modelsol[0],max_shape)
+        
+        for n,day in enumerate(days[1:ndays]):
+            print('Updating convolution for day {0}...'.format(day))
+            # modifies cursol_hat
+            fftconv2(cursol_hat,pmf_list[n+1].toarray())
+            print('Finding ifft for day {0}...'.format(day))
+            big_sol = ifft2(cursol_hat,[dom_len,dom_len])
+            print('Reducing solution...')
+            modelsol.append(r_small_vals(big_sol))
