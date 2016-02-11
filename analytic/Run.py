@@ -1,6 +1,7 @@
 ﻿#! /usr/bin/env python3
 
 import sys
+import os
 import json
 import numpy as np
 from scipy import sparse
@@ -280,6 +281,11 @@ def main(argv):
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
+        # check for directory path
+        dir_file = params.outfile.rsplit('/',1)
+        if len(dir_file) > 1:
+            if not os.path.exists(dir_file[0]):
+                os.makedirs(dir_file[0])
         np.savez(params.outfile,**{x: y for (x,y) in outgen})
         
         ### save parameters ###
