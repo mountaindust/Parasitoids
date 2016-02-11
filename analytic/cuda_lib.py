@@ -94,8 +94,14 @@ class CudaSolve():
         cursol_gpu_r = thr.array(self.pad_shape,dtype=np.float32)
         cursol_gpu_i = thr.array(self.pad_shape,dtype=np.float32)
         self.ifft_proc_c(cursol_gpu_r,cursol_gpu_i,self.sol_hat_gpu,1)
+        
+        # Remove negligable values from real solution
+        cursol_gpu_i.set(np.zeros(cursol_gpu_r.shape).astype(np.float32))
+        cursol_gpu_red = api.gpuarray.if_positive(cursol_gpu_r>negval,
+            cursol_gpu_r,cursol_gpu_i)
 
 	    # pull down current solution and return unpadded coo_matrix
-        return sparse.coo_matrix(cursol_gpu_r[:dom_shape[0],:dom_shape[1]].get())
+        return sparse.coo_matrix(
+            cursol_gpu_red[:dom_shape[0],:dom_shape[1]].get())
 
         #TODO: add method to return cursol with neg values zeroed out
