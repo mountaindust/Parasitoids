@@ -17,6 +17,20 @@ clrmp = cm.get_cmap('viridis')
 clrmp.set_bad('w') # Second arg is alpha. 
                        # Later we can use this to have a map show through!
 
+def r_small_vals(A,negval):
+    '''Remove negligible values from the given coo sparse matrix. 
+    This process significantly decreases the size of a solution and gives an
+    accurate plot domain.'''
+    midpt = A.shape[0]//2 #assume domain is square
+    
+    mask = np.empty(A.data.shape,dtype=bool)
+    for n,val in enumerate(A.data):
+        if val < negval:
+            mask[n] = False
+        else:
+            mask[n] = True
+    return sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
+                       
 def plot_all(modelsol,days,domain_info,mask_val=0.00001):
     '''Function for plotting the model solution
     
@@ -25,9 +39,6 @@ def plot_all(modelsol,days,domain_info,mask_val=0.00001):
         days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
-    # The general idea here will be to comprehend resolutions in multiples
-    #   of 1000. So, 1000x1000, 2000x2000, etc.
-    # The first level will require no reduction.
     
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
                                               #neighbor cell (meters).
@@ -37,14 +48,17 @@ def plot_all(modelsol,days,domain_info,mask_val=0.00001):
         
     plt.figure()
     for n,sol in enumerate(modelsol):
-        #find the maximum distance from the origin
-        rmax = max(np.fabs(sol.row-midpt).max(),np.fabs(sol.col-midpt).max())
+        #remove all values that are too small to be plotted.
+        sol_red = r_small_vals(sol,mask_val)
+        #find the maximum distance from the origin that will be plotted
+        rmax = max(np.fabs(sol_red.row-midpt).max(),
+            np.fabs(sol_red.col-midpt).max())
         #construct xmesh and a masked solution array based on this
         rmax = min(rmax+5,midpt) # add a bit of frame space
         xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
             rmax*cell_dist+cell_dist/2,rmax*2+2)
         sol_fm = np.flipud(np.ma.masked_less(
-            sol.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
+            sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
             mask_val))
         plt.clf()
         plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp)
@@ -80,14 +94,16 @@ def plot(sol,day,domain_info,mask_val=0.00001):
 
     plt.ion()
     plt.figure()
+    #remove all values that are too small to be plotted.
+    sol_red = r_small_vals(sol,mask_val)
     #find the maximum distance from the origin
-    rmax = max(np.fabs(sol.row-midpt).max(),np.fabs(sol.col-midpt).max())
+    rmax = max(np.fabs(sol_red.row-midpt).max(),np.fabs(sol_red.col-midpt).max())
     #construct xmesh and a masked solution array based on this
     rmax = min(rmax+5,midpt) # add a bit of frame space
     xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
         rmax*cell_dist+cell_dist/2,rmax*2+2)
     sol_fm = np.flipud(np.ma.masked_less(
-        sol.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
+        sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
         mask_val))
     plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp)
     plt.axis([xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]])

@@ -61,7 +61,7 @@ def fftconv2(A_hat,B):
             
             
 
-def r_small_vals(A,negval=1e-6):
+def r_small_vals(A,negval=1e-8):
     '''Remove negligible values from the given coo sparse matrix. 
     This process significantly decreases the size of a solution, 
     saving storage and decreasing the time it takes to write to disk.
@@ -73,13 +73,14 @@ def r_small_vals(A,negval=1e-6):
     
     mask = np.empty(A.data.shape,dtype=bool)
     for n,val in enumerate(A.data):
-        if val < negval: # this is roundoff error territory for fft
+        if val < negval: # this should be roundoff error territory
             mask[n] = False
         else:
             mask[n] = True
-    return sparse.coo_matrix((np.hstack((A.data[mask],1-A.data[mask].sum())),
-        (np.hstack((A.row[mask],midpt)),np.hstack((A.col[mask],midpt)))),
-        A.shape)
+    A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
+    # to get a pmf, add back the lost probability evenly
+    A_red.data += (1-A_red.data.sum())/A_red.data.size
+    return A_red
     
 def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
