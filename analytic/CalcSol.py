@@ -125,7 +125,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             print('Updating convolution for day {0}...'.format(day))
             gpu_solver.fftconv2(pmf_list[n+1].toarray())
             print('Finding ifft for day {0} and reducing...'.format(day))
-            modelsol.append(gpu_solver.get_cursol(dom_len))
+            modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
     else:
         print('Finding fft of first day...')
         cursol_hat = fft2(modelsol[0],max_shape)

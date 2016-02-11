@@ -95,7 +95,7 @@ class CudaSolve():
         cursol_gpu_i = thr.array(self.pad_shape,dtype=np.float32)
         self.ifft_proc_c(cursol_gpu_r,cursol_gpu_i,self.sol_hat_gpu,1)
         
-        # Remove negligable values from real solution
+        # Remove negligable values from reported real solution
         cursol_gpu_i.set(np.zeros(cursol_gpu_r.shape).astype(np.float32))
         cursol_gpu_red = api.gpuarray.if_positive(cursol_gpu_r>negval,
             cursol_gpu_r,cursol_gpu_i)
