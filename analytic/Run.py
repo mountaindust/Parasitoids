@@ -14,9 +14,9 @@ import Plot_Result
 class Params():
     '''Class definition to keep track with parameters for a model run'''
     ### Simulation flags ### (shared among all Params instances)
-    NO_OUTPUT = False
-    NO_PLOT = False
-    NO_CUDA = True
+    OUTPUT = True
+    PLOT = True
+    CUDA = True
     
     def __init__(self):
         ### DEFAULT PARAMETERS ###
@@ -66,17 +66,17 @@ class Params():
             if argstr[0:2] == '--':
                 # Flag set by option
                 if argstr[2:].lower() == 'no_output':
-                    self.NO_OUTPUT = True
+                    self.OUTPUT = False
                 elif argstr[2:].lower() == 'output':
-                    self.NO_OUTPUT = False
+                    self.OUTPUT = True
                 elif argstr[2:].lower() == 'no_plot':
-                    self.NO_PLOT = True
+                    self.PLOT = False
                 elif argstr[2:].lower() == 'plot':
-                    self.NO_PLOT = False
+                    self.PLOT = True
                 elif argstr[2:].lower() == 'no_cuda':
-                    self.NO_CUDA = True
+                    self.CUDA = False
                 elif argstr[2:].lower() == 'cuda':
-                    self.NO_CUDA =False
+                    self.CUDA = True
                 else:
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
@@ -171,10 +171,10 @@ def main(argv):
         params.cmd_line_chg(argv)
         
     # This sends a message to CalcSol to not use CUDA
-    if params.NO_CUDA:
-        globalvars.cuda = False
-    else:
+    if params.CUDA:
         globalvars.cuda = True
+    else:
+        globalvars.cuda = False
     
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
@@ -213,7 +213,7 @@ def main(argv):
     print('Done.')
     
     ### save result ###
-    if not params.NO_OUTPUT:
+    if params.OUTPUT:
         # print('Removing small values from solutions...')
         # for n,sol in enumerate(modelsol):
             # modelsol[n] = PM.r_small_vals(sol)
@@ -234,7 +234,7 @@ def main(argv):
             json.dump(params.__dict__,fobj)
     
     ### plot result ###
-    if not params.NO_PLOT:
+    if params.PLOT:
         Plot_Result.plot_all(modelsol,days,params.domain_info)
     
 
