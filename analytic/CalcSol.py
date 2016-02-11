@@ -6,7 +6,7 @@ Email: cstrickland@samsi.info"""
 import sys
 import numpy as np
 from scipy import sparse, fftpack
-import config
+import globalvars
 
 def fft2(A,filt_shape):
     '''Return the fft of a coo sparse matrix signal A.
@@ -85,7 +85,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
     the distribution after the first day.
     
-    Runs on GPU if config.cuda is True and NO_CUDA is False.
+    Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
     
     Args:
         modelsol: list of model solutions with the first day's already entered
@@ -99,23 +99,23 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         modelsol
     '''
     
-    if config.cuda:
+    if globalvars.cuda:
         try:
             import cuda_lib
             NO_CUDA = False
         except ImportError:
             print('CUDA libraries not found. Running with NO_CUDA option.')
-            config.cuda = False
+            globalvars.cuda = False
             NO_CUDA = True
         except Exception as e:
             print('Error encountered while importing CUDA:')
             print(str(e))
-            config.cuda = False
+            globalvars.cuda = False
             NO_CUDA = True
     else:
         NO_CUDA = True
     
-    if config.cuda and not NO_CUDA:
+    if globalvars.cuda and not NO_CUDA:
         # go to GPU.
         print('Sending to GPU and finding fft of first day...')
         gpu_solver = cuda_lib.CudaSolve(modelsol[0],max_shape)

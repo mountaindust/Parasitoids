@@ -4,7 +4,7 @@ import sys
 import json
 import numpy as np
 from scipy import sparse
-import config
+import globalvars
 import ParasitoidModel as PM
 from CalcSol import get_solutions
 import Plot_Result
@@ -172,9 +172,9 @@ def main(argv):
         
     # This sends a message to CalcSol to not use CUDA
     if params.NO_CUDA:
-        config.cuda = False
+        globalvars.cuda = False
     else:
-        config.cuda = True
+        globalvars.cuda = True
     
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     

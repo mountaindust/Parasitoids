@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 from scipy import sparse, signal, fftpack
 import CalcSol as CS
-import config
+import globalvars
 
 ###############################################################################
 #                                                                             #
@@ -24,8 +24,8 @@ def two_arrays():
     
 ############                    Decorators                ############
 
-cuda_run = pytest.mark.skipif(not config.cuda,
-    reason = 'need config.cuda == True')
+cuda_run = pytest.mark.skipif(not globalvars.cuda,
+    reason = 'need globalvars.cuda == True')
 
 ###############################################################################
 #                                                                             #

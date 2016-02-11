@@ -11,7 +11,7 @@ import numpy as np
 import math
 from scipy import sparse, signal
 import ParasitoidModel as PM
-import config
+import globalvars
 
 ###############################################################################
 #                                                                             #
@@ -94,8 +94,8 @@ def wind_data_days(site_name,start_time):
 slow = pytest.mark.skipif(not pytest.config.getoption('--runslow'),
     reason = 'need --runslow option to run')
     
-cuda_run = pytest.mark.skipif(not config.cuda,
-    reason = 'need config.cuda == True')
+cuda_run = pytest.mark.skipif(not globalvars.cuda,
+    reason = 'need globalvars.cuda == True')
 
 ###############################################################################
 #                                                                             #

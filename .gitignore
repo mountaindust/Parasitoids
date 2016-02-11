@@ -2,9 +2,10 @@
 __pycache__/
 *.py[cod]
 
-# Model output, scratch file
+# Model output, scratch file, local-only config
 output/
 snippets/
+config.txt
 
 # Juypter notebook generated files
 .ipynb_checkpoints/
