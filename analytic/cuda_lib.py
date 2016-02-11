@@ -3,6 +3,7 @@ from scipy import sparse
 
 import reikna.cluda as cluda
 import reikna.fft as fft
+from reikna.transformations import split_complex
 
 api = cluda.cuda_api()
 thr = api.Thread.create()
@@ -33,8 +34,16 @@ class CudaSolve():
         self.sol_hat_gpu = thr.to_device(A_pad)
         
         # create compiled fft procedure
-        self.fft_proc = fft.FFT(self.sol_hat_gpu)
-        self.fft_proc_c = self.fft_proc.compile(thr)
+        fft_proc = fft.FFT(self.sol_hat_gpu)
+        self.fft_proc_c = fft_proc.compile(thr)
+        # call signature is (sol_hat, sol, 0)
+        
+        # create separate ifft procedure that splits real/imaginary parts
+        splitc = split_complex(self.sol_hat_gpu)
+        fft_proc.parameter.output.connect(
+            splitc, splitc.input, sol_r=splitc.real, sol_i=splitc.imag)
+        self.ifft_proc_c = fft_proc.compile(thr)
+        # call signature is (sol_real,sol_imag,sol_hat,1)
         
         # find fft, replacing the A_pad on gpu
         self.fft_proc_c(self.sol_hat_gpu,self.sol_hat_gpu,0)
@@ -68,7 +77,7 @@ class CudaSolve():
         self.fft_proc_c(B_gpu,B_gpu,0)
         self.sol_hat_gpu *= B_gpu
         
-    def get_cursol(self,dom_shape,negval=1e-6):
+    def get_cursol(self,dom_shape,negval=1e-8):
         '''Return the current solution (requires ifft) with small values removed
         
         Args:
@@ -81,11 +90,12 @@ class CudaSolve():
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize)
         
-        # Assign temporary space for ifft and calculate
-        cursol_gpu = thr.array(self.pad_shape,dtype=np.complex64)
-        self.fft_proc_c(cursol_gpu,self.sol_hat_gpu,1)
+        # Assign temporary space for real and complex ifft and calculate
+        cursol_gpu_r = thr.array(self.pad_shape,dtype=np.float32)
+        cursol_gpu_i = thr.array(self.pad_shape,dtype=np.float32)
+        self.ifft_proc_c(cursol_gpu_r,cursol_gpu_i,self.sol_hat_gpu,1)
 
 	    # pull down current solution and return unpadded coo_matrix
-        return sparse.coo_matrix(cursol_gpu.real[:dom_shape[0],:dom_shape[1]].get())
+        return sparse.coo_matrix(cursol_gpu_r[:dom_shape[0],:dom_shape[1]].get())
 
         #TODO: add method to return cursol with neg values zeroed out
