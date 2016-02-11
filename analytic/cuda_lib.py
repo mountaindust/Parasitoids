@@ -1,12 +1,11 @@
 import numpy as np
 from scipy import sparse
 
-import pycuda.gpuarray as gpuarray
-import pycuda.driver as cuda
-import pycuda.autoinit
-import skcuda.fft as fft
+import reikna.cluda as cluda
+import reikna.fft as fft
 
-# from pycuda.elementwise import ElementwiseKernel
+api = cluda.cuda_api()
+thr = api.Thread.create()
 
 class CudaSolve():
     
@@ -18,26 +17,27 @@ class CudaSolve():
             max_shape: Shape of transformed solution'''
         
         # determine the shape of the padded solution array
-        mmid = (max_shape/2).astype(int)
-        self.pad_shape = A.shape + mmid
-        
-        # CUDA plans
-        self.fft_plan = fft.Plan(tuple(max_shape),np.float32,np.complex64)
-        self.ifft_plan = fft.Plan(tuple(self.pad_shape),np.complex64,np.float32)
+        mmid = max_shape//2
+        pads = A.shape + mmid
+        self.pad_shape = (int(pads[0]),int(pads[1]))
         
         # memory check!
-        assert cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
+        assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize + np.dtype(np.complex64).itemsize)
         
-        # allocate temporary space on the gpu and send A there
-        A_gpu = gpuarray.zeros(self.pad_shape,np.float32)
-        A_gpu[:A.shape[0],:A.shape[1]] = A.toarray()
+        # pad A
+        A_pad = np.zeros(self.pad_shape,dtype=np.complex64)
+        A_pad[:A.shape[0],:A.shape[1]] = A.toarray().astype(np.float32)
+
+        # allocate space on the gpu and send A there
+        self.sol_hat_gpu = thr.to_device(A_pad)
         
-        # allocate persisting space on the gpu for current fft solution
-        self.sol_hat_gpu = gpuarray.empty(self.pad_shape,np.complex64)
+        # create compiled fft procedure
+        self.fft_proc = fft.FFT(self.sol_hat_gpu)
+        self.fft_proc_c = self.fft_proc.compile(thr)
         
-        # find fft
-        fft.fft(A_gpu,self.sol_hat_gpu,self.fft_plan)
+        # find fft, replacing the A_pad on gpu
+        self.fft_proc_c(self.sol_hat_gpu,self.sol_hat_gpu,0)
         
     def fftconv2(self,B):
         '''Update current fourier solution with filter B.
@@ -49,26 +49,26 @@ class CudaSolve():
             B: 2D array'''
             
         # Get array shape information
-        mmid = (np.arraay(B.shape)/2).astype(int)
+        mmid = np.array(B.shape).astype(int)//2
         
         # memory check!
-        assert cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
+        assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize + np.dtype(np.complex64).itemsize)
         
         # allocate temporary space on the gpu and arrange B there appropriately
-        B_gpu = gpuarray.zeros(self.pad_shape,np.float32)
-        B_hat_gpu = gpuarray.empty(self.pad_shape,np.complex64)
-        
-        B_gpu[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
-        B_gpu[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
-        B_gpu[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
-        B_gpu[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
+        B_pad = np.zeros(self.pad_shape,np.complex64)
+        B_pad[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].astype(np.float32)
+        B_pad[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].astype(np.float32)
+        B_pad[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]].astype(np.float32)
+        B_pad[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].astype(np.float32)
+
+        B_gpu = thr.to_device(B_pad)
         
         # fft and solution update
-        fft.fft(B_gpu,B_hat_gpu,self.fft_plan)
-        self.sol_hat_gpu *= B_hat_gpu
+        self.fft_proc_c(B_gpu,B_gpu,0)
+        self.sol_hat_gpu *= B_gpu
         
-    def get_cursol(self,dom_len,negval=1e-6):
+    def get_cursol(self,dom_shape,negval=1e-6):
         '''Return the current solution (requires ifft) with small values removed
         
         Args:
@@ -78,98 +78,14 @@ class CudaSolve():
             coo matrix, current solution with shape (dom_len,dom_len)'''
         
         # memory check!
-        assert cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
+        assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize)
         
-        # Assign temporary space for ifft
-        cursol_gpu = gpuarray.empty(self.pad_shape,np.float32)
-        
-        fft.ifft(self.sol_hat_gpu,cursol_gpu,self.ifft_plan)
-        
-        # remove values less than negval
-        cursol_gpu = gpuarray.if_positive(cursol_gpu-negval,cursol_gpu,0)
-        
-        # pull down current solution and return coo_matrix
-        return sparse.coo_matrix(cursol_gpu[:dom_len,:dom_len].get())
-        
+        # Assign temporary space for ifft and calculate
+        cursol_gpu = thr.array(self.pad_shape,dtype=np.complex64)
+        self.fft_proc_c(cursol_gpu,self.sol_hat_gpu,1)
 
-def fftconv2(A,B):
-    '''Computes the fft convolution of two sparse matrices on the GPU
-    
-    Args:
-        A,B: two 2D numpy arrays
-        
-    Returns:
-        2D numpy array with shape A.shape'''
-    
-    # each array and the output will be padded before fftconv2 returns
-    mmid = (np.array(B.shape)/2).astype(int)
-    pad_shape = A.shape + mmid
-    
-    # convolution output should be within an absolute tol of 1e-6
-    #   using float32 and complex64?
-    
-    # if the output array plus the two input fft arrays are too big,
-    #   abort mission! (4 bytes in 32-bit float)
-    # cutoff at 1.65 GB (normal mem free = 1.76 GB)
-    if pad_shape[0]*pad_shape[1]*4*5 > 1650000000: 
-        raise MemoryError('Input arrays are too big for GPU convolution.')
+	    # pull down current solution and return unpadded coo_matrix
+        return sparse.coo_matrix(cursol_gpu.real[:dom_shape[0],:dom_shape[1]].get())
 
-    # Take fft of both input arrays on the GPU
-    
-    plan = fft.Plan(tuple(pad_shape), np.float32, np.complex64)
-    AB_gpu = gpuarray.zeros(pad_shape,np.float32)
-    # no idea if this will work... I think so?
-    AB_gpu[:A.shape[0],:A.shape[1]] = A.toarray()
-    A_hat_gpu = gpuarray.empty(pad_shape,np.complex64)
-    fft.fft(AB_gpu,A_hat_gpu,plan)
-    
-    AB_gpu = gpuarray.zeros(pad_shape,np.float32)
-    # make sure there is enough memory to continue
-    assert cuda.mem_get_info()[0] > pad_shape[0]*pad_shape[1]*4*2
-    B_lil = B.tolil()
-    AB_gpu[:mmid[0]+1,:mmid[1]+1] = B_lil[mmid[0]:,mmid[1]:].toarray()
-    AB_gpu[:mmid[0]+1,-mmid[1]:] = B_lil[mmid[0]:,:mmid[1]].toarray()
-    AB_gpu[-mmid[0]:,-mmid[1]:] = B_lil[:mmid[0],:mmid[1]].toarray()
-    AB_gpu[-mmid[0]:,:mmid[1]+1] = B_lil[:mmid[0],mmid[1]:].toarray()
-    B_hat_gpu = gpuarray.empty(pad_shape,np.complex64)
-    fft.fft(AB_gpu,B_hat_gpu,plan)
-
-    AB_gpu.gpudata.free() #release the memory
-    
-    A_hat_gpu *= B_hat_gpu
-    
-    B_hat_gpu.gpudata.free()
-    C_gpu = gpuarray.zeros(pad_shape,np.float32)
-    
-    plan = fft.Plan(tuple(pad_shape), np.complex64, np.float32)
-    fft.ifft(A_hat_gpu,C_gpu,plan)
-    
-    return C_gpu.get()[:A.shape[0],:A.shape[1]]
-
-
-# def outer(A,B):
-    # '''Computes the outer product of two vectors on the GPU
-    
-    # Args:
-        # A,B: two 1D numpy arrays
-        
-    # Returns:
-        # 2D numpy array with shape A.size, B.size'''
-        
-    # # the outer product between two vectors
-    # outer_prod = ElementwiseKernel(
-        # "float *out, float *v1, float *v2, int v2_size",
-        # "out[i] = v1[i/v2_size]*v2[i%v2_size]", 
-        # "outer_prod")
-        
-
-    # # GPUs typically are 32-bit
-    # A_gpu = gpuarray.to_gpu(A.astype(np.float32))
-    # B_gpu = gpuarray.to_gpu(B.astype(np.float32))
-
-    # C_gpu = gpuarray.empty(A.size*B.size, np.float32)
-
-    # outer_prod(C_gpu, A_gpu, B_gpu, B.size)
-    
-    # return C_gpu.get().reshape(A.size,B.size)
+        #TODO: add method to return cursol with neg values zeroed out

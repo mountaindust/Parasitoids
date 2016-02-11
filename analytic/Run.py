@@ -25,9 +25,9 @@ class Params():
 
         ### I/O
         # name and path for output files
-        self.outfile = 'output\carnarvonearl'
+        self.outfile = 'output/carnarvonearl'
         # site name and path
-        self.site_name = 'data\carnarvonearl'
+        self.site_name = 'data/carnarvonearl'
         # time of day at which the data starts ('00:00' or '00:30')
         self.start_time = '00:30'
         # domain info, (dist (m), cells) from release point to side of domain 

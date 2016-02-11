@@ -62,7 +62,8 @@ def fftconv2(A_hat,B):
             
 
 def r_small_vals(A,negval=1e-6):
-    '''Remove negligible values from the given coo sparse matrix. This process significantly decreases the size of a solution, 
+    '''Remove negligible values from the given coo sparse matrix. 
+    This process significantly decreases the size of a solution, 
     saving storage and decreasing the time it takes to write to disk.
     The sum of the removed values is added back to the origin to maintain a
     probability mass function.

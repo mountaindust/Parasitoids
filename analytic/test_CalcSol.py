@@ -62,12 +62,12 @@ def test_cuda_convolve(two_arrays):
     '''Test the full convolution sequence on the GPU'''
     import cuda_lib
     A,B = two_arrays
-    max_shape = A.shape + 6
-    cu_solver = cuda_lib.CudaSolve(A,max_shape)
+    max_shape = np.array(A.shape) + 6
+    As = sparse.coo_matrix(A)
+    cu_solver = cuda_lib.CudaSolve(As,max_shape)
     cu_solver.fftconv2(B)
     C = cu_solver.get_cursol(A.shape)
     
-    assert np.allclose(C,signal.fftconvolve(A,B,'same'))
+    assert np.allclose(C.toarray(),signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
     assert np.all(B == two_arrays[1])
-    

@@ -66,13 +66,13 @@ def domain_info():
 
 @pytest.fixture(scope="module")
 def site_name():
-    return 'data\carnarvonearl'
+    return 'data/carnarvonearl'
 
 @pytest.fixture(scope="module")
 def start_time(site_name):
-    if site_name == 'data\carnarvonearl':
+    if site_name == 'data/carnarvonearl':
         return '00:30'
-    elif site_name == 'data\kalbar':
+    elif site_name == 'data/kalbar':
         return '00:00'
 
 @pytest.fixture(scope="module")
