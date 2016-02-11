@@ -10,6 +10,27 @@ from scipy import sparse, signal, fftpack
 import CalcSol as CS
 import globalvars
 
+# see if the machine wants to try to run cuda
+try:
+    with open('config.txt', 'r') as f:
+        for line in f:
+            words = line.split()
+            for n,word in enumerate(words):
+                if word == '#': #comment
+                    break
+                elif word == '=':
+                    arg = words[n-1]
+                    val = words[n+1]
+                    if arg == 'cuda':
+                        if val == 'True':
+                            globalvars.cuda = True
+                        elif val == 'False':
+                            globalvars.cuda = False
+                        else:
+                            globalvars.cuda = bool(val)
+except:
+    pass
+
 ###############################################################################
 #                                                                             #
 #                              Test Fixtures                                  #  

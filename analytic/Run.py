@@ -56,6 +56,31 @@ class Params():
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 10 # if interp_num = 30, this is # of minutes
         
+        ### check for config.txt and update these defaults accordingly
+        self.default_chg()
+        
+    def default_chg(self):
+        '''Look for a file called config.txt. If present, read it in and change
+        the default parameters accordingly.'''
+        
+        try:
+            with open('config.txt', 'r') as f:
+                for line in f:
+                    words = line.split()
+                    for n,word in enumerate(words):
+                        if word == '#': #comment
+                            break
+                        elif word == '=':
+                            arg = words[n-1]
+                            val = words[n+1]
+                            self.chg_param(arg,val)
+        except FileNotFoundError:
+            pass # do nothing - the file is not necessary to run
+        except ValueError:
+            print(' in config.txt.')
+            raise
+                
+        
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''
         
@@ -81,42 +106,70 @@ class Params():
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
                 arg,eq,val = argstr.partition('=')
-                try:
-                    if arg == 'outfile':
-                        self.outfile = val
-                    elif arg == 'site_name':
-                        self.site_name = val
-                    elif arg == 'start_time':
-                        self.start_time = val
-                    elif arg == 'domain_info':
-                        strinfo = val.strip('()').split(',')
-                        self.domain_info = (float(strinfo[0]),int(strinfo[1]))
-                    elif arg == 'interp_num':
-                        self.interp_num = int(val)
-                    elif arg == 'ndays':
-                        self.ndays = int(val)
-                    elif arg == 'g_params':
-                        strinfo = val.strip('()').split(',')
-                        self.g_params = (float(strinfo[0]),float(strinfo[1]))
-                    elif arg == 'f_params':
-                        strinfo = val.strip('()').split(',')
-                        self.f_params = (float(strinfo[0]),float(strinfo[1]),
-                            float(strinfo[2]),float(strinfo[3]))
-                    elif arg == 'Dparams':
-                        strinfo = val.strip('()').split(',')
-                        self.Dparams = (float(strinfo[0]),float(strinfo[1]),
-                            float(strinfo[2]))
-                    elif arg == 'lam':
-                        self.lam = float(val)
-                    elif arg == 'mu_r':
-                        self.mu_r = float(val)
-                    elif arg == 'n_periods':
-                        self.n_periods = int(val)
-                    else:
-                        raise ValueError('Unrecognized parameter.')
-                except:
-                    print('Could not parse {0}.'.format(arg))
-                    raise
+                self.chg_param(arg,val)
+                
+                    
+    def chg_param(self,arg,val):
+        '''Change the parameter arg to val, where both are given as strings'''
+        
+        try:
+            if arg == 'outfile':
+                self.outfile = val
+            elif arg == 'site_name':
+                self.site_name = val
+            elif arg == 'start_time':
+                self.start_time = val
+            elif arg == 'domain_info':
+                strinfo = val.strip('()').split(',')
+                self.domain_info = (float(strinfo[0]),int(strinfo[1]))
+            elif arg == 'interp_num':
+                self.interp_num = int(val)
+            elif arg == 'ndays':
+                self.ndays = int(val)
+            elif arg == 'g_params':
+                strinfo = val.strip('()').split(',')
+                self.g_params = (float(strinfo[0]),float(strinfo[1]))
+            elif arg == 'f_params':
+                strinfo = val.strip('()').split(',')
+                self.f_params = (float(strinfo[0]),float(strinfo[1]),
+                    float(strinfo[2]),float(strinfo[3]))
+            elif arg == 'Dparams':
+                strinfo = val.strip('()').split(',')
+                self.Dparams = (float(strinfo[0]),float(strinfo[1]),
+                    float(strinfo[2]))
+            elif arg == 'lam':
+                self.lam = float(val)
+            elif arg == 'mu_r':
+                self.mu_r = float(val)
+            elif arg == 'n_periods':
+                self.n_periods = int(val)
+            elif arg == 'output':
+                if val == 'True':
+                    self.OUTPUT = True
+                elif val == 'False':
+                    self.OUTPUT = False
+                else:
+                    self.OUTPUT = bool(val)
+            elif arg == 'plot':
+                if val == 'True':
+                    self.PLOT = True
+                elif val == 'False':
+                    self.PLOT = False
+                else:
+                    self.PLOT = bool(val)
+            elif arg == 'cuda':
+                if val == 'True':
+                    self.CUDA = True
+                elif val == 'False':
+                    self.CUDA = False
+                else:
+                    self.CUDA = bool(val)
+            else:
+                raise ValueError('Unrecognized parameter.')
+        except:
+            print('Could not parse {0}.'.format(arg),end='')
+            raise
+        
                 
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
