@@ -31,6 +31,9 @@ class Params():
         self.site_name = 'data/carnarvonearl'
         # time of day at which the data starts ('00:00' or '00:30')
         self.start_time = '00:30'
+        # coordinates (lat/long) of the release point
+        self.coord = (-24.851614,113.731267) #carnarvon
+        #self.coord = (-27.945752,152.85474) #kalbar
         # domain info, (dist (m), cells) from release point to side of domain 
         self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
@@ -56,6 +59,9 @@ class Params():
         self.mu_r = 1.
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 10 # if interp_num = 30, this is # of minutes
+        
+        # Bing maps key for satellite imagery
+        self.maps_key = None
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
@@ -120,6 +126,10 @@ class Params():
                 self.site_name = val
             elif arg == 'start_time':
                 self.start_time = val
+            elif arg == 'coord':
+                val = val.strip(' ()')
+                val = val.split(',')
+                self.coord = (float(val[0]),float(val[1]))
             elif arg == 'domain_info':
                 strinfo = val.strip('()').split(',')
                 self.domain_info = (float(strinfo[0]),int(strinfo[1]))
@@ -144,6 +154,9 @@ class Params():
                 self.mu_r = float(val)
             elif arg == 'n_periods':
                 self.n_periods = int(val)
+            elif arg == 'maps_key':
+                self.maps_key = val
+                
             elif arg == 'output':
                 if val == 'True':
                     self.OUTPUT = True
@@ -177,9 +190,10 @@ class Params():
         if filename.rstrip()[-5:] != '.json':
             filename = filename.rstrip()+'.json'
 
-        def get_param(pdict,pname):
+        def get_param(pdict,pname,param):
+            '''Modifies param with pname, or leaves it alone if pname not found'''
             try:
-                return pdict[pname]
+                param = pdict[pname]
             except KeyError as e:
                 print('Could not load parameter value {0}'.format(e.args[0]))
                 print('Using default value...')
@@ -190,18 +204,19 @@ class Params():
         except FileNotFoundError as e:
             print('Could not open file {0}.'.format(filename))
             raise
-        self.outfile = get_param(param_dict,'outfile')
-        self.site_name = get_param(param_dict,'site_name')
-        self.start_time = get_param(param_dict,'start_time')
-        self.domain_info = get_param(param_dict,'domain_info')
-        self.interp_num = get_param(param_dict,'interp_num')
-        self.ndays = get_param(param_dict,'ndays')
-        self.g_params = get_param(param_dict,'g_params')
-        self.f_params = get_param(param_dict,'f_params')
-        self.Dparams = get_param(param_dict,'Dparams')
-        self.lam = get_param(param_dict,'lam')
-        self.mu_r = get_param(param_dict,'mu_r')
-        self.n_periods = get_param(param_dict,'n_periods')
+        get_param(param_dict,'outfile',self.outfile)
+        get_param(param_dict,'site_name',self.site_name)
+        get_param(param_dict,'start_time',self.start_time)
+        get_param(param_dict,'coord',self.coord)
+        get_param(param_dict,'domain_info',self.domain_info)
+        get_param(param_dict,'interp_num',self.interp_num)
+        get_param(param_dict,'ndays',self.ndays)
+        get_param(param_dict,'g_params',self.g_params)
+        get_param(param_dict,'f_params',self.f_params)
+        get_param(param_dict,'Dparams',self.Dparams)
+        get_param(param_dict,'lam',self.lam)
+        get_param(param_dict,'mu_r',self.mu_r)
+        get_param(param_dict,'n_periods',self.n_periods)
 
         
         
@@ -290,11 +305,13 @@ def main(argv):
         
         ### save parameters ###
         with open(params.outfile+'.json','w') as fobj:
-            json.dump(params.__dict__,fobj)
+            param_dict = dict(params.__dict__)
+            param_dict.pop('maps_key') # don't save key
+            json.dump(param_dict,fobj)
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(modelsol,days,params.domain_info)
+        Plot_Result.plot_all(modelsol,days,params)
     
 
 if __name__ == "__main__":
