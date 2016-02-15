@@ -179,7 +179,7 @@ class Params():
                 else:
                     self.CUDA = bool(val)
             else:
-                raise ValueError('Unrecognized parameter.')
+                raise ValueError('Unrecognized parameter {0}.'.format(arg))
         except:
             print('Could not parse {0}.'.format(arg),end='')
             raise

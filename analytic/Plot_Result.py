@@ -8,6 +8,7 @@ Author: Christopher Strickland'''
 import sys, io
 import warnings
 import math
+from collections import OrderedDict
 import numpy as np
 from scipy import sparse
 import matplotlib.pyplot as plt
@@ -74,6 +75,13 @@ def latlong_trans(lat,lon,brng,dist):
 
     return (lat2,lon2)
     
+    
+    
+def resfunc(lat,zoom):
+    '''Get the ground resolution in meters per pixel at a given latitude/zoom'''
+    
+    return (math.cos(lat*math.pi/180)*2*math.pi*6378137)/(256*2**zoom)
+    
 
     
 def get_satellite(key,center,dist):
@@ -92,18 +100,22 @@ def get_satellite(key,center,dist):
     
     lat,long = center
     
-    # get coords for lower-left and upper-right
-    ll_lat, ll_long = latlong_trans(lat,long,5*math.pi/4,math.sqrt(2*dist**2))
-    ur_lat, ur_long = latlong_trans(lat,long,math.pi/4,math.sqrt(2*dist**2))
+    # get zoom level so that we have between 400 and 800 pixels**2 resolution
+    zoom = 4
+    while not dist/400 < resfunc(lat,zoom) <= dist/200:
+        zoom += 1
+        
+    # get the pixel dimensions to request
+    pixel_len = int(round((dist*2+1)/resfunc(lat,zoom)))
     
     urlparams = urllib.parse.urlencode({
-        'mapArea': '{0:03.6f},{1:03.6f},{2:03.6f},{3:03.6f}'.format(
-                    ll_lat,ll_long,ur_lat,ur_long),
-        'mapSize': '{0:d},{1:d}'.format(800,800),
+        'mapSize': '{0:d},{0:d}'.format(pixel_len),
         'format': 'jpeg',
         'key': key})
         
-    url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial?'+urlparams
+    url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
+        '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
+        '/{0:d}?'.format(zoom)+urlparams
     
     try:
         f = urllib.request.urlopen(url)
@@ -152,7 +164,7 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         plt.clf()
         plt.axis(plot_limits)
-        sat_img = get_satellite(params.maps_key,params.coord,domain_info[0])
+        sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
         if sat_img is None:
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,alpha=1)
         else:
@@ -204,7 +216,7 @@ def plot(sol,day,params,mask_val=0.00001):
         mask_val))
     plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
     plt.axis(plot_limits)    
-    sat_img = get_satellite(params.maps_key,params.coord,domain_info[0])
+    sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
     if sat_img is None:
         plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
     else:
@@ -226,9 +238,9 @@ def main(argv):
     '''
     filename = argv[0]
     if filename.rstrip()[-5:] == '.json':
-        filename = filename.rstrip[:-5]
+        filename = filename[:-5]
     elif filename.rstrip()[-4:] == '.npz':
-        filename = filename.rstrip[:-4]
+        filename = filename[:-4]
 
     # load parameters
     params = Run.Params()
@@ -237,7 +249,7 @@ def main(argv):
     dom_len = params.domain_info[1]*2 + 1
 
     # load data
-    modelsol = {}
+    modelsol = OrderedDict() # we use dict here for convenience
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
         for day in days:
@@ -248,13 +260,18 @@ def main(argv):
                                                     shape=(dom_len,dom_len))
 
     while True:
-        val = input('Enter a day to plot or ? to see a list of plottable days.'+
+        val = input('Enter day number to plot, '+
+                    '? to see a list of plottable days, '+
+                    'or "all" to plot all.'+
                     ' Enter q to quit:')
         val = val.strip()
         if val == '?':
             print(*days)
         elif val.lower() == 'q' or val.lower() == 'quit':
             break
+        elif val.lower() == 'a' or val.lower() == 'all':
+            # plot_all wants a list of values. pass a view into ordered dict
+            plot_all(modelsol.values(),days,params)    
         else:
             try:
                 plot(modelsol[val],val,params)
