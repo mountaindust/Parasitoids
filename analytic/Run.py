@@ -31,7 +31,8 @@ class Params():
         self.site_name = 'data/carnarvonearl'
         # time of day at which the data starts ('00:00' or '00:30')
         self.start_time = '00:30'
-        # coordinates (lat/long) of the release point
+        # coordinates (lat/long) of the release point. This is necessary for
+        #   satellite imagery.
         self.coord = (-24.851614,113.731267) #carnarvon
         #self.coord = (-27.945752,152.85474) #kalbar
         # domain info, (dist (m), cells) from release point to side of domain 

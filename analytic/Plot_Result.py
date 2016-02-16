@@ -9,14 +9,20 @@ import sys, io
 import warnings
 import math
 from collections import OrderedDict
+import urllib.parse, urllib.request
 import numpy as np
 from scipy import sparse
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.image as mpimg
-from PIL import Image
-import urllib.parse, urllib.request
+try:
+    from PIL import Image
+    NO_PILLOW = False
+except:
+    NO_PILLOW = True
 import Run
+
+PILLOW_MSG = False
 
 base_clrmp = cm.get_cmap('viridis')
 # alter this colormap with alpha values
@@ -95,6 +101,13 @@ def get_satellite(key,center,dist):
     Returns:
         numpy array of image that can be seen with plt.imshow'''
         
+    global PILLOW_MSG
+    if NO_PILLOW:
+        if not PILLOW_MSG:
+            print('Note: Python package "Pillow" not found. Continuing...')
+            PILLOW_MSG = True
+        return None
+    
     if key is None or center is None:
         return None
     

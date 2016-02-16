@@ -10,6 +10,14 @@ Major work in progress!!!
 **Acknowledements**
 Project support from SAMSI for a working group on Physical Ecology.
 
+**Dependencies**
+Numpy
+Scipy
+Matplotlib
+Pillow (if plotting satellite imagery)
+py.test (if running tests)
+Reikna (if running on a GPU)
+
 ## Introduction
 
 The model can be run simply by typing "python Run.py" into a terminal window.
@@ -21,7 +29,8 @@ of the form "parameter = value". Anything following # on a line will be ignored.
 
 The plotting routine is capable of displaying satellite images from Bing maps
 behind the model results. For this functionality to operate, the release
-coordinates must be specified and a Bing maps key provided in config.txt. The
+coordinates must be specified and a Bing maps key provided in config.txt. You
+can obtain a Bing maps key for free at https://www.bingmapsportal.com/. The 
 syntax for specifying a map key is "map_key = <key>". An internet connection is
 required; no maps are cached between calls to the plotting routine.
 
