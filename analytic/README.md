@@ -1,6 +1,6 @@
 # Analytic Parasitoids
-Parasitoid wasp drift-diffusion model with Bayesian inference
-===
+### Parasitoid wasp drift-diffusion model with Bayesian inference
+Please note: This code will only run in Python version 3.5 or greater.
 
 Major work in progress!!!
 
