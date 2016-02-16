@@ -475,10 +475,12 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
         
         
         #approximate integral over time
-        #   This try/except will probably need to be removed when we do the
-        #   Bayesian stuff, subtracting from the total probability of pmf and
-        #   returning a pmf.sum() < 1.
+        # This try/except will probably need to be removed when we do the
+        #   Bayesian stuff. If things are flying clean off the map in a single
+        #   day, we want that to return a null result but not stop the program
         try:
+            if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1]:
+                raise IndexError
             pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat)
         except IndexError:
