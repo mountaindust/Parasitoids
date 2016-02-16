@@ -68,7 +68,8 @@ class Params():
         
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
-        the default parameters accordingly.'''
+        the default parameters accordingly. If the file is not there, create it
+        with some user friendly comments and examples.'''
         
         try:
             with open('config.txt', 'r') as f:
@@ -82,7 +83,16 @@ class Params():
                             val = words[n+1]
                             self.chg_param(arg,val)
         except FileNotFoundError:
-            pass # do nothing - the file is not necessary to run
+            with open('config.txt', 'w') as f:
+                f.write('# local configuration file\n')
+                f.write('\n')
+                f.write('# Accepts keyword parameter assignments of the form '+
+                    '<parameter> = <value>\n')
+                f.write('# Any line starting with # will be ignored.\n')
+                f.write('\n')
+                f.write('# To include satellite imagery, please obtain a free '+
+                    "Bing maps key at\n# https://www.bingmapsportal.com/ and "+
+                    "assign it to the parameter 'maps_key'\n# in this file.\n")
         except ValueError:
             print(' in config.txt.')
             raise
