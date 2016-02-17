@@ -1,7 +1,6 @@
 ﻿#! /usr/bin/env python3
 
-import sys
-import os
+import sys, os, time
 import json
 import numpy as np
 from scipy import sparse
@@ -265,6 +264,7 @@ def main(argv):
         ndays = len(days)
     
     # First, get spread probability for each day as a coo sparse matrix
+    tic = time.time()
     pmf_list = []
     max_shape = np.array([0,0])
     for day in days[:ndays]:
@@ -275,22 +275,29 @@ def main(argv):
             if pmf_list[-1].shape[dim] > max_shape[dim]:
                 max_shape[dim] = pmf_list[-1].shape[dim]
                 
+    print('Time elapsed: {0}'.format(time.time()-tic))
     modelsol = [] # holds actual model solutions
     
     # Reshape the first probability mass function into a solution
     print('Reshaping day 1 solution')
+    tic = time.time()
     offset = params.domain_info[1] - pmf_list[0].shape[0]//2
     dom_len = params.domain_info[1]*2 + 1
     modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
         (pmf_list[0].row+offset,pmf_list[0].col+offset)),
         shape=(dom_len,dom_len)))
 
+    print('Time elapsed: {0}'.format(time.time()-tic))
+
     # Pass the first solution, pmf_list, and other info to convolution solver
     #   This updates modelsol with the rest of the solutions.
+    tic = time.time()
     get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
     
     # done.
     print('Done.')
+
+    print('Time elapsed: {0}'.format(time.time()-tic))
     
     ### save result ###
     if params.OUTPUT:
