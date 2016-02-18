@@ -65,7 +65,7 @@ class Params():
         self.maps_key = None
         
         # Parallel processing parameters
-        self.nproc = min(self.ndays,os.cpu_count()//2)
+        self.nproc = min(self.ndays,os.cpu_count())
         self.min_ndays = 6
         
         ### check for config.txt and update these defaults accordingly
@@ -169,6 +169,10 @@ class Params():
                 self.mu_r = float(val)
             elif arg == 'n_periods':
                 self.n_periods = int(val)
+            elif arg == 'nproc':
+                self.nproc = int(val)
+            elif arg == 'min_ndays':
+                self.min_ndays = int(val)
             elif arg == 'maps_key':
                 self.maps_key = val
                 
@@ -219,6 +223,7 @@ class Params():
         except FileNotFoundError as e:
             print('Could not open file {0}.'.format(filename))
             raise
+            
         get_param(param_dict,'outfile',self.outfile)
         get_param(param_dict,'site_name',self.site_name)
         get_param(param_dict,'start_time',self.start_time)
@@ -232,6 +237,8 @@ class Params():
         get_param(param_dict,'lam',self.lam)
         get_param(param_dict,'mu_r',self.mu_r)
         get_param(param_dict,'n_periods',self.n_periods)
+        get_param(param_dict,'nproc',self.nproc)
+        get_param(param_dict,'min_ndays',self.min_ndays)
 
         
         
@@ -277,7 +284,7 @@ def main(argv):
         print("Calculating each day's spread in parallel...")
         pm_args = [(day,wind_data,*params.get_model_params()) 
                     for day in days[:ndays]]
-        pool = Pool()
+        pool = Pool(params.nproc)
         pmf_list = pool.starmap(PM.prob_mass,pm_args)
         pool.close()
         pool.join()
