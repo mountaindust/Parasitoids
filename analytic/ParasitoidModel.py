@@ -302,7 +302,6 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     
     return f_func*g_func + integral_avg #np.array of length n
 
-
 def get_mvn_cdf_values(cell_length,mu,S):
     """Get cdf values for a multivariate normal centered at (0,0) 
     inside regular cells. To do this fast, we use a secret Fortran mulivariate
@@ -327,6 +326,8 @@ def get_mvn_cdf_values(cell_length,mu,S):
     r = cell_length/2 # in meters. will want to integrate +/- this amount
     h = 0 # h*2+1 is the length of one side of the support in cells (int).
     
+    cell_length_ary = np.array([cell_length,cell_length])
+    
     # Integrate center cell
     low = np.array([-r,-r])
     upp = np.array([r,r])
@@ -344,16 +345,16 @@ def get_mvn_cdf_values(cell_length,mu,S):
         # Integrate the four sides of the square
         for ii in [-h,h]:
             for jj in range(-h,h+1):
-                low = np.array([ii,jj])*cell_length - r
-                upp = low + cell_length
+                low = np.array([ii*cell_length-r,jj*cell_length-r])
+                upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
         for jj in [-h,h]:
             for ii in range(-h+1,h): #leave off corners, they're already done
-                low = np.array([ii,jj])*cell_length - r
-                upp = low + cell_length
+                low = np.array([ii*cell_length-r,jj*cell_length-r])
+                upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
