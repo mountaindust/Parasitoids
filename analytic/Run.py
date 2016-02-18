@@ -307,14 +307,12 @@ def main(argv):
     
     # Reshape the first probability mass function into a solution
     print('Reshaping day 1 solution')
-    tic = time.time()
     offset = params.domain_info[1] - pmf_list[0].shape[0]//2
     dom_len = params.domain_info[1]*2 + 1
     modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
         (pmf_list[0].row+offset,pmf_list[0].col+offset)),
         shape=(dom_len,dom_len)))
 
-    print('Time elapsed: {0}'.format(time.time()-tic))
 
     # Pass the first solution, pmf_list, and other info to convolution solver
     #   This updates modelsol with the rest of the solutions.

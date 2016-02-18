@@ -342,22 +342,28 @@ def get_mvn_cdf_values(cell_length,mu,S):
     while 1 - val_sum >= cdf_eps:
         h += 1 # increase the size of the domain
         
-        # Integrate the four sides of the square
+        # Integrate the four corners of the square
         for ii in [-h,h]:
-            for jj in range(-h,h+1):
+            for jj in [-h,h]:
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
-        for jj in [-h,h]:
-            for ii in range(-h+1,h): #leave off corners, they're already done
+                
+        # Integrate the four sides of the square
+        for ii in [-h,h]:
+            for jj in range(-h+1,h):
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
+                val_sum += val
+                val, inform = mvn.mvnun(low[::-1],upp[::-1],mu,S)
+                assert inform == 0 #integration finished with error < EPS
+                cdf_vals[(jj,ii)] = val
                 val_sum += val
         
     # We've now integrated to the required accuracy. Form an ndarray.
@@ -396,6 +402,8 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     day_wind = wind_data[day] #alias the current day
     
     hprob = h_flight_prob(day_wind, *hparams)
+    
+    S = Dmat(*Dparams) #get diffusion covarience matrix
     
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
@@ -456,7 +464,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
         #   Pass the remainder of the translation to get_mvn_cdf_values as mu.
         cdf_mu = mu_v - np.round(mu_v/cell_dist)*cell_dist
         
-        cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,Dmat(*Dparams))
+        cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,S)
         
         #translate mu_v from (x,y) coordinates to nearest cell-center location.
         #   [rad_res,rad_res] is the center cell of the domain.
