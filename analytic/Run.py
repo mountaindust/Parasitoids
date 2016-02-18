@@ -2,6 +2,7 @@
 
 import sys, os, time
 import json
+from multiprocessing import Pool
 import numpy as np
 from scipy import sparse
 import globalvars
@@ -62,6 +63,10 @@ class Params():
         
         # Bing maps key for satellite imagery
         self.maps_key = None
+        
+        # Parallel processing parameters
+        self.nproc = min(self.ndays,os.cpu_count()//2)
+        self.min_ndays = 6
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
@@ -267,13 +272,28 @@ def main(argv):
     tic = time.time()
     pmf_list = []
     max_shape = np.array([0,0])
-    for day in days[:ndays]:
-        print('Calculating spread for day {0}'.format(day))
-        pmf_list.append(PM.prob_mass(day,wind_data,*params.get_model_params()))
-        # record the largest shape of these
-        for dim in range(2):
-            if pmf_list[-1].shape[dim] > max_shape[dim]:
-                max_shape[dim] = pmf_list[-1].shape[dim]
+    
+    if ndays >= params.min_ndays:
+        print("Calculating each day's spread in parallel...")
+        pm_args = [(day,wind_data,*params.get_model_params()) 
+                    for day in days[:ndays]]
+        pool = Pool()
+        pmf_list = pool.starmap(PM.prob_mass,pm_args)
+        pool.close()
+        pool.join()
+        for pmf in pmf_list:
+            for dim in range(2):
+                if pmf.shape[dim] > max_shape[dim]:
+                    max_shape[dim] = pmf.shape[dim]
+    else:
+        for day in days[:ndays]:
+            print('Calculating spread for day {0}'.format(day))
+            pmf_list.append(PM.prob_mass(
+                               day,wind_data,*params.get_model_params()))
+            # record the largest shape of these
+            for dim in range(2):
+                if pmf_list[-1].shape[dim] > max_shape[dim]:
+                    max_shape[dim] = pmf_list[-1].shape[dim]
                 
     print('Time elapsed: {0}'.format(time.time()-tic))
     modelsol = [] # holds actual model solutions
