@@ -25,7 +25,7 @@ class CudaSolve():
         # memory check!
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize + np.dtype(np.complex64).itemsize)
-        
+ 
         # pad A
         A_pad = np.zeros(self.pad_shape,dtype=np.complex64)
         A_pad[:A.shape[0],:A.shape[1]] = A.toarray().astype(np.float32)
@@ -64,6 +64,7 @@ class CudaSolve():
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize + np.dtype(np.complex64).itemsize)
         
+         
         # allocate temporary space on the gpu and arrange B there appropriately
         B_pad = np.zeros(self.pad_shape,np.complex64)
         B_pad[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].astype(np.float32)
@@ -72,7 +73,9 @@ class CudaSolve():
         B_pad[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].astype(np.float32)
 
         B_gpu = thr.to_device(B_pad)
-        
+        print('GPU memory: free={0}, total={1}'.format(api.cuda.mem_get_info()[0],
+                                                      api.cuda.mem_get_info()[1]))
+ 
         # fft and solution update
         self.fft_proc_c(B_gpu,B_gpu,0)
         self.sol_hat_gpu *= B_gpu
@@ -88,7 +91,7 @@ class CudaSolve():
         
         # memory check!
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
-            np.dtype(np.float32).itemsize)
+            np.dtype(np.float32).itemsize) 
         
         # Assign temporary space for real and complex ifft and calculate
         cursol_gpu_r = thr.array(self.pad_shape,dtype=np.float32)
