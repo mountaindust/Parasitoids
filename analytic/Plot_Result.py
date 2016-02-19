@@ -15,6 +15,7 @@ from scipy import sparse
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.image as mpimg
+import matplotlib.animation as animation
 try:
     from PIL import Image
     NO_PILLOW = False
@@ -187,11 +188,12 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
         plt.title('Parasitoid spread {0} day(s) post release'.format(days[n]))
-        plt.colorbar()
+        cbar = plt.colorbar()
+        cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if n != len(modelsol)-1:
-                plt.pause(3.5)
+                plt.pause(1)
             else:
                 plt.pause(0.0001)
                 plt.show()
@@ -238,11 +240,91 @@ def plot(sol,day,params,mask_val=0.00001):
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
-    plt.colorbar()
+    cbar = plt.colorbar()
+    cbar.solids.set_edgecolor("face")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
+        
+        
+        
+def create_mp4(modelsol,days,params,mask_val=0.00001):
+    '''Create and save an mp4 video of all the plots.
+    The saved file name will be based on params.outfile.
+    
+    Args:
+        modelsol: list of daily solutions, coo sparse
+        days: list of day identifiers
+        domain_info: rad_dist, rad_res
+        mask_val: values less then this value will not appear in plotting'''
+    
+    print('Creating spread model video',end="")
+    sys.stdout.flush()
+    domain_info = params.domain_info
+    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
+                                              #neighbor cell (meters).
+    
+    # assume domain is square, probably odd.
+    midpt = domain_info[1]
+    
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.axis([-400,400,-400,400])
+    ax.set_xlabel('West-East (meters)')
+    ax.set_ylabel('North-South (meters)')
+    ax.set_title('Parasitoid spread')
+    # try to get a satellite image to see if it will work
+    sat_img = get_satellite(params.maps_key,params.coord,500)
+    if sat_img is None:
+        pcl = ax.pcolormesh([],cmap=clrmp,zorder=1,alpha=1)
+        SAT = False
+    else:
+        pcl = ax.pcolormesh([-400,0],[-400,0],[[0,0],[0,0]],cmap=clrmp,zorder=1)
+        ax.imshow([[]],zorder=0)
+        #plt.imshow(sat_img,zorder=0,extent=plot_limits)
+        SAT = True
+    cbar = plt.colorbar(pcl)
+        
+    def animate(nsol):
+        n,sol = nsol
+        #remove just the pcolormesh and satellite image from before
+        for col in ax.collections:
+            col.remove()
+        #remove all values that are too small to be plotted.
+        sol_red = r_small_vals(sol,mask_val)
+        #find the maximum distance from the origin
+        rmax = max(np.fabs(sol_red.row-midpt).max(),
+                   np.fabs(sol_red.col-midpt).max())
+        #construct xmesh and a masked solution array based on this
+        rmax = min(rmax+5,midpt) # add a bit of frame space
+        xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
+            rmax*cell_dist+cell_dist/2,rmax*2+2)
+        sol_fm = np.flipud(np.ma.masked_less(
+            sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
+            mask_val))
+        plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
+        ax.axis(plot_limits)
+        ax.set_title('Parasitoid spread {0} day(s) post release'.format(
+                                                                   days[n]))
+        if SAT:
+            sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+            ax.imshow(sat_img,zorder=0,extent=plot_limits)
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+        else:
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
+        cbar.mappable = pcl
+        cbar.update_bruteforce(pcl)
+        cbar.solids.set_edgecolor("face")
+        print('.',end="")
+        sys.stdout.flush()
+        
+    anim = animation.FuncAnimation(fig,animate,frames=enumerate(modelsol),
+            blit=False,interval=500)
+    anim.save(params.outfile+'.mp4')
+    print('\n...Video saved to {0}.'.format(params.outfile+'.mp4'))
+    
+    
     
 def main(argv):
     '''Function for plotting a previous result.
@@ -273,10 +355,11 @@ def main(argv):
                                                     shape=(dom_len,dom_len))
 
     while True:
-        val = input('Enter day number to plot, '+
-                    '? to see a list of plottable days, '+
-                    'or "all" to plot all.'+
-                    ' Enter q to quit:')
+        val = input('Enter a day number to plot, '+
+                'or "all" to plot all.\n'+
+                '? will provide a list of plottable day numbers.\n'+
+                '"vid" will output a video (requires FFmpeg or menconder).\n'+
+                'Or enter q to quit:')
         val = val.strip()
         if val == '?':
             print(*days)
@@ -284,7 +367,9 @@ def main(argv):
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol.values(),days,params)    
+            plot_all(modelsol.values(),days,params)
+        elif val.lower() == 'vid':
+            create_mp4(modelsol.values(),days,params)
         else:
             try:
                 plot(modelsol[val],val,params)
