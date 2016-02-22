@@ -14,7 +14,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.1"
+__version__ = "0.2"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import numpy as np

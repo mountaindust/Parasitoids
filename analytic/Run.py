@@ -1,5 +1,24 @@
 ﻿#! /usr/bin/env python3
 
+'''Main file for running parasitoid model simulations.
+
+Parameters are stored in an instance of the Params class, which also parses
+command line options and settings in config.txt. Params also has methods for
+returning wind data and a parameter list in the form expected by prob_mass in
+ParasitoidModel.py. Calls to prob_mass can be done in parallel via the
+multiprocessing python library. This module calls into CalcSol for the
+convolution phase of the model simulation, and later possibly Plot_Result for
+plotting the result. Saving simulations to file is handled internally.
+
+Author: Christopher Strickland  
+Email: cstrickland@samsi.info'''
+
+__author__ = "Christopher Strickland"
+__email__ = "cstrickland@samsi.info"
+__status__ = "Development"
+__version__ = "0.2"
+__copyright__ = "Copyright 2015, Christopher Strickland"
+
 import sys, os, time
 import json
 from multiprocessing import Pool
