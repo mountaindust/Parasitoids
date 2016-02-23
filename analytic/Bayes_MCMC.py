@@ -23,7 +23,7 @@ from CalcSol import get_solutions
 
 
 @pm.deterministic
-def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,coor,lam,mu_r,ndays):
+def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
     '''This function acts as an interface between PyMC and the model.
     It takes in pymc variables, puts together a parameter object from them,
     runs the model, and then parses the result for comparison with emergence
@@ -42,7 +42,7 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,coor,lam,mu_r,ndays):
     # f time of day function parameters
     params.f_params = (f_a1,f_b1,f_a2,f_b2)
     # Diffusion coefficients
-    params.Dparams = (sig_x,sig_y,coor)
+    params.Dparams = (sig_x,sig_y,corr)
     # Probability of any flight during the day under ideal circumstances
     params.lam = lam
     
