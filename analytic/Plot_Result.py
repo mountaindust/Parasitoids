@@ -249,9 +249,9 @@ def plot(sol,day,params,mask_val=0.00001):
         
         
         
-def create_mp4(modelsol,days,params,mask_val=0.00001):
+def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
     '''Create and save an mp4 video of all the plots.
-    The saved file name will be based on params.outfile.
+    The saved file name/location will be based on filename.
     
     Args:
         modelsol: list of daily solutions, coo sparse
@@ -321,8 +321,8 @@ def create_mp4(modelsol,days,params,mask_val=0.00001):
         
     anim = animation.FuncAnimation(fig,animate,frames=enumerate(modelsol),
             blit=False,interval=500)
-    anim.save(params.outfile+'.mp4')
-    print('\n...Video saved to {0}.'.format(params.outfile+'.mp4'))
+    anim.save(filename+'.mp4')
+    print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
     
     
@@ -369,7 +369,7 @@ def main(argv):
             # plot_all wants a list of values. pass a view into ordered dict
             plot_all(modelsol.values(),days,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol.values(),days,params)
+            create_mp4(modelsol.values(),days,params,filename)
         else:
             try:
                 plot(modelsol[val],val,params)
