@@ -91,7 +91,7 @@ class CudaSolve():
         
         # memory check!
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
-            np.dtype(np.float32).itemsize) 
+            np.dtype(np.float32).itemsize)*2
         
         # Assign temporary space for real and complex ifft and calculate
         cursol_gpu_r = thr.array(self.pad_shape,dtype=np.float32)

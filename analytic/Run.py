@@ -84,7 +84,7 @@ class Params():
         self.maps_key = None
         
         # Parallel processing parameters
-        self.min_ndays = 6
+        self.min_ndays = 6 # min # of days necessary to use parallel processing
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
