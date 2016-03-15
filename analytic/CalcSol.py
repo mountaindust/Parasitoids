@@ -82,6 +82,8 @@ def r_small_vals(A,negval=1e-8):
     A_red.data += (1-A_red.data.sum())/A_red.data.size
     return A_red
     
+    
+    
 def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
     the distribution after the first day.
@@ -127,6 +129,90 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             print('Finding ifft for day {0} and reducing...'.format(day))
             modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
     else:
+        print('Finding fft of first day...')
+        cursol_hat = fft2(modelsol[0],max_shape)
+        
+        for n,day in enumerate(days[1:ndays]):
+            print('Updating convolution for day {0}...'.format(day))
+            # modifies cursol_hat
+            fftconv2(cursol_hat,pmf_list[n+1].toarray())
+            print('Finding ifft for day {0}...'.format(day))
+            big_sol = ifft2(cursol_hat,[dom_len,dom_len])
+            print('Reducing solution...')
+            modelsol.append(r_small_vals(big_sol))
+            
+            
+
+def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
+                    r_dur,r_number):
+    '''Find expected wasp densities from a list of daily probability densities
+    and given the distribution after the last release day.
+    
+    Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
+    
+    Args:
+        r_spread: list of model probabilities for each release day
+        pmf_list: list of probability densities. len(pmf_list) == len(days)
+        days: list of day dictionary keys, mostly for feedback
+        ndays: number of days to run simulation
+        dom_len: number of cells across one side of the domain
+        max_shape: largest filter shape, based on largest in pmf_list
+        r_dur: duration of release, days (int)
+        r_number: total number of wasps released, assume uniform release
+        
+    Returns:
+        popmodel: expected wasp population numbers on each day
+    '''
+    
+    # holds probability solution for each release day, in order
+    curmodelsol = [0 for ii in range(r_dur)] #place holders for current solution
+    # holds population solution for each day
+    popmodel = []
+    
+    # WORK IN PROGRESS.
+    
+    if globalvars.cuda:
+        try:
+            import cuda_lib
+            NO_CUDA = False
+        except ImportError:
+            print('CUDA libraries not found. Running with NO_CUDA option.')
+            globalvars.cuda = False
+            NO_CUDA = True
+        except Exception as e:
+            print('Error encountered while importing CUDA:')
+            print(str(e))
+            globalvars.cuda = False
+            NO_CUDA = True
+    else:
+        NO_CUDA = True
+    
+    if globalvars.cuda and not NO_CUDA:
+        # go to GPU.
+        print('Finding spread during release days...')
+        # first day population spread is just via r_spread[0]
+        popmodel.append(r_spread[0]*r_number/r_dur)
+        curmodelsol[0] = r_spread[0]
+        # successive release day population spread
+        for day in range(1:r_dur):
+            gpu_solver = cuda_lib.CudaSolve(r_spread[day],max_shape)
+            # back solve to get previous solutions
+            pass
+            # get population spread
+            pass
+        # update and return solutions for each day
+        for n,day in enumerate(days[r_dur:ndays]):
+            print('Updating convolution for day {0}...'.format(day))
+            # update current GPU solution based on last day of release
+            gpu_solver.fftconv2(pmf_list[n+r_dur].toarray())
+            print('Finding ifft for day {0} and reducing...'.format(day))
+            # get current GPU solution based on last day of release
+            modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
+            # get GPU solutions for previous release days
+            pass
+            # get new population spread
+            pass
+    else: #NOT CURRENTLY WORKING.
         print('Finding fft of first day...')
         cursol_hat = fft2(modelsol[0],max_shape)
         

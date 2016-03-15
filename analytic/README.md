@@ -20,8 +20,16 @@ Reikna (if running on a GPU)
 
 ## Introduction
 
-The model can be run simply by typing "python Run.py" into a terminal window.
-Run.py accepts flags and keyword arguments - please see the Params class
+The probability model can be run simply by typing "python Run.py" into a 
+terminal window. This model gives the spatial probability of a parasitoid's
+location assuming it was released at midnight on the first day.
+
+The population model can be run by typing "python RunPopModel.py" into a
+terminal window. This model requires additional information about the number
+and duration of the initial parasitoid release and gives the expected value
+of parasitoid population in each spatial cell.
+
+Both models accept flags and keyword arguments - please see the Params class
 definition in Run.py for details.
 
 If a file named "config.txt" is present, Run.py will read it for keyword arguments

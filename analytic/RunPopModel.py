@@ -1,6 +1,7 @@
-﻿#! /usr/bin/env python3
+#! /usr/bin/env python3
 
-'''Main file for running parasitoid model simulations.
+'''Main file for running parasitoid population model simulations.
+Unlike in the probability model, release information must be specified.
 
 Parameters are stored in an instance of the Params class, which also parses
 command line options and settings in config.txt. Params also has methods for
@@ -26,7 +27,7 @@ import numpy as np
 from scipy import sparse
 import globalvars
 import ParasitoidModel as PM
-from CalcSol import get_solutions
+from CalcSol import get_populations
 import Plot_Result
 
 ### Parameters ###
@@ -45,23 +46,33 @@ class Params():
 
         ### I/O
         # name and path for output files
-        self.outfile = 'output/carnarvonearl'
+        self.outfile = 'output/kalbar_pop'
         # site name and path
-        self.site_name = 'data/carnarvonearl'
-        # time of day at which the data starts ('00:00' or '00:30')
-        self.start_time = '00:30'
+        self.site_name = 'data/kalbar'
+        # time of day at which the wind data starts ('00:00' or '00:30')
+        # kalbar: '00:00', carvarvonearl: '00:30'
+        self.start_time = '00:00'
         # coordinates (lat/long) of the release point. This is necessary for
-        #   satellite imagery.
-        self.coord = (-24.851614,113.731267) #carnarvon
-        #self.coord = (-27.945752,152.85474) #kalbar
+        #     satellite imagery.
+        # self.coord = (-24.851614,113.731267) #carnarvon
+        self.coord = (-27.945752,152.85474) #kalbar
         # domain info, (dist (m), cells) from release point to side of domain 
         self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
-        self.ndays = 2
+        self.ndays = 5
 
+        ### release information
+        # release duration (days)
+        r_dur = 3
+        # start time on first day (as a fraction of the day)
+        r_start = 0.354 #8:30am
+        # total number of wasps 
+        # (for now, assume they are divided equally between release days)
+        r_number = 130000
+        
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
@@ -170,6 +181,12 @@ class Params():
                 self.interp_num = int(val)
             elif arg == 'ndays':
                 self.ndays = int(val)
+            elif arg == 'r_dur':
+                self.r_dur = int(val)
+            elif arg == 'r_start':
+                self.r_start == float(val)
+            elif arg == 'r_number':
+                self.r_number == int(val)
             elif arg == 'g_params':
                 strinfo = val.strip('()').split(',')
                 self.g_params = (float(strinfo[0]),float(strinfo[1]))
@@ -247,6 +264,9 @@ class Params():
         get_param(param_dict,'domain_info',self.domain_info)
         get_param(param_dict,'interp_num',self.interp_num)
         get_param(param_dict,'ndays',self.ndays)
+        get_param(param_dict,'r_dur',self.r_dur)
+        get_param(param_dict,'r_start',self.r_start)
+        get_param(param_dict,'r_number',self.r_number)
         get_param(param_dict,'g_params',self.g_params)
         get_param(param_dict,'f_params',self.f_params)
         get_param(param_dict,'Dparams',self.Dparams)
@@ -318,21 +338,23 @@ def main(argv):
                     max_shape[dim] = pmf_list[-1].shape[dim]
                 
     print('Time elapsed: {0}'.format(time.time()-tic))
-    modelsol = [] # holds actual model solutions
+    r_spread = [] # holds the one-day spread for each release day.
     
-    # Reshape the first probability mass function into a solution
-    print('Reshaping day 1 solution')
-    offset = params.domain_info[1] - pmf_list[0].shape[0]//2
-    dom_len = params.domain_info[1]*2 + 1
-    modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
-        (pmf_list[0].row+offset,pmf_list[0].col+offset)),
-        shape=(dom_len,dom_len)))
+    # Reshape the prob. mass function of each release day into solution form
+    for ii in range(r_dur):
+        print('Shaping day {} PR probabiliy onto full domain'.format(ii))
+        offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
+        dom_len = params.domain_info[1]*2 + 1
+        r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
+            (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
+            shape=(dom_len,dom_len)))
 
 
-    # Pass the first solution, pmf_list, and other info to convolution solver
-    #   This updates modelsol with the rest of the solutions.
+    # Pass the probability list, pmf_list, and other info to convolution solver.
+    #   This will return the finished population model.
     tic = time.time()
-    get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
+    popmodel = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
+                               r_dur,r_number)
     
     # done.
     print('Done.')
