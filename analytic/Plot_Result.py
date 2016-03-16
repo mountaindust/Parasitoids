@@ -38,9 +38,12 @@ clrmp = cm.get_cmap('alpha_viridis')
 clrmp.set_bad('w',alpha=0)
 
 def r_small_vals(A,negval):
-    '''Remove negligible values from the given coo sparse matrix. 
+    '''Remove negligible values from the given matrix. 
     This process significantly decreases the size of a solution and gives an
-    accurate plot domain.'''
+    accurate plot domain. Return a sparse coo matrix.'''
+    if not sparse.isspmatrix_coo(A):
+        A = sparse.coo_matrix(A)
+    
     midpt = A.shape[0]//2 #assume domain is square
     
     mask = np.empty(A.data.shape,dtype=bool)
@@ -149,7 +152,7 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
     '''Function for plotting the model solution
     
     Args:
-        modelsol: list of daily solutions, coo sparse
+        modelsol: list of daily solutions, sparse
         days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
@@ -204,7 +207,7 @@ def plot(sol,day,params,mask_val=0.00001):
     '''Plot a solution for a single day
     
     Args:
-        sol: day solution, coo sparse
+        sol: day solution, sparse
         day: day identifier (for text identification)
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
@@ -254,7 +257,7 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
     The saved file name/location will be based on filename.
     
     Args:
-        modelsol: list of daily solutions, coo sparse
+        modelsol: list of daily solutions, sparse
         days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
@@ -347,12 +350,27 @@ def main(argv):
     modelsol = OrderedDict() # we use dict here for convenience
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
+        # some code here to make loading robust to both COO and CSR.
+        CSR = False
         for day in days:
             V = npz_obj[str(day)+'_data']
-            I = npz_obj[str(day)+'_row']
-            J = npz_obj[str(day)+'_col']
-            modelsol[str(day)] = sparse.coo_matrix((V,(I,J)),
-                                                    shape=(dom_len,dom_len))
+            if CSR:
+                indices = npz_obj[str(day)+'_ind']
+                indptr = npz_obj[str(day)+'_indptr']
+                modelsol[str(day)] = sparse.csr_matrix((V,indices,indptr),
+                                                        shape=(dom_len,dom_len))
+            else:
+                try:
+                    I = npz_obj[str(day)+'_row']
+                    J = npz_obj[str(day)+'_col']
+                    modelsol[str(day)] = sparse.coo_matrix((V,(I,J)),
+                                                        shape=(dom_len,dom_len))
+                except KeyError:
+                    CSR = True
+                    indices = npz_obj[str(day)+'_ind']
+                    indptr = npz_obj[str(day)+'_indptr']
+                    modelsol[str(day)] = sparse.csr_matrix((V,indices,indptr),
+                                                        shape=(dom_len,dom_len))
 
     while True:
         val = input('Enter a day number to plot, '+

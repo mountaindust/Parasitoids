@@ -359,7 +359,7 @@ def main(argv):
     print('Done.')
 
     print('Time elapsed: {0}'.format(time.time()-tic))
-    import pdb; pdb.set_trace()
+
     ### save result ###
     if params.OUTPUT:
         print('Saving...')
@@ -367,8 +367,8 @@ def main(argv):
             # Creates generator for output formatting
             for n,day in enumerate(days[:ndays]):
                 yield (str(day)+'_data', popmodel[n].data)
-                yield (str(day)+'_row', popmodel[n].row)
-                yield (str(day)+'_col', popmodel[n].col)
+                yield (str(day)+'_ind', popmodel[n].indices)
+                yield (str(day)+'_indptr', popmodel[n].indptr)
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
