@@ -31,8 +31,8 @@ dict_list = []
 for x in zip(*base_clrmp.colors):
     dict_list.append(tuple((n/(len(x)-1),val,val) for n,val in enumerate(x)))
 cdict = {'red': dict_list[0], 'green': dict_list[1], 'blue': dict_list[2]}
-cdict['alpha'] = ((0.0,0.65,0.65),
-                  (1.0,0.65,0.65))
+cdict['alpha'] = ((0.0,0.65,0.3),
+                  (1.0,0.65,0.3))
 plt.register_cmap(name='alpha_viridis',data=cdict)
 clrmp = cm.get_cmap('alpha_viridis')
 clrmp.set_bad('w',alpha=0)
