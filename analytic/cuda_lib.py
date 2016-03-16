@@ -126,7 +126,7 @@ class CudaSolve():
             dom_len: domain length (number of cells) of returned solution
             
         Returns:
-            list of coo matrices, in chronological order, w/ shape dom_len^2'''
+            list of coo matrices, in order of wasp emerg., w/ shape dom_len^2'''
         
         assert api.cuda.mem_get_info()[0] > self.pad_shape[0]*self.pad_shape[1]*(
             np.dtype(np.float32).itemsize)*4 # must hold two cmplx fft matrices
