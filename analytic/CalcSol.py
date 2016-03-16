@@ -61,9 +61,41 @@ def fftconv2(A_hat,B):
         
         
         
-def back_solve():
-    pass
+def back_solve(prev_spread,cursol_hat,dom_shape):
+    '''For each filter in prev_spread, convolute progressively in reverse order.
+        The number of arrays returned will be equal to len(prev_spread).
+        The last filter in prev_spread will be applied first, and the result
+            returned (last). Then the next to last filter is applied to that 
+            result to be returned next-to-last, etc.
+        
+        Args:
+            prev_spread: list of filters to apply (chronological order)
+            cursol_hat: fft of current solution, calculated from last emerg day
+            dom_shape: shape of returned solution
             
+        Returns:
+            list of coo matrices, in order of wasp emerg., w/ shape dom_len^2'''
+            
+    # store back solutions here in reverse chronological order
+    bcksol = []
+    
+    for B in prev_spread[::-1]:
+        # Convolution
+        mmid = (np.array(B.shape)/2).astype(int)
+        pad_shape = cursol_hat.shape
+        B_hat = np.zeros(pad_shape)
+        B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
+        B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
+        B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
+        B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
+        B_hat = fftpack.fft2(B_hat)
+        bcksol_hat = B_hat * cursol_hat
+        
+        # ifft and reduce
+        bcksol.append(r_small_vals(ifft2(bcksol_hat,dom_shape)))
+        
+    # return list in emergence order
+    return bcksol[::-1]
             
 
 def r_small_vals(A,negval=1e-8):
@@ -141,10 +173,9 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             print('Updating convolution for day {0}...'.format(day))
             # modifies cursol_hat
             fftconv2(cursol_hat,pmf_list[n+1].toarray())
-            print('Finding ifft for day {0}...'.format(day))
-            big_sol = ifft2(cursol_hat,[dom_len,dom_len])
-            print('Reducing solution...')
-            modelsol.append(r_small_vals(big_sol))
+            # get real solution
+            print('Finding ifft for day {0} and reducing...'.format(day))
+            modelsol.append(r_small_vals(ifft2(cursol_hat,[dom_len,dom_len])))
             
             
 

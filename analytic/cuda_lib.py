@@ -88,7 +88,7 @@ class CudaSolve():
         '''Return the current solution (requires ifft) with small values removed
         
         Args:
-            dom_len: domain length (number of cells) of returned solution
+            dom_shape: shape of returned solution
             
         Returns:
             coo matrix, current solution with shape (dom_len,dom_len)'''
@@ -123,7 +123,7 @@ class CudaSolve():
         
         Args:
             prev_spread: list of filters to apply (chronological order)
-            dom_len: domain length (number of cells) of returned solution
+            dom_shape: shape of returned solution
             
         Returns:
             list of coo matrices, in order of wasp emerg., w/ shape dom_len^2'''
