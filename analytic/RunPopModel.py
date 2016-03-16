@@ -66,12 +66,12 @@ class Params():
 
         ### release information
         # release duration (days)
-        r_dur = 3
+        self.r_dur = 3
         # start time on first day (as a fraction of the day)
-        r_start = 0.354 #8:30am
+        self.r_start = 0.354 #8:30am
         # total number of wasps 
         # (for now, assume they are divided equally between release days)
-        r_number = 130000
+        self.r_number = 130000
         
         ### function parameters
         # take-off scaling based on wind
@@ -301,7 +301,7 @@ def main(argv):
         globalvars.cuda = True
     else:
         globalvars.cuda = False
-    
+        
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
     ### run model ###
@@ -341,8 +341,7 @@ def main(argv):
     r_spread = [] # holds the one-day spread for each release day.
     
     # Reshape the prob. mass function of each release day into solution form
-    for ii in range(r_dur):
-        print('Shaping day {} PR probabiliy onto full domain'.format(ii))
+    for ii in range(params.r_dur):
         offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
         dom_len = params.domain_info[1]*2 + 1
         r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
@@ -354,25 +353,22 @@ def main(argv):
     #   This will return the finished population model.
     tic = time.time()
     popmodel = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
-                               r_dur,r_number)
+                               params.r_dur,params.r_number)
     
     # done.
     print('Done.')
 
     print('Time elapsed: {0}'.format(time.time()-tic))
-    
+    import pdb; pdb.set_trace()
     ### save result ###
     if params.OUTPUT:
-        # print('Removing small values from solutions...')
-        # for n,sol in enumerate(modelsol):
-            # modelsol[n] = PM.r_small_vals(sol)
         print('Saving...')
         def outputGenerator():
             # Creates generator for output formatting
             for n,day in enumerate(days[:ndays]):
-                yield (str(day)+'_data', modelsol[n].data)
-                yield (str(day)+'_row', modelsol[n].row)
-                yield (str(day)+'_col', modelsol[n].col)
+                yield (str(day)+'_data', popmodel[n].data)
+                yield (str(day)+'_row', popmodel[n].row)
+                yield (str(day)+'_col', popmodel[n].col)
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
@@ -391,7 +387,7 @@ def main(argv):
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(modelsol,days,params)
+        Plot_Result.plot_all(popmodel,days,params)
     
 
 if __name__ == "__main__":

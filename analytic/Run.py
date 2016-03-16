@@ -321,7 +321,6 @@ def main(argv):
     modelsol = [] # holds actual model solutions
     
     # Reshape the first probability mass function into a solution
-    print('Reshaping day 1 solution')
     offset = params.domain_info[1] - pmf_list[0].shape[0]//2
     dom_len = params.domain_info[1]*2 + 1
     modelsol.append(sparse.coo_matrix((pmf_list[0].data, 

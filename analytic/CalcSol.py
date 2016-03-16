@@ -80,6 +80,7 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
     bcksol = []
     
     for B in prev_spread[::-1]:
+        B = B.toarray()
         # Convolution
         mmid = (np.array(B.shape)/2).astype(int)
         pad_shape = cursol_hat.shape
@@ -206,7 +207,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     popmodel = []
     
     # first day population spread is just via r_spread[0]
-    popmodel.append(r_spread[0]*r_number/r_dur)
+    popmodel.append(r_spread[0].tocsr()*r_number/r_dur)
     curmodelsol[0] = r_spread[0]
     
     if globalvars.cuda:
@@ -227,7 +228,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     
     if globalvars.cuda and not NO_CUDA:
         # go to GPU.
-        print('Finding spread during release days...')
+        print('Finding spread during release days on GPU...')
         # successive release day population spread
         for day in range(1,r_dur):
             gpu_solver = cuda_lib.CudaSolve(r_spread[day],max_shape)
@@ -236,7 +237,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:day] = gpu_solver.back_solve(r_spread[:day],
                                                       [dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(curmodelsol[:day+1])*r_number/r_dur)
+            popmodel.append(np.sum(curmodelsol[:day+1],0)*r_number/r_dur)
         # update and return solutions for each day
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0}...'.format(day))
@@ -249,7 +250,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:-1] = gpu_solver.back_solve(r_spread[:-1],
                                                      [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(curmodelsol)*r_number/r_dur)
+            popmodel.append(np.sum(curmodelsol,0)*r_number/r_dur)
             
     else: # no CUDA. NOT CURRENTLY WORKING.
         print('Finding spread during release days...')
@@ -259,11 +260,11 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[day] = r_spread[day]
             # back solve to get previous solutions
             curmodelsol[:day] = back_solve(r_spread[:day],cursol_hat,
-                                           [dom_len,dom_len]) #TODO: implement!
+                                           [dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(curmodelsol[:day+1])*r_number/r_dur)
+            popmodel.append(np.sum(curmodelsol[:day+1],0)*r_number/r_dur)
         # update and return solutions for each day
-        for n,day in enumerate(days[1:ndays]):
+        for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0}...'.format(day))
             # modifies cursol_hat
             fftconv2(cursol_hat,pmf_list[n+r_dur].toarray())
@@ -272,8 +273,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[-1] = r_small_vals(big_sol)
             # get solutions for previous release days
             curmodelsol[:-1] = back_solve(r_spread[:-1],cursol_hat,
-                                          [dom_len,dom_len]) #TODO: implement!
+                                          [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(curmodelsol)*r_number/r_dur)
+            popmodel.append(np.sum(curmodelsol,0)*r_number/r_dur)
             
     return popmodel

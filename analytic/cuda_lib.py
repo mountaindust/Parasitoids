@@ -138,6 +138,7 @@ class CudaSolve():
         bcksol_hat_gpu = self.sol_hat_gpu
         
         for B in prev_spread[::-1]:
+            B = B.toarray()
             # Get array shape information
             mmid = np.array(B.shape).astype(int)//2
             
