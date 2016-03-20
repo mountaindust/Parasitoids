@@ -145,12 +145,11 @@ def get_satellite(key,center,dist):
     
     
     
-def plot_all(modelsol,days,params,mask_val=0.00001):
+def plot_all(modelsol,params,mask_val=0.00001):
     '''Function for plotting the model solution
     
     Args:
         modelsol: list of daily solutions, coo sparse
-        days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -187,7 +186,7 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
         
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
-        plt.title('Parasitoid spread {0} day(s) post release'.format(days[n]))
+        plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
@@ -249,13 +248,12 @@ def plot(sol,day,params,mask_val=0.00001):
         
         
         
-def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
+def create_mp4(modelsol,params,filename,mask_val=0.00001):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
     
     Args:
         modelsol: list of daily solutions, coo sparse
-        days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -321,8 +319,7 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
     # if we pass modelsol as is, the first and last frames won't appear...
     #   it seems that maybe they are there and gone so fast that they never
     #   appear. Let's not only duplicate them, put pause a little longer on them.
-    # for speed, we want to make a generator so that we can continue using the
-    #   view into the modelsol dict rather than forcing it to become a list.
+
     def animGen():
         # Creates an animation generator
         for n,result in enumerate(modelsol):
@@ -360,15 +357,15 @@ def main(argv):
     dom_len = params.domain_info[1]*2 + 1
 
     # load data
-    modelsol = OrderedDict() # we use dict here for convenience
+    modelsol = []
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
         for day in days:
             V = npz_obj[str(day)+'_data']
             I = npz_obj[str(day)+'_row']
             J = npz_obj[str(day)+'_col']
-            modelsol[str(day)] = sparse.coo_matrix((V,(I,J)),
-                                                    shape=(dom_len,dom_len))
+            modelsol.append(sparse.coo_matrix((V,(I,J)),
+                                                    shape=(dom_len,dom_len)))
 
     while True:
         val = input('Enter a day number to plot, '+
@@ -378,17 +375,17 @@ def main(argv):
                 'Or enter q to quit:')
         val = val.strip()
         if val == '?':
-            print(*days)
+            print(*list(range(1,len(days)+1)))
         elif val.lower() == 'q' or val.lower() == 'quit':
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol.values(),days,params)
+            plot_all(modelsol,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol.values(),days,params,filename)
+            create_mp4(modelsol,params,filename)
         else:
             try:
-                plot(modelsol[val],val,params)
+                plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     

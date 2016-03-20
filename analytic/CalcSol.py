@@ -122,19 +122,19 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         gpu_solver = cuda_lib.CudaSolve(modelsol[0],max_shape)
         # update and return solution for each day
         for n,day in enumerate(days[1:ndays]):
-            print('Updating convolution for day {0}...'.format(day))
+            print('Updating convolution for day {0} PR...'.format(n+2))
             gpu_solver.fftconv2(pmf_list[n+1].toarray())
-            print('Finding ifft for day {0} and reducing...'.format(day))
+            print('Finding ifft for day {0} and reducing...'.format(n+2))
             modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
     else:
         print('Finding fft of first day...')
         cursol_hat = fft2(modelsol[0],max_shape)
         
         for n,day in enumerate(days[1:ndays]):
-            print('Updating convolution for day {0}...'.format(day))
+            print('Updating convolution for day {0} PR...'.format(n+2))
             # modifies cursol_hat
             fftconv2(cursol_hat,pmf_list[n+1].toarray())
-            print('Finding ifft for day {0}...'.format(day))
+            print('Finding ifft for day {0}...'.format(n+2))
             big_sol = ifft2(cursol_hat,[dom_len,dom_len])
             print('Reducing solution...')
             modelsol.append(r_small_vals(big_sol))

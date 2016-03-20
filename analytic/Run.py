@@ -60,7 +60,7 @@ class Params():
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
-        self.ndays = 2
+        self.ndays = 3
 
         ### function parameters
         # take-off scaling based on wind
@@ -308,8 +308,8 @@ def main(argv):
                 if pmf.shape[dim] > max_shape[dim]:
                     max_shape[dim] = pmf.shape[dim]
     else:
-        for day in days[:ndays]:
-            print('Calculating spread for day {0}'.format(day))
+        for n,day in enumerate(days[:ndays]):
+            print('Calculating spread for day {0} PR'.format(n+1))
             pmf_list.append(PM.prob_mass(
                                day,wind_data,*params.get_model_params()))
             # record the largest shape of these
