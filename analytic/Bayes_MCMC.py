@@ -13,6 +13,7 @@ __version__ = "0.1"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time
+from io import StringIO
 from multiprocessing import Pool
 import numpy as np
 from scipy import sparse
@@ -103,6 +104,29 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
                     ########## PARSE SOLUTION ##########
                     
     pass
+    
+    
+    
+class Capturing(list):
+    '''This class creates a list object that can be used in 'with' environments
+    to capture the stdout of the enclosing functions. If used multiple times,
+    it will extend itself to make a longer list containing everything.
+    
+    Usage:
+        with Capturing() as output:
+            <code in which stdout is captured>
+            
+        # subsequent usage, to extend previous output list:
+        with Capturing(output) as output:
+            <more code with stdout captured>'''
+            
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        sys.stdout = self._stdout
     
     
     
