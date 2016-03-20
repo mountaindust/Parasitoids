@@ -305,8 +305,7 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
             mask_val))
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
-        ax.set_title('Parasitoid spread {0} day(s) post release'.format(
-                                                                   days[n]))
+        ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
@@ -318,9 +317,26 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
         cbar.solids.set_edgecolor("face")
         print('.',end="")
         sys.stdout.flush()
-        
-    anim = animation.FuncAnimation(fig,animate,frames=enumerate(modelsol),
-            blit=False,interval=500)
+    
+    # if we pass modelsol as is, the first and last frames won't appear...
+    #   it seems that maybe they are there and gone so fast that they never
+    #   appear. Let's not only duplicate them, put pause a little longer on them.
+    # for speed, we want to make a generator so that we can continue using the
+    #   view into the modelsol dict rather than forcing it to become a list.
+    def animGen():
+        # Creates an animation generator
+        for n,result in enumerate(modelsol):
+            if n == 0 or n == len(modelsol)-1:
+                # pause a bit on first and last result
+                for ii in range(3):
+                    yield (n+1,result)
+            else:
+                yield (n+1, result)
+
+    # create animation
+    framegen = animGen()
+    anim = animation.FuncAnimation(fig,animate,frames=framegen,
+            blit=False,interval=750)
     anim.save(filename+'.mp4')
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
