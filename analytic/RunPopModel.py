@@ -328,8 +328,8 @@ def main(argv):
                 if pmf.shape[dim] > max_shape[dim]:
                     max_shape[dim] = pmf.shape[dim]
     else:
-        for day in days[:ndays]:
-            print('Calculating spread for day {0}'.format(day))
+        for n,day in enumerate(days[:ndays]):
+            print('Calculating spread for day {0} PR'.format(n+1))
             pmf_list.append(PM.prob_mass(
                                day,wind_data,*params.get_model_params()))
             # record the largest shape of these

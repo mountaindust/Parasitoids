@@ -148,12 +148,11 @@ def get_satellite(key,center,dist):
     
     
     
-def plot_all(modelsol,days,params,mask_val=0.00001):
+def plot_all(modelsol,params,mask_val=0.00001):
     '''Function for plotting the model solution
     
     Args:
         modelsol: list of daily solutions, sparse
-        days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -190,7 +189,7 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
         
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
-        plt.title('Parasitoid spread {0} day(s) post release'.format(days[n]))
+        plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
@@ -252,13 +251,12 @@ def plot(sol,day,params,mask_val=0.00001):
         
         
         
-def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
+def create_mp4(modelsol,params,filename,mask_val=0.00001):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
     
     Args:
         modelsol: list of daily solutions, sparse
-        days: list of day identifiers
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -308,8 +306,7 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
             mask_val))
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
-        ax.set_title('Parasitoid spread {0} day(s) post release'.format(
-                                                                   days[n]))
+        ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
@@ -321,9 +318,25 @@ def create_mp4(modelsol,days,params,filename,mask_val=0.00001):
         cbar.solids.set_edgecolor("face")
         print('.',end="")
         sys.stdout.flush()
-        
-    anim = animation.FuncAnimation(fig,animate,frames=enumerate(modelsol),
-            blit=False,interval=500)
+    
+    # if we pass modelsol as is, the first and last frames won't appear...
+    #   it seems that maybe they are there and gone so fast that they never
+    #   appear. Let's not only duplicate them, put pause a little longer on them.
+
+    def animGen():
+        # Creates an animation generator
+        for n,result in enumerate(modelsol):
+            if n == 0 or n == len(modelsol)-1:
+                # pause a bit on first and last result
+                for ii in range(3):
+                    yield (n+1,result)
+            else:
+                yield (n+1, result)
+
+    # create animation
+    framegen = animGen()
+    anim = animation.FuncAnimation(fig,animate,frames=framegen,
+            blit=False,interval=750)
     anim.save(filename+'.mp4')
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
@@ -347,7 +360,7 @@ def main(argv):
     dom_len = params.domain_info[1]*2 + 1
 
     # load data
-    modelsol = OrderedDict() # we use dict here for convenience
+    modelsol = []
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
         # some code here to make loading robust to both COO and CSR.
@@ -357,20 +370,20 @@ def main(argv):
             if CSR:
                 indices = npz_obj[str(day)+'_ind']
                 indptr = npz_obj[str(day)+'_indptr']
-                modelsol[str(day)] = sparse.csr_matrix((V,indices,indptr),
-                                                        shape=(dom_len,dom_len))
+                modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
             else:
                 try:
                     I = npz_obj[str(day)+'_row']
                     J = npz_obj[str(day)+'_col']
-                    modelsol[str(day)] = sparse.coo_matrix((V,(I,J)),
-                                                        shape=(dom_len,dom_len))
+                    modelsol.append(sparse.coo_matrix((V,(I,J)),
+                                                    shape=(dom_len,dom_len)))
                 except KeyError:
                     CSR = True
                     indices = npz_obj[str(day)+'_ind']
                     indptr = npz_obj[str(day)+'_indptr']
-                    modelsol[str(day)] = sparse.csr_matrix((V,indices,indptr),
-                                                        shape=(dom_len,dom_len))
+                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
 
     while True:
         val = input('Enter a day number to plot, '+
@@ -380,17 +393,17 @@ def main(argv):
                 'Or enter q to quit:')
         val = val.strip()
         if val == '?':
-            print(*days)
+            print(*list(range(1,len(days)+1)))
         elif val.lower() == 'q' or val.lower() == 'quit':
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol.values(),days,params)
+            plot_all(modelsol,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol.values(),days,params,filename)
+            create_mp4(modelsol,params,filename)
         else:
             try:
-                plot(modelsol[val],val,params)
+                plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     
