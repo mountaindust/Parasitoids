@@ -181,7 +181,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             
 
 def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
-                    r_dur,r_number):
+                    r_dur,r_number,dist):
     '''Find expected wasp densities from a list of daily probability densities
     and given the distribution after the last release day.
     
@@ -196,6 +196,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
         max_shape: largest filter shape, based on largest in pmf_list
         r_dur: duration of release, days (int)
         r_number: total number of wasps released, assume uniform release
+        dist: emergence distribution during release
         
     Returns:
         popmodel: expected wasp population numbers on each day
@@ -237,7 +238,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:day] = gpu_solver.back_solve(r_spread[:day],
                                                       [dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(curmodelsol[:day+1],0)*r_number/r_dur)
+            popmodel.append(np.sum(
+                [curmodelsol[d]*dist(d+1) for d in range(day+1)],0)*r_number)
         # update and return solutions for each day
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
@@ -250,7 +252,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:-1] = gpu_solver.back_solve(r_spread[:-1],
                                                      [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(curmodelsol,0)*r_number/r_dur)
+            popmodel.append(np.sum(
+                [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
             
     else: # no CUDA. NOT CURRENTLY WORKING.
         print('Finding spread during release days...')
@@ -262,7 +265,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:day] = back_solve(r_spread[:day],cursol_hat,
                                            [dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(curmodelsol[:day+1],0)*r_number/r_dur)
+            popmodel.append(np.sum(
+                [curmodelsol[d]*dist(d+1) for d in range(day+1)],0)*r_number)
         # update and return solutions for each day
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
@@ -276,6 +280,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:-1] = back_solve(r_spread[:-1],cursol_hat,
                                           [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(curmodelsol,0)*r_number/r_dur)
+            popmodel.append(np.sum(
+                [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
             
     return popmodel

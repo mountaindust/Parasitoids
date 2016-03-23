@@ -67,6 +67,8 @@ class Params():
         ### release information
         # release duration (days)
         self.r_dur = 3
+        # release emergence distribution
+        self.r_dist = self.uniform
         # start time on first day (as a fraction of the day)
         self.r_start = 0.354 #8:30am
         # total number of wasps 
@@ -99,7 +101,24 @@ class Params():
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
+
         
+        
+    ########    Methods for multiple-day emergence    ########
+        
+    def uniform(self,day):
+        '''Uniform distribution over emergence days. 1 <= day <= self.r_dur.'''
+        
+        return 1./self.r_dur
+        
+    def trunc_norm(self,day):
+        '''Normal distribution over emergence days. 1 <= day <= self.r_dur.'''
+        
+        pass
+        
+
+    ########    Methods for changing parameters    ########
+    
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
         the default parameters accordingly. If the file is not there, create it
@@ -131,6 +150,7 @@ class Params():
             print(' in config.txt.')
             raise
                 
+                
         
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''
@@ -158,6 +178,7 @@ class Params():
             else:
                 arg,eq,val = argstr.partition('=')
                 self.chg_param(arg,val)
+                
                 
                     
     def chg_param(self,arg,val):
@@ -236,7 +257,8 @@ class Params():
             print('Could not parse {0}.'.format(arg),end='')
             raise
         
-                
+        
+        
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
         if filename.rstrip()[-5:] != '.json':
@@ -275,13 +297,17 @@ class Params():
         get_param(param_dict,'n_periods',self.n_periods)
         get_param(param_dict,'min_ndays',self.min_ndays)
 
-        
+    
+
+    ########    Methods for getting function parameters    ########
         
     def get_model_params(self):
         '''Return params in order necessary to run model, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
         return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)
+        
+        
         
     def get_wind_params(self):
         '''Return wind params to pass to PM.get_wind_data'''
@@ -353,7 +379,7 @@ def main(argv):
     #   This will return the finished population model.
     tic = time.time()
     popmodel = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
-                               params.r_dur,params.r_number)
+                               params.r_dur,params.r_number,params.r_dist)
     
     # done.
     print('Done.')
@@ -387,7 +413,7 @@ def main(argv):
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(popmodel,days,params)
+        Plot_Result.plot_all(popmodel,params)
     
 
 if __name__ == "__main__":
