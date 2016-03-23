@@ -369,7 +369,7 @@ def main(argv):
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(modelsol,days,params)
+        Plot_Result.plot_all(modelsol,params)
     
 
 if __name__ == "__main__":
