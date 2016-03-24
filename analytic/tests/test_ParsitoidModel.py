@@ -396,3 +396,22 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     assert firstsol[midpt,midpt] > firstsol.sum() - firstsol[midpt,midpt]
     # but not all
     assert not math.isclose(firstsol[midpt,midpt],1)
+    
+    
+    
+    #### Run again, but this time with noon release ####
+    
+    pmf2 = PM.prob_mass(day,wind_data,hparams,D_params,*params,0.5)
+    
+    # should be a probability mass function
+    assert math.isclose(pmf2.sum(),1)
+    
+    # most of the probability should still be at the origin
+    midpt2 = pmf2.shape[0]//2
+    pmf2 = pmf2.tocsr()
+    assert pmf2[midpt2,midpt2] > pmf2.sum() - pmf2[midpt2,midpt2]
+    # but not all
+    assert not math.isclose(pmf2[midpt2,midpt2],1)
+    
+    # this solution should have more left at the origin than the first one
+    assert pmf2[midpt2,midpt2] > firstsol[midpt,midpt]

@@ -17,6 +17,7 @@ __status__ = "Development"
 __version__ = "0.2"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
+from math import floor
 import numpy as np
 from scipy.stats import mvn
 from scipy import sparse
@@ -374,7 +375,8 @@ def get_mvn_cdf_values(cell_length,mu,S):
     return cdf_mat
 
     
-def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
+def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
+                start_time=None):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
@@ -389,6 +391,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
         - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
         - rad_res -- number of cells from center to side of the domain
+        - start_time -- (optional) time at which release occurred
         
     Returns:
         - pmf -- 2D spatial probability mass function of finding the parasitoid
@@ -407,13 +410,18 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res):
     
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
-        periods = day_wind.shape[0]
+        periods = day_wind.shape[0] # wind data is already interpolated.
+                                    #   it starts at 00:00
         TEST_RUN = False
     else:
         periods = 1
         TEST_RUN = True
     
-    for t_indx in range(periods):
+    if start_time is None:
+        start_indx = 0
+    else:
+        start_indx = floor(start_time*periods)
+    for t_indx in range(start_indx,periods):
         ### Get the advection velocity and put in units = m/(unit time) ###
         
         if (not TEST_RUN) and n_periods > 1:

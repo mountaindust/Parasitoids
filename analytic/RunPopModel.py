@@ -343,8 +343,9 @@ def main(argv):
     
     if ndays >= params.min_ndays:
         print("Calculating each day's spread in parallel...")
-        pm_args = [(day,wind_data,*params.get_model_params()) 
-                    for day in days[:ndays]]
+        pm_args = [(days[0],wind_data,*params.get_model_params(),params.r_start)]
+        pm_args.extend([(day,wind_data,*params.get_model_params()) 
+                    for day in days[1:ndays]])
         pool = Pool()
         pmf_list = pool.starmap(PM.prob_mass,pm_args)
         pool.close()
@@ -356,8 +357,13 @@ def main(argv):
     else:
         for n,day in enumerate(days[:ndays]):
             print('Calculating spread for day {0} PR'.format(n+1))
-            pmf_list.append(PM.prob_mass(
-                               day,wind_data,*params.get_model_params()))
+            if n == 0:
+                pmf_list.append(PM.prob_mass(
+                                day,wind_data,*params.get_model_params(),
+                                params.r_start))
+            else:
+                pmf_list.append(PM.prob_mass(
+                                day,wind_data,*params.get_model_params()))
             # record the largest shape of these
             for dim in range(2):
                 if pmf_list[-1].shape[dim] > max_shape[dim]:
