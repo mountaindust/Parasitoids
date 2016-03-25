@@ -232,8 +232,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     popmodel = []
     
     # first day population spread is just via r_spread[0]
-    popmodel.append(r_spread[0].tocsr()*r_number/r_dur)
-    curmodelsol[0] = r_spread[0]
+    popmodel.append(r_small_vals(r_spread[0]).tocsr()*r_number*dist(1))
+    curmodelsol[0] = r_small_vals(r_spread[0])
     
     if globalvars.cuda:
         try:
@@ -284,10 +284,10 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
         # successive release day population spread
         for day in range(1,r_dur):
             cursol_hat = fft2(r_spread[day],max_shape)
-            curmodelsol[day] = r_spread[day]
+            curmodelsol[day] = r_small_vals(r_spread[day])
             # back solve to get previous solutions
-            curmodelsol[:day] = back_solve(r_spread[:day],cursol_hat,
-                                           [dom_len,dom_len])
+            curmodelsol[:day] = r_small_vals(back_solve(r_spread[:day],
+                                            cursol_hat,[dom_len,dom_len]))
             # get population spread
             popmodel.append(np.sum(
                 [curmodelsol[d]*dist(d+1) for d in range(day+1)],0)*r_number)
