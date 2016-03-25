@@ -253,7 +253,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
             # update current GPU solution based on last day of release
-            gpu_solver.fftconv2(pmf_list[n+r_dur].toarray())
+            gpu_solver.fftconv2(pmf_list[n+r_dur].toarray(),n==0)
             print('Finding ifft for day {0}...'.format(r_dur+n+1))
             # get current GPU solution based on last day of release
             curmodelsol[-1] = gpu_solver.get_cursol([dom_len,dom_len])

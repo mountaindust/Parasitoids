@@ -50,14 +50,15 @@ class CudaSolve():
         
         
         
-    def fftconv2(self,B):
+    def fftconv2(self,B,mem_print=True):
         '''Update current fourier solution with filter B.
         
         The work to be done in here is padding B appropriately, shifting
         B so that the center is at B[0,0] with wrap-around.
         
         Args:
-            B: 2D array'''
+            B: 2D array
+            mem_print: bool. turn on/off GPU memory report'''
             
         # Get array shape information
         mmid = np.array(B.shape).astype(int)//2
@@ -75,8 +76,9 @@ class CudaSolve():
         B_pad[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].astype(np.float32)
 
         B_gpu = thr.to_device(B_pad)
-        print('GPU memory: free={0}, total={1}'.format(api.cuda.mem_get_info()[0],
-                                                      api.cuda.mem_get_info()[1]))
+        if mem_print:
+            print('GPU memory: free={0}, total={1}'.format(
+                api.cuda.mem_get_info()[0],api.cuda.mem_get_info()[1]))
  
         # fft and solution update
         self.fft_proc_c(B_gpu,B_gpu,0)
