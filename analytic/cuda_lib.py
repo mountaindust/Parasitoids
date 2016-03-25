@@ -160,7 +160,7 @@ class CudaSolve():
             B_gpu = B_gpu.real
             
             # Remove negligable values from reported real solution
-            sol_gpu.set(np.zeros(B_gpu.shape).astype(np.float32))
+            sol_gpu = api.gpuarray.zeros_like(B_gpu)
             sol_gpu = api.gpuarray.if_positive(B_gpu>negval,
                 B_gpu,sol_gpu) #this might not work because sol_gpu on both sides?
                 
