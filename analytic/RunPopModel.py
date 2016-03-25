@@ -68,7 +68,7 @@ class Params():
         # release duration (days)
         self.r_dur = 3
         # release emergence distribution
-        self.r_dist = self.uniform
+        self.r_dist = 'uniform'
         # start time on first day (as a fraction of the day)
         self.r_start = 0.354 #8:30am
         # total number of wasps 
@@ -111,11 +111,22 @@ class Params():
         
         return 1./self.r_dur
         
-    def trunc_norm(self,day):
+    def custom(self,day):
         '''Normal distribution over emergence days. 1 <= day <= self.r_dur.'''
         
         pass
         
+    ####
+    
+    def r_mthd(self):
+        '''Return function handle for the method to be used.
+        We do this via this method (instead of directly) so that the parameter 
+        r_dist can be saved in the json file with the other parameters.'''
+        
+        if self.r_dist == 'uniform':
+            return self.uniform
+        elif self.r_dist == 'custom':
+            return self.custom
 
     ########    Methods for changing parameters    ########
     
@@ -385,7 +396,7 @@ def main(argv):
     #   This will return the finished population model.
     tic = time.time()
     popmodel = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
-                               params.r_dur,params.r_number,params.r_dist)
+                               params.r_dur,params.r_number,params.r_mthd())
     
     # done.
     print('Done.')
