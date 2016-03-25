@@ -105,40 +105,24 @@ def r_small_vals(A,negval=1e-8):
     saving storage and decreasing the time it takes to write to disk.
     The sum of the removed values is added back to the origin to maintain a
     probability mass function.
-    A list of coo matrices can also be passed, and each will be reduced.
     
     A CUDA version might be warranted if really fast save time needed.'''
-    if isinstance(A,list):
-        A_red_list = []
-        for Amat in A:
-            midpt = Amat.shape[0]//2 #assume domain is square
+    
+    if not sparse.isspmatrix_coo(A):
+        A = sparse.coo_matrix(A)
         
-            mask = np.empty(Amat.data.shape,dtype=bool)
-            for n,val in enumerate(Amat.data):
-                if val < negval: # this should be roundoff error territory
-                    mask[n] = False
-                else:
-                    mask[n] = True
-            A_red = sparse.coo_matrix((Amat.data[mask],
-                (Amat.row[mask],Amat.col[mask])),Amat.shape)
-            # to get a pmf, add back the lost probability evenly
-            A_red.data += (1-A_red.data.sum())/A_red.data.size
-            A_red_list.append(A_red)
-        return A_red_list
-        
-    else:
-        midpt = A.shape[0]//2 #assume domain is square
-        
-        mask = np.empty(A.data.shape,dtype=bool)
-        for n,val in enumerate(A.data):
-            if val < negval: # this should be roundoff error territory
-                mask[n] = False
-            else:
-                mask[n] = True
-        A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
-        # to get a pmf, add back the lost probability evenly
-        A_red.data += (1-A_red.data.sum())/A_red.data.size
-        return A_red
+    midpt = A.shape[0]//2 #assume domain is square
+    
+    mask = np.empty(A.data.shape,dtype=bool)
+    for n,val in enumerate(A.data):
+        if val < negval: # this should be roundoff error territory
+            mask[n] = False
+        else:
+            mask[n] = True
+    A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
+    # to get a pmf, add back the lost probability evenly
+    A_red.data += (1-A_red.data.sum())/A_red.data.size
+    return A_red
     
     
     
@@ -234,8 +218,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     popmodel = []
     
     # first day population spread is just via r_spread[0]
-    popmodel.append(r_small_vals(r_spread[0]).tocsr()*r_number*dist(1))
-    curmodelsol[0] = r_small_vals(r_spread[0])
+    popmodel.append(r_small_vals(r_spread[0])*r_number*dist(1))
+    curmodelsol[0] = r_spread[0]
     
     if globalvars.cuda:
         try:
@@ -264,8 +248,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:day] = gpu_solver.back_solve(r_spread[:day],
                                                       [dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(
-                [curmodelsol[d]*dist(d+1) for d in range(day+1)],0)*r_number)
+            popmodel.append(r_small_vals(np.sum(
+                curmodelsol[d]*dist(d+1) for d in range(day+1))*r_number))
         # update and return solutions for each day
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
@@ -278,21 +262,21 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[:-1] = gpu_solver.back_solve(r_spread[:-1],
                                                      [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(
-                [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
+            popmodel.append(r_small_vals(np.sum(
+                curmodelsol[d]*dist(d+1) for d in range(r_dur))*r_number))
             
     else: # no CUDA.
         print('Finding spread during release days...')
         # successive release day population spread
         for day in range(1,r_dur):
             cursol_hat = fft2(r_spread[day],max_shape)
-            curmodelsol[day] = r_small_vals(r_spread[day])
+            curmodelsol[day] = r_spread[day]
             # back solve to get previous solutions
-            curmodelsol[:day] = r_small_vals(back_solve(r_spread[:day],
-                                            cursol_hat,[dom_len,dom_len]))
+            curmodelsol[:day] = back_solve(r_spread[:day],
+                                            cursol_hat,[dom_len,dom_len])
             # get population spread
-            popmodel.append(np.sum(
-                [curmodelsol[d]*dist(d+1) for d in range(day+1)],0)*r_number)
+            popmodel.append(r_small_vals(np.sum(
+                curmodelsol[d]*dist(d+1) for d in range(day+1))*r_number))
         # update and return solutions for each day
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
@@ -300,13 +284,12 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             fftconv2(cursol_hat,pmf_list[n+r_dur].toarray())
             print('Finding ifft for day {0} and reducing...'.format(r_dur+n+1))
 
-            big_sol = ifft2(cursol_hat,[dom_len,dom_len])
-            curmodelsol[-1] = r_small_vals(big_sol)
+            curmodelsol[-1] = ifft2(cursol_hat,[dom_len,dom_len])
             # get solutions for previous release days and reduce
-            curmodelsol[:-1] = r_small_vals(back_solve(r_spread[:-1],cursol_hat,
-                                            [dom_len,dom_len]))
+            curmodelsol[:-1] = back_solve(r_spread[:-1],cursol_hat,
+                                            [dom_len,dom_len])
             # get new population spread
-            popmodel.append(np.sum(
-                [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
+            popmodel.append(r_small_vals(np.sum(
+                curmodelsol[d]*dist(d+1) for d in range(r_dur))*r_number))
             
     return popmodel
