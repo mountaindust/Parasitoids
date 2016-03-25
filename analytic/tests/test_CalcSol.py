@@ -114,17 +114,17 @@ def test_back_solve(many_arrays):
     '''Test the backsolve against straightfoward convolution'''
     A,B,C,D = many_arrays
     # Each array has the same shape
-    C_hat = CS.fft2(sparse.coo_matrix(C),np.array(A.shape))
+    C_hat = CS.fft2(sparse.coo_matrix(C),A.shape)
     CS.fftconv2(C_hat,D) # overwrites C_hat
     bckCD = CS.back_solve([sparse.coo_matrix(A),sparse.coo_matrix(B)],
         C_hat,A.shape)
     
-    B_hat = CS.fft2(sparse.coo_matrix(B),np.array(A.shape))
+    B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
     CS.fftconv2(B_hat,C)
     CS.fftconv2(B_hat,D)
     BCD = CS.ifft2(B_hat,B.shape).toarray()
     
-    A_hat = CS.fft2(sparse.coo_matrix(A),np.array(A.shape))
+    A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
     CS.fftconv2(A_hat,B)
     CS.fftconv2(A_hat,C)
     CS.fftconv2(A_hat,D)

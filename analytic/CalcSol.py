@@ -17,7 +17,7 @@ def fft2(A,filt_shape):
         
     Returns:
         fft2 of A padded with zeros in the shape of filt_shape'''
-    mmid = (filt_shape/2).astype(int)
+    mmid = np.array(filt_shape)//2
     pad_shape = A.shape + mmid
     A_hat = np.zeros(pad_shape)
     A_hat[:A.shape[0],:A.shape[1]] = A.toarray()
@@ -47,7 +47,7 @@ def fftconv2(A_hat,B):
     The work to be done in here is padding B appropriately, shifting
     B so that the center is at B[0,0] with wrap-around.'''
     
-    mmid = (np.array(B.shape)/2).astype(int) #this fails if B.shape is even!
+    mmid = np.array(B.shape)//2 #this fails if B.shape is even!
     pad_shape = A_hat.shape
     B_hat = np.zeros(pad_shape)
     B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
@@ -82,7 +82,7 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
     for B in prev_spread[::-1]:
         B = B.toarray()
         # Convolution
-        mmid = (np.array(B.shape)/2).astype(int)
+        mmid = np.array(B.shape)//2
         pad_shape = cursol_hat.shape
         B_hat = np.zeros(pad_shape)
         B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
@@ -147,6 +147,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     the distribution after the first day.
     
     Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
+    Need boundary checking of solutions to prevent rollover in Fourier space
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
     
@@ -208,6 +209,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     and given the distribution after the last release day.
     
     Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
+    Need boundary checking of solutions to prevent rollover in Fourier space
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
     

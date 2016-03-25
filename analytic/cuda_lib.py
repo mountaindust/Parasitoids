@@ -157,7 +157,7 @@ class CudaSolve():
             
             # ifft over B_gpu to free the space
             self.fft_proc_c(B_gpu,bcksol_hat_gpu,1)
-            B_gpu = B_gpu.real()
+            B_gpu = B_gpu.real
             
             # Remove negligable values from reported real solution
             sol_gpu.set(np.zeros(B_gpu.shape).astype(np.float32))
