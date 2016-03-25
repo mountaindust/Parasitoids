@@ -130,7 +130,6 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
     the distribution after the first day.
     
-    Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
     Need boundary checking of solutions to prevent rollover in Fourier space
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
@@ -172,7 +171,8 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             print('Updating convolution for day {0} PR...'.format(n+2))
             gpu_solver.fftconv2(pmf_list[n+1].toarray())
             print('Finding ifft for day {0} (no reduction)...'.format(n+2))
-            modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
+            modelsol.append(r_small_vals(
+                gpu_solver.get_cursol([dom_len,dom_len])))
     else:
         print('Finding fft of first day...')
         cursol_hat = fft2(modelsol[0],max_shape)
@@ -192,7 +192,6 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     '''Find expected wasp densities from a list of daily probability densities
     and given the distribution after the last release day.
     
-    Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
     Need boundary checking of solutions to prevent rollover in Fourier space
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
@@ -255,7 +254,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
             # update current GPU solution based on last day of release
             gpu_solver.fftconv2(pmf_list[n+r_dur].toarray())
-            print('Finding ifft for day {0} (no reduction)...'.format(r_dur+n+1))
+            print('Finding ifft for day {0}...'.format(r_dur+n+1))
             # get current GPU solution based on last day of release
             curmodelsol[-1] = gpu_solver.get_cursol([dom_len,dom_len])
             # get GPU solutions for previous release days
@@ -282,7 +281,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
             # modifies cursol_hat
             fftconv2(cursol_hat,pmf_list[n+r_dur].toarray())
-            print('Finding ifft for day {0} and reducing...'.format(r_dur+n+1))
+            print('Finding ifft for day {0}...'.format(r_dur+n+1))
 
             curmodelsol[-1] = ifft2(cursol_hat,[dom_len,dom_len])
             # get solutions for previous release days and reduce

@@ -398,9 +398,9 @@ def main(argv):
         def outputGenerator():
             # Creates generator for output formatting
             for n,day in enumerate(days[:ndays]):
-                yield (str(day)+'_data', modelsol[n].data)
-                yield (str(day)+'_row', modelsol[n].row)
-                yield (str(day)+'_col', modelsol[n].col)
+                yield (str(day)+'_data', popmodel[n].data)
+                yield (str(day)+'_row', popmodel[n].row)
+                yield (str(day)+'_col', popmodel[n].col)
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
