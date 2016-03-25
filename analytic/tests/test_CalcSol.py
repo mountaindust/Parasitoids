@@ -43,6 +43,23 @@ def two_arrays():
     B = np.outer(range(4,-1,-1),range(8,-1,-2))
     return (A,B)
     
+@pytest.fixture(scope="module")
+def many_arrays():
+    # for now, we will pad these with zeros to avoid the periodic bndry effects
+    Adata = np.outer(range(5),np.arange(.1,.6,.1))
+    A = np.zeros((55,55))
+    A[25:30,25:30] = Adata
+    Bdata = np.outer(np.arange(0,2.5,0.5),np.ones(5))
+    B = np.zeros((55,55))
+    B[25:30,25:30] = Bdata
+    Cdata = np.outer(range(5,0,-1),np.arange(.1,.6,.1))
+    C = np.zeros((55,55))
+    C[25:30,25:30] = Cdata
+    Ddata = np.outer(np.arange(1,0,-.2),np.arange(0,2.5,0.5))
+    D = np.zeros((55,55))
+    D[25:30,25:30] = Ddata
+    return (A,B,C,D)
+    
 ############                    Decorators                ############
 
 cuda_run = pytest.mark.skipif(not globalvars.cuda,
@@ -73,7 +90,7 @@ def test_convolve_same(two_arrays):
     # update A_hat with the fft convolution
     CS.fftconv2(A_hat,B)
     C = CS.ifft2(A_hat,A.shape).toarray()
-    
+    assert not np.iscomplexobj(C)
     assert np.allclose(C,signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
     assert np.all(B == two_arrays[1])
@@ -92,3 +109,31 @@ def test_cuda_convolve(two_arrays):
     assert np.allclose(C.toarray(),signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
     assert np.all(B == two_arrays[1])
+
+def test_back_solve(many_arrays):
+    '''Test the backsolve against straightfoward convolution'''
+    A,B,C,D = many_arrays
+    # Each array has the same shape
+    C_hat = CS.fft2(sparse.coo_matrix(C),np.array(A.shape))
+    CS.fftconv2(C_hat,D) # overwrites C_hat
+    bckCD = CS.back_solve([sparse.coo_matrix(A),sparse.coo_matrix(B)],
+        C_hat,A.shape)
+    
+    B_hat = CS.fft2(sparse.coo_matrix(B),np.array(A.shape))
+    CS.fftconv2(B_hat,C)
+    CS.fftconv2(B_hat,D)
+    BCD = CS.ifft2(B_hat,B.shape).toarray()
+    
+    A_hat = CS.fft2(sparse.coo_matrix(A),np.array(A.shape))
+    CS.fftconv2(A_hat,B)
+    CS.fftconv2(A_hat,C)
+    CS.fftconv2(A_hat,D)
+    ABCD = CS.ifft2(A_hat,A.shape).toarray()
+
+    # there's periodic boundary issues here that still need to be addressed...
+    assert np.allclose(bckCD[1].toarray(),BCD)
+    assert np.allclose(bckCD[0].toarray(),ABCD)
+    
+@cuda_run
+def test_cuda_back_solve():
+    pass

@@ -39,7 +39,7 @@ def fftconv2(A_hat,B):
     
     Args:
         A_hat: fft array
-        B: 2D array
+        B: 2D array, shape must be odd
         
     Returns:
         fft array, A_hat times the fft of B.
@@ -47,7 +47,7 @@ def fftconv2(A_hat,B):
     The work to be done in here is padding B appropriately, shifting
     B so that the center is at B[0,0] with wrap-around.'''
     
-    mmid = (np.array(B.shape)/2).astype(int)
+    mmid = (np.array(B.shape)/2).astype(int) #this fails if B.shape is even!
     pad_shape = A_hat.shape
     B_hat = np.zeros(pad_shape)
     B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
@@ -78,7 +78,7 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
             
     # store back solutions here in reverse chronological order
     bcksol = []
-    
+    bcksol_hat = np.array(cursol_hat)
     for B in prev_spread[::-1]:
         B = B.toarray()
         # Convolution
@@ -90,10 +90,10 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
         B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
         B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
         B_hat = fftpack.fft2(B_hat)
-        bcksol_hat = B_hat * cursol_hat
+        bcksol_hat = B_hat * bcksol_hat
         
         # ifft and reduce
-        bcksol.append(r_small_vals(ifft2(bcksol_hat,dom_shape)))
+        bcksol.append(ifft2(bcksol_hat,dom_shape))
         
     # return list in emergence order
     return bcksol[::-1]
@@ -105,26 +105,48 @@ def r_small_vals(A,negval=1e-8):
     saving storage and decreasing the time it takes to write to disk.
     The sum of the removed values is added back to the origin to maintain a
     probability mass function.
+    A list of coo matrices can also be passed, and each will be reduced.
     
     A CUDA version might be warranted if really fast save time needed.'''
-    midpt = A.shape[0]//2 #assume domain is square
-    
-    mask = np.empty(A.data.shape,dtype=bool)
-    for n,val in enumerate(A.data):
-        if val < negval: # this should be roundoff error territory
-            mask[n] = False
-        else:
-            mask[n] = True
-    A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
-    # to get a pmf, add back the lost probability evenly
-    A_red.data += (1-A_red.data.sum())/A_red.data.size
-    return A_red
+    if isinstance(A,list):
+        A_red_list = []
+        for Amat in A:
+            midpt = Amat.shape[0]//2 #assume domain is square
+        
+            mask = np.empty(Amat.data.shape,dtype=bool)
+            for n,val in enumerate(Amat.data):
+                if val < negval: # this should be roundoff error territory
+                    mask[n] = False
+                else:
+                    mask[n] = True
+            A_red = sparse.coo_matrix((Amat.data[mask],
+                (Amat.row[mask],Amat.col[mask])),Amat.shape)
+            # to get a pmf, add back the lost probability evenly
+            A_red.data += (1-A_red.data.sum())/A_red.data.size
+            A_red_list.append(A_red)
+        return A_red_list
+        
+    else:
+        midpt = A.shape[0]//2 #assume domain is square
+        
+        mask = np.empty(A.data.shape,dtype=bool)
+        for n,val in enumerate(A.data):
+            if val < negval: # this should be roundoff error territory
+                mask[n] = False
+            else:
+                mask[n] = True
+        A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
+        # to get a pmf, add back the lost probability evenly
+        A_red.data += (1-A_red.data.sum())/A_red.data.size
+        return A_red
     
     
     
 def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
     '''Find model solutions from a list of daily probability densities and given
     the distribution after the first day.
+    
+    Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
     
@@ -164,7 +186,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         for n,day in enumerate(days[1:ndays]):
             print('Updating convolution for day {0} PR...'.format(n+2))
             gpu_solver.fftconv2(pmf_list[n+1].toarray())
-            print('Finding ifft for day {0} and reducing...'.format(n+2))
+            print('Finding ifft for day {0} (no reduction)...'.format(n+2))
             modelsol.append(gpu_solver.get_cursol([dom_len,dom_len]))
     else:
         print('Finding fft of first day...')
@@ -184,6 +206,8 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
                     r_dur,r_number,dist):
     '''Find expected wasp densities from a list of daily probability densities
     and given the distribution after the last release day.
+    
+    Currently, non-GPU solutions are reduced in size, but GPU solutions aren't
     
     Runs on GPU if globalvars.cuda is True and NO_CUDA is False.
     
@@ -245,7 +269,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
             # update current GPU solution based on last day of release
             gpu_solver.fftconv2(pmf_list[n+r_dur].toarray())
-            print('Finding ifft for day {0} and reducing...'.format(r_dur+n+1))
+            print('Finding ifft for day {0} (no reduction)...'.format(r_dur+n+1))
             # get current GPU solution based on last day of release
             curmodelsol[-1] = gpu_solver.get_cursol([dom_len,dom_len])
             # get GPU solutions for previous release days
@@ -255,7 +279,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             popmodel.append(np.sum(
                 [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
             
-    else: # no CUDA. NOT CURRENTLY WORKING.
+    else: # no CUDA.
         print('Finding spread during release days...')
         # successive release day population spread
         for day in range(1,r_dur):
@@ -276,9 +300,9 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
 
             big_sol = ifft2(cursol_hat,[dom_len,dom_len])
             curmodelsol[-1] = r_small_vals(big_sol)
-            # get solutions for previous release days
-            curmodelsol[:-1] = back_solve(r_spread[:-1],cursol_hat,
-                                          [dom_len,dom_len])
+            # get solutions for previous release days and reduce
+            curmodelsol[:-1] = r_small_vals(back_solve(r_spread[:-1],cursol_hat,
+                                            [dom_len,dom_len]))
             # get new population spread
             popmodel.append(np.sum(
                 [curmodelsol[d]*dist(d+1) for d in range(r_dur)],0)*r_number)
