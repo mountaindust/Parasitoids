@@ -169,8 +169,8 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
         # update and return solution for each day
         for n,day in enumerate(days[1:ndays]):
             print('Updating convolution for day {0} PR...'.format(n+2))
-            gpu_solver.fftconv2(pmf_list[n+1].toarray())
-            print('Finding ifft for day {0} (no reduction)...'.format(n+2))
+            gpu_solver.fftconv2(pmf_list[n+1].toarray(),n==0)
+            print('Finding ifft for day {0}...'.format(n+2))
             modelsol.append(r_small_vals(
                 gpu_solver.get_cursol([dom_len,dom_len])))
     else:
