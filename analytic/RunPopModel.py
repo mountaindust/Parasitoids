@@ -45,17 +45,12 @@ class Params():
         # edit at will
 
         ### I/O
-        # name and path for output files
-        self.outfile = 'output/kalbar_pop'
-        # site name and path
-        self.site_name = 'data/kalbar'
-        # time of day at which the wind data starts ('00:00' or '00:30')
-        # kalbar: '00:00', carvarvonearl: '00:30'
-        self.start_time = '00:00'
-        # coordinates (lat/long) of the release point. This is necessary for
-        #     satellite imagery.
-        # self.coord = (-24.851614,113.731267) #carnarvon
-        self.coord = (-27.945752,152.85474) #kalbar
+        # a couple of presets based on our data.
+        # Current options: 'carnarvon' or 'kalbar' or None
+        self.dataset = 'kalbar' 
+        # get parameters based on this dataset
+        self.my_datasets()
+        
         # domain info, (dist (m), cells) from release point to side of domain 
         self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
@@ -63,17 +58,6 @@ class Params():
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
         self.ndays = 5
-
-        ### release information
-        # release duration (days)
-        self.r_dur = 3
-        # release emergence distribution
-        self.r_dist = 'uniform'
-        # start time on first day (as a fraction of the day)
-        self.r_start = 0.354 #8:30am
-        # total number of wasps 
-        # (for now, assume they are divided equally between release days)
-        self.r_number = 130000
         
         ### function parameters
         # take-off scaling based on wind
@@ -102,8 +86,63 @@ class Params():
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
 
-        
-        
+    def my_datasets(self):
+        if self.dataset is None:
+            # defaults?
+            self.site_name = 'data/carnarvonearl'
+            self.start_time = '00:30'
+            self.coord = None
+            ### release information
+            self.r_dur = 3
+            self.r_dist = 'uniform'
+            self.r_start = 0.354 #8:30am
+            self.r_number = 130000
+            
+        elif self.dataset == 'carnarvon':
+            # site name and path
+            self.site_name = 'data/carnarvonearl'
+            # time of day at which the data starts ('00:00' or '00:30')
+            self.start_time = '00:30'
+            # coordinates (lat/long) of the release point. This is necessary for
+            #   satellite imagery.
+            self.coord = (-24.851614,113.731267)
+            ### release information - CURRENTLY COPIED FROM KALBAR
+            # release duration (days)
+            self.r_dur = 3
+            # release emergence distribution
+            self.r_dist = 'uniform'
+            # start time on first day (as a fraction of the day)
+            self.r_start = 0.354 #8:30am
+            # total number of wasps 
+            # (for now, assume they are divided equally between release days)
+            self.r_number = 130000
+            
+        elif self.dataset == 'kalbar':
+            self.site_name = 'data/kalbar'
+            self.start_time = '00:00'
+            self.coord = (-27.945752,152.85474)
+            ### release information
+            # release duration (days)
+            self.r_dur = 3
+            # release emergence distribution
+            self.r_dist = 'uniform'
+            # start time on first day (as a fraction of the day)
+            self.r_start = 0.354 #8:30am
+            # total number of wasps 
+            # (for now, assume they are divided equally between release days)
+            self.r_number = 130000
+            
+        else:
+            print('Unknown dataset in Params.dataset.')
+        # name and path for output files
+        if self.dataset is not None:
+            self.outfile = 'output/'+self.dataset+'_pop'+time.strftime(
+                            '%m%d-%H%M')
+        else:
+            self.outfile = 'output/poprun'+time.strftime('%m%d-%H%M')
+  
+
+  
     ########    Methods for multiple-day emergence    ########
         
     def uniform(self,day):
@@ -128,6 +167,8 @@ class Params():
         elif self.r_dist == 'custom':
             return self.custom
 
+            
+            
     ########    Methods for changing parameters    ########
     
     def default_chg(self):
@@ -184,6 +225,13 @@ class Params():
                     self.CUDA = False
                 elif argstr[2:].lower() == 'cuda':
                     self.CUDA = True
+                ### known dataset locations ###
+                elif argstr[2:].lower() == 'carnarvon':
+                    self.dataset = 'carnarvon'
+                    self.my_datasets()
+                elif argstr[2:].lower() == 'kalbar':
+                    self.dataset = 'kalbar'
+                    self.my_datasets()
                 else:
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
@@ -198,6 +246,9 @@ class Params():
         try:
             if arg == 'outfile':
                 self.outfile = val
+            elif arg == 'dataset':
+                self.dataset = val
+                self.my_datasets()
             elif arg == 'site_name':
                 self.site_name = val
             elif arg == 'start_time':
@@ -291,6 +342,7 @@ class Params():
             raise
             
         get_param(param_dict,'outfile',self.outfile)
+        get_param(param_dict,'dataset',self.dataset)
         get_param(param_dict,'site_name',self.site_name)
         get_param(param_dict,'start_time',self.start_time)
         get_param(param_dict,'coord',self.coord)
@@ -343,7 +395,7 @@ def main(argv):
     
     ### run model ###
     if params.ndays >= 0:
-        ndays = params.ndays
+        ndays = min(params.ndays,len(days))
     else:
         ndays = len(days)
     

@@ -108,9 +108,9 @@ class Params():
             print('Unknown dataset in Params.dataset.')
         # name and path for output files
         if self.dataset is not None:
-            self.outfile = 'output/'+self.dataset+time.strftime('%m%d_%H%M')
+            self.outfile = 'output/'+self.dataset+time.strftime('%m%d-%H%M')
         else:
-            self.outfile = 'output/'+time.strftime('%m%d_%H%M')
+            self.outfile = 'output/'+time.strftime('%m%d-%H%M')
     
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
