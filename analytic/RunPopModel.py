@@ -348,6 +348,7 @@ def main(argv):
         ndays = len(days)
     
     # First, get spread probability for each day as a coo sparse matrix
+    tic_total = time.time()
     tic = time.time()
     pmf_list = []
     max_shape = np.array([0,0])
@@ -402,6 +403,7 @@ def main(argv):
     print('Done.')
 
     print('Time elapsed: {0}'.format(time.time()-tic))
+    print('Total time elapsed: {0}'.format(time.time()-tic_total))
 
     ### save result ###
     if params.OUTPUT:
