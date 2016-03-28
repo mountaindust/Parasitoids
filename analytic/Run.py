@@ -44,23 +44,19 @@ class Params():
         # edit at will
 
         ### I/O
-        # name and path for output files
-        self.outfile = 'output/carnarvonearl'
-        # site name and path
-        self.site_name = 'data/carnarvonearl'
-        # time of day at which the data starts ('00:00' or '00:30')
-        self.start_time = '00:30'
-        # coordinates (lat/long) of the release point. This is necessary for
-        #   satellite imagery.
-        self.coord = (-24.851614,113.731267) #carnarvon
-        #self.coord = (-27.945752,152.85474) #kalbar
+        # a couple of presets based on our data.
+        # Current options: 'carnarvon' or 'kalbar' or None
+        self.dataset = 'carnarvon' 
+        # get parameters based on this dataset
+        self.my_datasets()
+        
         # domain info, (dist (m), cells) from release point to side of domain 
         self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
-        self.ndays = 3
+        self.ndays = 6
 
         ### function parameters
         # take-off scaling based on wind
@@ -78,7 +74,7 @@ class Params():
         # scaling flight advection to wind advection
         self.mu_r = 1.
         # number of time periods (based on interp_num) in one flight
-        self.n_periods = 10 # if interp_num = 30, this is # of minutes
+        self.n_periods = 10 # if interp_num = 30, this is # of minutes per flight
         
         # Bing maps key for satellite imagery
         self.maps_key = None
@@ -88,7 +84,34 @@ class Params():
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
-        
+    
+    def my_datasets(self):
+        if self.dataset is None:
+            # defaults?
+            self.site_name = 'data/carnarvonearl'
+            self.start_time = '00:30'
+            self.coord = None
+        elif self.dataset == 'carnarvon':
+            # site name and path
+            self.site_name = 'data/carnarvonearl'
+            # time of day at which the data starts ('00:00' or '00:30')
+            self.start_time = '00:30'
+            # coordinates (lat/long) of the release point. This is necessary for
+            #   satellite imagery.
+            self.coord = (-24.851614,113.731267) #carnarvon release
+            
+        elif self.dataset == 'kalbar':
+            self.site_name = 'data/kalbar'
+            self.start_time = '00:00'
+            self.coord = (-27.945752,152.85474) #kalbar release
+        else:
+            print('Unknown dataset in Params.dataset.')
+        # name and path for output files
+        if self.dataset is not None:
+            self.outfile = 'output/'+self.dataset+time.strftime('%m%d_%H%M')
+        else:
+            self.outfile = 'output/'+time.strftime('%m%d_%H%M')
+    
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
         the default parameters accordingly. If the file is not there, create it
@@ -142,6 +165,13 @@ class Params():
                     self.CUDA = False
                 elif argstr[2:].lower() == 'cuda':
                     self.CUDA = True
+                ### known dataset locations ###
+                elif argstr[2:].lower() == 'carnarvon':
+                    self.dataset = 'carnarvon'
+                    self.my_datasets()
+                elif argstr[2:].lower() == 'kalbar':
+                    self.dataset = 'kalbar'
+                    self.my_datasets()
                 else:
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
@@ -155,6 +185,9 @@ class Params():
         try:
             if arg == 'outfile':
                 self.outfile = val
+            elif arg == 'dataset':
+                self.dataset = val
+                self.my_datasets()
             elif arg == 'site_name':
                 self.site_name = val
             elif arg == 'start_time':
@@ -241,6 +274,7 @@ class Params():
             raise
             
         get_param(param_dict,'outfile',self.outfile)
+        get_param(param_dict,'dataset',self.dataset)
         get_param(param_dict,'site_name',self.site_name)
         get_param(param_dict,'start_time',self.start_time)
         get_param(param_dict,'coord',self.coord)
@@ -286,7 +320,7 @@ def main(argv):
     
     ### run model ###
     if params.ndays >= 0:
-        ndays = params.ndays
+        ndays = min(params.ndays,len(days))
     else:
         ndays = len(days)
     
