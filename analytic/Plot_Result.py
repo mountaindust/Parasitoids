@@ -210,14 +210,16 @@ def plot_all(modelsol,params,mask_val=0.00001):
 
             
             
-def plot(sol,day,params,mask_val=0.00001):
+def plot(sol,day,params,mask_val=0.00001,saveonly=None):
     '''Plot a solution for a single day
     
     Args:
         sol: day solution, sparse
         day: day identifier (for text identification)
         domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        mask_val: values less then this value will not appear in plotting
+        saveonly: (string) if not None, don't plot - save to location in saveonly
+        '''
 
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
@@ -225,8 +227,10 @@ def plot(sol,day,params,mask_val=0.00001):
     
     # assume domain is square, probably odd.
     midpt = domain_info[1]
-
-    plt.ion()
+    if saveonly is None:
+        plt.ion()
+    else:
+        plt.ioff()
     plt.figure()
     ax = plt.axes()
     #remove all values that are too small to be plotted.
@@ -261,10 +265,29 @@ def plot(sol,day,params,mask_val=0.00001):
         ha='right',va='center',transform=ax.transAxes,fontsize=16)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        plt.draw()
-        plt.pause(0.0001)
+    if saveonly is None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.draw()
+            plt.pause(0.0001)
+    else:
+        outname = saveonly+'_'+str(day)
+        format = 'png'
+        dpi = 300
+        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
+        if out_chg != '':
+            try:
+                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
+                if file != '':
+                    outname = file
+            except ValueError:
+                outname = out_chg.strip()
+        dpi_chg = input('dpi [{}]:'.format(dpi))
+        if dpi_chg != '':
+            dpi = int(dpi_chg.strip())
+        plt.savefig(outname+'.'+format,dpi=dpi,format=format)
+        print('...Figure saved to {}.'.format(outname+'.'+format))
+        print('----------------Model result visualizations----------------')
         
         
         
@@ -420,9 +443,11 @@ def main(argv):
                     modelsol.append(sparse.csr_matrix((V,indices,indptr),
                                                     shape=(dom_len,dom_len)))
 
+    print('----------------Model result visualizations----------------')
     while True:
         val = input('Enter a day number to plot, '+
                 'or "all" to plot all.\n'+
+                '"save" or "s" and then a number will save that day to file.\n'+
                 '? will provide a list of plottable day numbers.\n'+
                 '"vid" will output a video (requires FFmpeg or menconder).\n'+
                 'Or enter q to quit:')
@@ -436,6 +461,15 @@ def main(argv):
             plot_all(modelsol,params,mask_val)
         elif val.lower() == 'vid':
             create_mp4(modelsol,params,filename,mask_val)
+        elif val[0] == 's':
+            try:
+                if val[:4] == 'save':
+                    val = int(val[4:].strip())
+                else:
+                    val = int(val[1:].strip())
+            except ValueError:
+                print('Could not convert {} to an integer.'.format(val))
+            plot(modelsol[val-1],val,params,mask_val,saveonly=filename)
         else:
             try:
                 plot(modelsol[int(val)-1],val,params,mask_val)
