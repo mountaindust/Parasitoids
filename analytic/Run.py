@@ -108,9 +108,9 @@ class Params():
             print('Unknown dataset in Params.dataset.')
         # name and path for output files
         if self.dataset is not None:
-            self.outfile = 'output/'+self.dataset+time.strftime('%m%d_%H%M')
+            self.outfile = 'output/'+self.dataset+time.strftime('%m%d-%H%M')
         else:
-            self.outfile = 'output/'+time.strftime('%m%d_%H%M')
+            self.outfile = 'output/'+time.strftime('%m%d-%H%M')
     
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
@@ -258,36 +258,15 @@ class Params():
         if filename.rstrip()[-5:] != '.json':
             filename = filename.rstrip()+'.json'
 
-        def get_param(pdict,pname,param):
-            '''Modifies param with pname, or leaves it alone if pname not found'''
-            try:
-                param = pdict[pname]
-            except KeyError as e:
-                print('Could not load parameter value {0}'.format(e.args[0]))
-                print('Using default value...')
-
         try:
             with open(filename) as fobj:
                 param_dict = json.load(fobj)
         except FileNotFoundError as e:
             print('Could not open file {0}.'.format(filename))
             raise
-            
-        get_param(param_dict,'outfile',self.outfile)
-        get_param(param_dict,'dataset',self.dataset)
-        get_param(param_dict,'site_name',self.site_name)
-        get_param(param_dict,'start_time',self.start_time)
-        get_param(param_dict,'coord',self.coord)
-        get_param(param_dict,'domain_info',self.domain_info)
-        get_param(param_dict,'interp_num',self.interp_num)
-        get_param(param_dict,'ndays',self.ndays)
-        get_param(param_dict,'g_params',self.g_params)
-        get_param(param_dict,'f_params',self.f_params)
-        get_param(param_dict,'Dparams',self.Dparams)
-        get_param(param_dict,'lam',self.lam)
-        get_param(param_dict,'mu_r',self.mu_r)
-        get_param(param_dict,'n_periods',self.n_periods)
-        get_param(param_dict,'min_ndays',self.min_ndays)
+        
+        for key in param_dict:
+            setattr(self,key,param_dict[key])
 
         
         
