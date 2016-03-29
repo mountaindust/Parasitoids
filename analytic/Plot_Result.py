@@ -366,7 +366,7 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
     framegen = animGen()
     anim = animation.FuncAnimation(fig,animate,frames=framegen,
             blit=False,interval=850)
-    anim.save(filename+'.mp4')
+    anim.save(filename+'.mp4',dpi=140,bitrate=500)
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
     
