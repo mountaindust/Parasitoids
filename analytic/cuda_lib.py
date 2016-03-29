@@ -57,7 +57,7 @@ class CudaSolve():
         B so that the center is at B[0,0] with wrap-around.
         
         Args:
-            B: 2D array or slicable sparse matrix
+            B: 2D slicable sparse matrix
             mem_print: bool. turn on/off GPU memory report'''
             
         # Get array shape information
@@ -70,10 +70,14 @@ class CudaSolve():
          
         # allocate temporary space on the gpu and arrange B there appropriately
         B_pad = np.zeros(self.pad_shape,np.complex64)
-        B_pad[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].astype(np.float32)
-        B_pad[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].astype(np.float32)
-        B_pad[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]].astype(np.float32)
-        B_pad[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].astype(np.float32)
+        B_pad[:mmid[0]+1,:mmid[1]+1] = \
+            B[mmid[0]:,mmid[1]:].astype(np.float32).toarray()
+        B_pad[:mmid[0]+1,-mmid[1]:] = \
+            B[mmid[0]:,:mmid[1]].astype(np.float32).toarray()
+        B_pad[-mmid[0]:,-mmid[1]:] = \
+            B[:mmid[0],:mmid[1]].astype(np.float32).toarray()
+        B_pad[-mmid[0]:,:mmid[1]+1] = \
+            B[:mmid[0],mmid[1]:].astype(np.float32).toarray()
 
         B_gpu = thr.to_device(B_pad)
         if mem_print:
@@ -145,10 +149,14 @@ class CudaSolve():
             
             # allocate temporary space on the gpu and arrange B there appropriately
             B_pad = np.zeros(self.pad_shape,np.complex64)
-            B_pad[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].astype(np.float32)
-            B_pad[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].astype(np.float32)
-            B_pad[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]].astype(np.float32)
-            B_pad[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].astype(np.float32)
+            B_pad[:mmid[0]+1,:mmid[1]+1] = \
+                B[mmid[0]:,mmid[1]:].astype(np.float32).toarray()
+            B_pad[:mmid[0]+1,-mmid[1]:] = \
+                B[mmid[0]:,:mmid[1]].astype(np.float32).toarray()
+            B_pad[-mmid[0]:,-mmid[1]:] = \
+                B[:mmid[0],:mmid[1]].astype(np.float32).toarray()
+            B_pad[-mmid[0]:,:mmid[1]+1] = \
+                B[:mmid[0],mmid[1]:].astype(np.float32).toarray()
             
             B_gpu = thr.to_device(B_pad)
             

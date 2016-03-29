@@ -39,7 +39,7 @@ def fftconv2(A_hat,B):
     
     Args:
         A_hat: fft array
-        B: 2D array, shape must be odd
+        B: 2D sparse array, shape must be odd
         
     Returns:
         fft array, A_hat times the fft of B.
@@ -50,10 +50,10 @@ def fftconv2(A_hat,B):
     mmid = np.array(B.shape)//2 #this fails if B.shape is even!
     pad_shape = A_hat.shape
     B_hat = np.zeros(pad_shape)
-    B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
-    B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
-    B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
-    B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
+    B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].toarray()
+    B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].toarray()
+    B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]].toarray()
+    B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].toarray()
     B_hat = fftpack.fft2(B_hat)
     A_hat *= B_hat
     # return sparse.coo_matrix(
@@ -69,7 +69,7 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
             result to be returned next-to-last, etc.
         
         Args:
-            prev_spread: list of filters to apply (chronological order)
+            prev_spread: list of sparse filters to apply (chronological order)
             cursol_hat: fft of current solution, calculated from last emerg day
             dom_shape: shape of returned solution
             
@@ -80,15 +80,14 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
     bcksol = []
     bcksol_hat = np.array(cursol_hat)
     for B in prev_spread[::-1]:
-        B = B.toarray()
         # Convolution
         mmid = np.array(B.shape)//2
         pad_shape = cursol_hat.shape
         B_hat = np.zeros(pad_shape)
-        B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:]
-        B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]]
-        B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]]
-        B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:]
+        B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].toarray()
+        B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].toarray()
+        B_hat[-mmid[0]:,-mmid[1]:] = B[:mmid[0],:mmid[1]].toarray()
+        B_hat[-mmid[0]:,:mmid[1]+1] = B[:mmid[0],mmid[1]:].toarray()
         B_hat = fftpack.fft2(B_hat)
         bcksol_hat = B_hat * bcksol_hat
         
@@ -287,7 +286,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
         for n,day in enumerate(days[r_dur:ndays]):
             print('Updating convolution for day {0} PR...'.format(r_dur+n+1))
             # modifies cursol_hat
-            fftconv2(cursol_hat,pmf_list[n+r_dur].toarray())
+            fftconv2(cursol_hat,pmf_list[n+r_dur].tocsr())
             print('Finding ifft for day {0}...'.format(r_dur+n+1))
 
             curmodelsol[-1] = ifft2(cursol_hat,[dom_len,dom_len])

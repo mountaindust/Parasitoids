@@ -356,6 +356,12 @@ def main(argv):
     # load parameters
     params = Run.Params()
     params.file_read_chg(filename)
+    
+    # is this a population run? for now, check filename string
+    if 'pop' in filename:
+        mask_val = 1
+    else:
+        mask_val = 0.00001
 
     dom_len = params.domain_info[1]*2 + 1
 
@@ -398,12 +404,12 @@ def main(argv):
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol,params)
+            plot_all(modelsol,params,mask_val)
         elif val.lower() == 'vid':
-            create_mp4(modelsol,params,filename)
+            create_mp4(modelsol,params,filename,mask_val)
         else:
             try:
-                plot(modelsol[int(val)-1],val,params)
+                plot(modelsol[int(val)-1],val,params,mask_val)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     
