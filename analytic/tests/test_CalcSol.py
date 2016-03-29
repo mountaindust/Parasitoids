@@ -103,7 +103,7 @@ def test_cuda_convolve(two_arrays):
     max_shape = np.array(A.shape) + 6
     As = sparse.coo_matrix(A)
     cu_solver = cuda_lib.CudaSolve(As,max_shape)
-    cu_solver.fftconv2(B)
+    cu_solver.fftconv2(sparse.csr_matrix(B))
     C = cu_solver.get_cursol(A.shape)
     
     assert np.allclose(C.toarray(),signal.fftconvolve(A,B,'same'))
@@ -135,7 +135,7 @@ def test_back_solve(many_arrays):
     assert np.allclose(bckCD[0].toarray(),ABCD)
     
 @cuda_run
-def test_cuda_back_solve():
+def test_cuda_back_solve(many_arrays):
     '''Test the back_solve method in cuda_lib'''
     import cuda_lib
     A,B,C,D = many_arrays
@@ -157,5 +157,9 @@ def test_cuda_back_solve():
     ABCD = CS.ifft2(A_hat,A.shape).toarray()
     
     # there's periodic boundary issues here that still need to be addressed...
-    assert np.allclose(bckCD[1].toarray(),BCD)
-    assert np.allclose(bckCD[0].toarray(),ABCD)
+    # abs tolerance has to be jacked up here... it looks like roundoff errors
+    #    in float32 build up quite a lot over several convolutions.
+    #    Keep in mind these are bigger numbers we are convolution though, so
+    #    fewer decimal points can be maintained compared to sim numbers < 1.
+    assert np.allclose(bckCD[1].toarray(),BCD,atol=1e-04)
+    assert np.allclose(bckCD[0].toarray(),ABCD,atol=1e-03)

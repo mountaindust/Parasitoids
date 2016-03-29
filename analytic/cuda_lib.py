@@ -18,7 +18,7 @@ class CudaSolve():
             max_shape: Shape of transformed solution'''
         
         # determine the shape of the padded solution array
-        mmid = max_shape//2
+        mmid = np.array(max_shape)//2
         pads = A.shape + mmid
         self.pad_shape = (int(pads[0]),int(pads[1]))
         
