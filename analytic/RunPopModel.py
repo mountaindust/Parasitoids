@@ -1,7 +1,6 @@
-#! /usr/bin/env python3
+﻿#! /usr/bin/env python3
 
-'''Main file for running parasitoid population model simulations.
-Unlike in the probability model, release information must be specified.
+'''Main file for running parasitoid model simulations.
 
 Parameters are stored in an instance of the Params class, which also parses
 command line options and settings in config.txt. Params also has methods for
@@ -17,7 +16,7 @@ Email: cstrickland@samsi.info'''
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.2"
+__version__ = "0.3"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time
@@ -57,8 +56,8 @@ class Params():
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
-        self.ndays = 5
-        
+        self.ndays = 6
+
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
@@ -75,7 +74,7 @@ class Params():
         # scaling flight advection to wind advection
         self.mu_r = 1.
         # number of time periods (based on interp_num) in one flight
-        self.n_periods = 10 # if interp_num = 30, this is # of minutes
+        self.n_periods = 10 # if interp_num = 30, this is # of minutes per flight
         
         # Bing maps key for satellite imagery
         self.maps_key = None
@@ -93,10 +92,10 @@ class Params():
             self.start_time = '00:30'
             self.coord = None
             ### release information
-            self.r_dur = 3
-            self.r_dist = 'uniform'
-            self.r_start = 0.354 #8:30am
-            self.r_number = 130000
+            self.r_dur = None
+            self.r_dist = None
+            self.r_start = None
+            self.r_number = None
             
         elif self.dataset == 'carnarvon':
             # site name and path
@@ -106,16 +105,15 @@ class Params():
             # coordinates (lat/long) of the release point. This is necessary for
             #   satellite imagery.
             self.coord = (-24.851614,113.731267)
-            ### release information - CURRENTLY COPIED FROM KALBAR
+            ### release information
             # release duration (days)
-            self.r_dur = 3
+            self.r_dur = 12
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
-            self.r_start = 0.354 #8:30am
+            self.r_start = 0.354 #8:30am (assumption. not specified in paper)
             # total number of wasps 
-            # (for now, assume they are divided equally between release days)
-            self.r_number = 130000
+            self.r_number = 40000
             
         elif self.dataset == 'kalbar':
             self.site_name = 'data/kalbar'
@@ -129,7 +127,6 @@ class Params():
             # start time on first day (as a fraction of the day)
             self.r_start = 0.354 #8:30am
             # total number of wasps 
-            # (for now, assume they are divided equally between release days)
             self.r_number = 130000
             
         else:
@@ -201,8 +198,7 @@ class Params():
         except ValueError:
             print(' in config.txt.')
             raise
-                
-                
+                               
         
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''
@@ -236,8 +232,7 @@ class Params():
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
                 arg,eq,val = argstr.partition('=')
-                self.chg_param(arg,val)
-                
+                self.chg_param(arg,val)               
                 
                     
     def chg_param(self,arg,val):
@@ -319,8 +314,7 @@ class Params():
             print('Could not parse {0}.'.format(arg),end='')
             raise
         
-        
-        
+                
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
         if filename.rstrip()[-5:] != '.json':
@@ -344,8 +338,7 @@ class Params():
         '''Return params in order necessary to run model, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
-        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)
-        
+        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)       
         
         
     def get_wind_params(self):
@@ -366,7 +359,7 @@ def main(argv):
         globalvars.cuda = True
     else:
         globalvars.cuda = False
-        
+    
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
     ### run model ###

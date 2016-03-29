@@ -16,7 +16,7 @@ Email: cstrickland@samsi.info'''
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.2"
+__version__ = "0.3"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time
@@ -46,7 +46,7 @@ class Params():
         ### I/O
         # a couple of presets based on our data.
         # Current options: 'carnarvon' or 'kalbar' or None
-        self.dataset = 'carnarvon' 
+        self.dataset = 'kalbar' 
         # get parameters based on this dataset
         self.my_datasets()
         
@@ -84,13 +84,19 @@ class Params():
         
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
-    
+
     def my_datasets(self):
         if self.dataset is None:
             # defaults?
             self.site_name = 'data/carnarvonearl'
             self.start_time = '00:30'
             self.coord = None
+            ### release information
+            self.r_dur = None
+            self.r_dist = None
+            self.r_start = None
+            self.r_number = None
+            
         elif self.dataset == 'carnarvon':
             # site name and path
             self.site_name = 'data/carnarvonearl'
@@ -98,12 +104,31 @@ class Params():
             self.start_time = '00:30'
             # coordinates (lat/long) of the release point. This is necessary for
             #   satellite imagery.
-            self.coord = (-24.851614,113.731267) #carnarvon release
+            self.coord = (-24.851614,113.731267)
+            ### release information
+            # release duration (days)
+            self.r_dur = 12
+            # release emergence distribution
+            self.r_dist = 'uniform'
+            # start time on first day (as a fraction of the day)
+            self.r_start = 0.354 #8:30am (assumption. not specified in paper)
+            # total number of wasps 
+            self.r_number = 40000
             
         elif self.dataset == 'kalbar':
             self.site_name = 'data/kalbar'
             self.start_time = '00:00'
-            self.coord = (-27.945752,152.85474) #kalbar release
+            self.coord = (-27.945752,152.85474)
+            ### release information
+            # release duration (days)
+            self.r_dur = 3
+            # release emergence distribution
+            self.r_dist = 'uniform'
+            # start time on first day (as a fraction of the day)
+            self.r_start = 0.354 #8:30am
+            # total number of wasps 
+            self.r_number = 130000
+            
         else:
             print('Unknown dataset in Params.dataset.')
         # name and path for output files
@@ -111,6 +136,36 @@ class Params():
             self.outfile = 'output/'+self.dataset+time.strftime('%m%d-%H%M')
         else:
             self.outfile = 'output/'+time.strftime('%m%d-%H%M')
+  
+
+  
+    ########    Methods for multiple-day emergence    ########
+        
+    def uniform(self,day):
+        '''Uniform distribution over emergence days. 1 <= day <= self.r_dur.'''
+        
+        return 1./self.r_dur
+        
+    def custom(self,day):
+        '''Normal distribution over emergence days. 1 <= day <= self.r_dur.'''
+        
+        pass
+        
+    ####
+    
+    def r_mthd(self):
+        '''Return function handle for the method to be used.
+        We do this via this method (instead of directly) so that the parameter 
+        r_dist can be saved in the json file with the other parameters.'''
+        
+        if self.r_dist == 'uniform':
+            return self.uniform
+        elif self.r_dist == 'custom':
+            return self.custom
+
+            
+            
+    ########    Methods for changing parameters    ########
     
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
@@ -142,7 +197,7 @@ class Params():
         except ValueError:
             print(' in config.txt.')
             raise
-                
+                               
         
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''
@@ -176,7 +231,7 @@ class Params():
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
                 arg,eq,val = argstr.partition('=')
-                self.chg_param(arg,val)
+                self.chg_param(arg,val)               
                 
                     
     def chg_param(self,arg,val):
@@ -203,6 +258,12 @@ class Params():
                 self.interp_num = int(val)
             elif arg == 'ndays':
                 self.ndays = int(val)
+            elif arg == 'r_dur':
+                self.r_dur = int(val)
+            elif arg == 'r_start':
+                self.r_start == float(val)
+            elif arg == 'r_number':
+                self.r_number == int(val)
             elif arg == 'g_params':
                 strinfo = val.strip('()').split(',')
                 self.g_params = (float(strinfo[0]),float(strinfo[1]))
@@ -268,13 +329,16 @@ class Params():
         for key in param_dict:
             setattr(self,key,param_dict[key])
 
-        
+    
+
+    ########    Methods for getting function parameters    ########
         
     def get_model_params(self):
         '''Return params in order necessary to run model, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
-        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)
+        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)       
+        
         
     def get_wind_params(self):
         '''Return wind params to pass to PM.get_wind_data'''
@@ -304,6 +368,7 @@ def main(argv):
         ndays = len(days)
     
     # First, get spread probability for each day as a coo sparse matrix
+    tic_total = time.time()
     tic = time.time()
     pmf_list = []
     max_shape = np.array([0,0])
@@ -350,12 +415,10 @@ def main(argv):
     print('Done.')
 
     print('Time elapsed: {0}'.format(time.time()-tic))
-    
+    print('Total time elapsed: {0}'.format(time.time()-tic_total))
+
     ### save result ###
     if params.OUTPUT:
-        # print('Removing small values from solutions...')
-        # for n,sol in enumerate(modelsol):
-            # modelsol[n] = PM.r_small_vals(sol)
         print('Saving...')
         def outputGenerator():
             # Creates generator for output formatting
