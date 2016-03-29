@@ -418,9 +418,9 @@ def main(argv):
         dom_len = params.domain_info[1]*2 + 1
         r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
             (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
-            shape=(dom_len,dom_len)))
+            shape=(dom_len,dom_len)).tocsr())
 
-
+    
     # Pass the probability list, pmf_list, and other info to convolution solver.
     #   This will return the finished population model.
     tic = time.time()
@@ -440,8 +440,8 @@ def main(argv):
             # Creates generator for output formatting
             for n,day in enumerate(days[:ndays]):
                 yield (str(day)+'_data', popmodel[n].data)
-                yield (str(day)+'_row', popmodel[n].row)
-                yield (str(day)+'_col', popmodel[n].col)
+                yield (str(day)+'_ind', popmodel[n].indices)
+                yield (str(day)+'_indptr', popmodel[n].indptr)
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
@@ -460,7 +460,7 @@ def main(argv):
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(popmodel,params)
+        Plot_Result.plot_all(popmodel,params,1)
     
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ class CudaSolve():
         '''Initialize CUDA solver with fft of solution after first day.
         
         Args:
-            A: First day's spread, coo sparse matrix
+            A: First day's spread, sparse matrix
             max_shape: Shape of transformed solution'''
         
         # determine the shape of the padded solution array
@@ -57,7 +57,7 @@ class CudaSolve():
         B so that the center is at B[0,0] with wrap-around.
         
         Args:
-            B: 2D array
+            B: 2D array or slicable sparse matrix
             mem_print: bool. turn on/off GPU memory report'''
             
         # Get array shape information
@@ -124,7 +124,7 @@ class CudaSolve():
             result to be returned next-to-last, etc.
         
         Args:
-            prev_spread: list of filters to apply (chronological order)
+            prev_spread: list of slicable filters to apply (chronological order)
             dom_shape: shape of returned solution
             
         Returns:
@@ -140,7 +140,6 @@ class CudaSolve():
         bcksol_hat_gpu = self.sol_hat_gpu
         
         for B in prev_spread[::-1]:
-            B = B.toarray()
             # Get array shape information
             mmid = np.array(B.shape).astype(int)//2
             
