@@ -74,7 +74,7 @@ cuda_run = pytest.mark.skipif(not globalvars.cuda,
 def test_fftconv2(two_arrays):
     A,B = two_arrays
     A_hat = CS.fft2(sparse.coo_matrix(A),np.array(B.shape))
-    CS.fftconv2(A_hat,B)
+    CS.fftconv2(A_hat,sparse.csr_matrix(B))
     #make sure something new is here
     assert not np.all(A_hat == CS.fft2(sparse.coo_matrix(A),np.array(B.shape))) 
     assert np.all(B == two_arrays[1]) #unchanged
@@ -88,7 +88,7 @@ def test_convolve_same(two_arrays):
     fft_shape = np.array([A.shape[0]+6,A.shape[1]+6])
     A_hat = CS.fft2(sparse.coo_matrix(A),fft_shape)
     # update A_hat with the fft convolution
-    CS.fftconv2(A_hat,B)
+    CS.fftconv2(A_hat,sparse.csr_matrix(B))
     C = CS.ifft2(A_hat,A.shape).toarray()
     assert not np.iscomplexobj(C)
     assert np.allclose(C,signal.fftconvolve(A,B,'same'))
@@ -115,19 +115,19 @@ def test_back_solve(many_arrays):
     A,B,C,D = many_arrays
     # Each array has the same shape
     C_hat = CS.fft2(sparse.coo_matrix(C),A.shape)
-    CS.fftconv2(C_hat,D) # overwrites C_hat
-    bckCD = CS.back_solve([sparse.coo_matrix(A),sparse.coo_matrix(B)],
+    CS.fftconv2(C_hat,sparse.csr_matrix(D)) # overwrites C_hat
+    bckCD = CS.back_solve([sparse.csr_matrix(A),sparse.csr_matrix(B)],
         C_hat,A.shape)
     
     B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
-    CS.fftconv2(B_hat,C)
-    CS.fftconv2(B_hat,D)
+    CS.fftconv2(B_hat,sparse.csr_matrix(C))
+    CS.fftconv2(B_hat,sparse.csr_matrix(D))
     BCD = CS.ifft2(B_hat,B.shape).toarray()
     
     A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
-    CS.fftconv2(A_hat,B)
-    CS.fftconv2(A_hat,C)
-    CS.fftconv2(A_hat,D)
+    CS.fftconv2(A_hat,sparse.csr_matrix(B))
+    CS.fftconv2(A_hat,sparse.csr_matrix(C))
+    CS.fftconv2(A_hat,sparse.csr_matrix(D))
     ABCD = CS.ifft2(A_hat,A.shape).toarray()
 
     # there's periodic boundary issues here that still need to be addressed...
