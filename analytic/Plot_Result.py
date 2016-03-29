@@ -179,17 +179,25 @@ def plot_all(modelsol,params,mask_val=0.00001):
             mask_val))
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         plt.clf()
+        ax = plt.axes()
         plt.axis(plot_limits)
+        #find the max value excluding the middle using a flatiter
+        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+            sol_fm.flat[sol_fm.size//2+1:]])
         sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
         if sat_img is None:
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,alpha=1)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
         else:
             plt.imshow(sat_img,zorder=0,extent=plot_limits)
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
         
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
         plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
+        oval = sol_fm.flat[sol_fm.size//2]
+        oval = 0.0 if oval is np.ma.masked else oval
+        plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+            ha='right',va='center',transform=ax.transAxes,fontsize=16)
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
@@ -220,6 +228,7 @@ def plot(sol,day,params,mask_val=0.00001):
 
     plt.ion()
     plt.figure()
+    ax = plt.axes()
     #remove all values that are too small to be plotted.
     sol_red = r_small_vals(sol,mask_val)
     #find the maximum distance from the origin
@@ -232,16 +241,24 @@ def plot(sol,day,params,mask_val=0.00001):
         sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
         mask_val))
     plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
-    plt.axis(plot_limits)    
+    plt.axis(plot_limits)
+    #find the max value excluding the middle using a flatiter
+    sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+        sol_fm.flat[sol_fm.size//2+1:]])
     sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
     if sat_img is None:
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
+        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
     else:
         plt.imshow(sat_img,zorder=0,extent=plot_limits)
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
+    #report the value at the origin
+    oval = sol_fm.flat[sol_fm.size//2]
+    oval = 0.0 if oval is np.ma.masked else oval
+    plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+        ha='right',va='center',transform=ax.transAxes,fontsize=16)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
     with warnings.catch_warnings():
@@ -292,6 +309,9 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
         #remove just the pcolormesh and satellite image from before
         for col in ax.collections:
             col.remove()
+        #also remove the text from before
+        for txt in ax.texts:
+            txt.remove()
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin
@@ -304,15 +324,24 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
         sol_fm = np.flipud(np.ma.masked_less(
             sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
             mask_val))
+        #find the max value excluding the middle using a flatiter
+        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+            sol_fm.flat[sol_fm.size//2+1:]])
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
-            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,
+                vmax=sprd_max,zorder=1)
         else:
-            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,
+                zorder=1,alpha=1)
+        oval = sol_fm.flat[sol_fm.size//2]
+        oval = 0.0 if oval is np.ma.masked else oval
+        ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+            ha='right',va='center',transform=ax.transAxes,fontsize=16)
         cbar.mappable = pcl
         cbar.update_bruteforce(pcl)
         cbar.solids.set_edgecolor("face")
@@ -336,7 +365,7 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
     # create animation
     framegen = animGen()
     anim = animation.FuncAnimation(fig,animate,frames=framegen,
-            blit=False,interval=750)
+            blit=False,interval=850)
     anim.save(filename+'.mp4')
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
