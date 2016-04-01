@@ -370,12 +370,10 @@ class Params():
         
         
         
-def main(argv):
-    ### Get and set parameters ###
-    params = Params()
-    
-    if len(argv) > 0:
-        params.cmd_line_chg(argv)
+def main(params):
+    ''' This is the main routine for running model simulations.
+    A Params object is required, which sets up all parameters for the simulation
+    '''
         
     # This sends a message to CalcSol to not use CUDA
     if params.CUDA:
@@ -385,7 +383,6 @@ def main(argv):
     
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
-    ### run model ###
     if params.ndays >= 0:
         ndays = min(params.ndays,len(days))
     else:
@@ -512,4 +509,11 @@ def main(argv):
     
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    ### Get and set parameters ###
+    params = Params()
+    
+    if len(sys.argv[1:]) > 0:
+        params.cmd_line_chg(sys.argv[1:])
+    
+    ### run model ###
+    main(params)
