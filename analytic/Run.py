@@ -26,7 +26,7 @@ import numpy as np
 from scipy import sparse
 import globalvars
 import ParasitoidModel as PM
-from CalcSol import get_solutions
+from CalcSol import get_solutions, get_populations
 import Plot_Result
 
 ### Parameters ###
@@ -42,7 +42,10 @@ class Params():
         ### DEFAULT PARAMETERS ###
         # can be changed via command line
         # edit at will
-
+        
+        ### MODEL TYPE
+        self.PROB_MODEL = True
+        
         ### I/O
         # a couple of presets based on our data.
         # Current options: 'carnarvon' or 'kalbar' or None
@@ -133,9 +136,16 @@ class Params():
             print('Unknown dataset in Params.dataset.')
         # name and path for output files
         if self.dataset is not None:
-            self.outfile = 'output/'+self.dataset+time.strftime('%m%d-%H%M')
+            if self.PROB_MODEL:
+                self.outfile = 'output/'+self.dataset+time.strftime('%m%d-%H%M')
+            else:
+                self.outfile = 'output/'+self.dataset+'_pop'+time.strftime(
+                            '%m%d-%H%M')
         else:
-            self.outfile = 'output/'+time.strftime('%m%d-%H%M')
+            if self.PROB_MODEL:
+                self.outfile = 'output/'+time.strftime('%m%d-%H%M')
+            else:
+                self.outfile = 'output/poprun'+time.strftime('%m%d-%H%M')
   
 
   
@@ -183,6 +193,7 @@ class Params():
                             arg = words[n-1]
                             val = words[n+1]
                             self.chg_param(arg,val)
+            self.my_datasets()
         except FileNotFoundError:
             with open('config.txt', 'w') as f:
                 f.write('# local configuration file\n')
@@ -220,6 +231,16 @@ class Params():
                     self.CUDA = False
                 elif argstr[2:].lower() == 'cuda':
                     self.CUDA = True
+                elif argstr[2:].lower() == 'pop' or\
+                    argstr[2:].lower() == 'popmodel' or\
+                    argstr[2:].lower() == 'pop_model':
+                    self.PROB_MODEL = False
+                    self.my_datasets()
+                elif argstr[2:].lower() == 'prob' or\
+                    argstr[2:].lower() == 'probmodel' or\
+                    argstr[2:].lower() == 'prob_model':
+                    self.PROB_MODEL = True
+                    self.my_datasets()
                 ### known dataset locations ###
                 elif argstr[2:].lower() == 'carnarvon':
                     self.dataset = 'carnarvon'
@@ -238,7 +259,10 @@ class Params():
         '''Change the parameter arg to val, where both are given as strings'''
         
         try:
-            if arg == 'outfile':
+            if arg.lower() == 'prob_model':
+                self.prob_model = bool(val)
+                self.my_datasets()
+            elif arg == 'outfile':
                 self.outfile = val
             elif arg == 'dataset':
                 self.dataset = val
@@ -375,8 +399,14 @@ def main(argv):
     
     if ndays >= params.min_ndays:
         print("Calculating each day's spread in parallel...")
-        pm_args = [(day,wind_data,*params.get_model_params()) 
+        if params.PROB_MODEL:
+            pm_args = [(day,wind_data,*params.get_model_params()) 
                     for day in days[:ndays]]
+        else:
+            pm_args = [(days[0],wind_data,*params.get_model_params(),
+                    params.r_start)]
+            pm_args.extend([(day,wind_data,*params.get_model_params()) 
+                    for day in days[1:ndays]])
         pool = Pool()
         pmf_list = pool.starmap(PM.prob_mass,pm_args)
         pool.close()
@@ -388,28 +418,55 @@ def main(argv):
     else:
         for n,day in enumerate(days[:ndays]):
             print('Calculating spread for day {0} PR'.format(n+1))
-            pmf_list.append(PM.prob_mass(
+            if params.PROB_MODEL:
+                pmf_list.append(PM.prob_mass(
                                day,wind_data,*params.get_model_params()))
+            else:
+                if n == 0:
+                    pmf_list.append(PM.prob_mass(
+                                day,wind_data,*params.get_model_params(),
+                                params.r_start))
+                else:
+                    pmf_list.append(PM.prob_mass(
+                                day,wind_data,*params.get_model_params()))
             # record the largest shape of these
             for dim in range(2):
                 if pmf_list[-1].shape[dim] > max_shape[dim]:
                     max_shape[dim] = pmf_list[-1].shape[dim]
                 
     print('Time elapsed: {0}'.format(time.time()-tic))
-    modelsol = [] # holds actual model solutions
+    if params.PROB_MODEL:
+        modelsol = [] # holds actual model solutions
+        
+        # Reshape the first probability mass function into a solution
+        offset = params.domain_info[1] - pmf_list[0].shape[0]//2
+        dom_len = params.domain_info[1]*2 + 1
+        modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
+            (pmf_list[0].row+offset,pmf_list[0].col+offset)),
+            shape=(dom_len,dom_len)))
+
+
+        # Pass the first solution, pmf_list, and other info to convolution solver
+        #   This updates modelsol with the rest of the solutions.
+        tic = time.time()
+        get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
+    else:
+        r_spread = [] # holds the one-day spread for each release day.
     
-    # Reshape the first probability mass function into a solution
-    offset = params.domain_info[1] - pmf_list[0].shape[0]//2
-    dom_len = params.domain_info[1]*2 + 1
-    modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
-        (pmf_list[0].row+offset,pmf_list[0].col+offset)),
-        shape=(dom_len,dom_len)))
+        # Reshape the prob. mass function of each release day into solution form
+        for ii in range(params.r_dur):
+            offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
+            dom_len = params.domain_info[1]*2 + 1
+            r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
+                (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
+                shape=(dom_len,dom_len)).tocsr())
 
-
-    # Pass the first solution, pmf_list, and other info to convolution solver
-    #   This updates modelsol with the rest of the solutions.
-    tic = time.time()
-    get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
+        
+        # Pass the probability list, pmf_list, and other info to convolution solver.
+        #   This will return the finished population model.
+        tic = time.time()
+        modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
+                                   params.r_dur,params.r_number,params.r_mthd())
     
     # done.
     print('Done.')
@@ -420,12 +477,16 @@ def main(argv):
     ### save result ###
     if params.OUTPUT:
         print('Saving...')
+        # for consistency, let's save both types of solutions as CSR sparse
+        if params.PROB_MODEL:
+            for n,sol in enumerate(modelsol):
+                modelsol[n] = sol.tocsr()
         def outputGenerator():
             # Creates generator for output formatting
             for n,day in enumerate(days[:ndays]):
                 yield (str(day)+'_data', modelsol[n].data)
-                yield (str(day)+'_row', modelsol[n].row)
-                yield (str(day)+'_col', modelsol[n].col)
+                yield (str(day)+'_ind', modelsol[n].indices)
+                yield (str(day)+'_indptr', modelsol[n].indptr)
             yield ('days',days[:ndays])
             
         outgen = outputGenerator()
@@ -444,7 +505,10 @@ def main(argv):
     
     ### plot result ###
     if params.PLOT:
-        Plot_Result.plot_all(modelsol,params)
+        if params.PROB_MODEL:
+            Plot_Result.plot_all(modelsol,params)
+        else:
+            Plot_Result.plot_all(modelsol,params,1)
     
 
 if __name__ == "__main__":
