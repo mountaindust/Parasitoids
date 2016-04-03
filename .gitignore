@@ -11,11 +11,15 @@ config.txt
 *.prof
 *.lprof
 
+# Cython report
+*.html
+
 # Juypter notebook generated files
 .ipynb_checkpoints/
 
 # C extensions
 *.so
+*.dll
 
 # Distribution / packaging
 .Python

@@ -31,16 +31,19 @@ dict_list = []
 for x in zip(*base_clrmp.colors):
     dict_list.append(tuple((n/(len(x)-1),val,val) for n,val in enumerate(x)))
 cdict = {'red': dict_list[0], 'green': dict_list[1], 'blue': dict_list[2]}
-cdict['alpha'] = ((0.0,0.65,0.65),
-                  (1.0,0.65,0.65))
+cdict['alpha'] = ((0.0,0.65,0.3),
+                  (1.0,0.65,0.3))
 plt.register_cmap(name='alpha_viridis',data=cdict)
 clrmp = cm.get_cmap('alpha_viridis')
 clrmp.set_bad('w',alpha=0)
 
 def r_small_vals(A,negval):
-    '''Remove negligible values from the given coo sparse matrix. 
+    '''Remove negligible values from the given matrix. 
     This process significantly decreases the size of a solution and gives an
-    accurate plot domain.'''
+    accurate plot domain. Return a sparse coo matrix.'''
+    if not sparse.isspmatrix_coo(A):
+        A = sparse.coo_matrix(A)
+    
     midpt = A.shape[0]//2 #assume domain is square
     
     mask = np.empty(A.data.shape,dtype=bool)
@@ -145,12 +148,11 @@ def get_satellite(key,center,dist):
     
     
     
-def plot_all(modelsol,days,params,mask_val=0.00001):
+def plot_all(modelsol,params,mask_val=0.00001):
     '''Function for plotting the model solution
     
     Args:
-        modelsol: list of daily solutions, coo sparse
-        days: list of day identifiers
+        modelsol: list of daily solutions, sparse
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -177,17 +179,25 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
             mask_val))
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         plt.clf()
+        ax = plt.axes()
         plt.axis(plot_limits)
+        #find the max value excluding the middle using a flatiter
+        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+            sol_fm.flat[sol_fm.size//2+1:]])
         sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
         if sat_img is None:
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,alpha=1)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
         else:
             plt.imshow(sat_img,zorder=0,extent=plot_limits)
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
         
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
-        plt.title('Parasitoid spread {0} day(s) post release'.format(days[n]))
+        plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
+        oval = sol_fm.flat[sol_fm.size//2]
+        oval = 0.0 if oval is np.ma.masked else oval
+        plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+            ha='right',va='center',transform=ax.transAxes,fontsize=16)
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
@@ -200,14 +210,16 @@ def plot_all(modelsol,days,params,mask_val=0.00001):
 
             
             
-def plot(sol,day,params,mask_val=0.00001):
+def plot(sol,day,params,mask_val=0.00001,saveonly=None):
     '''Plot a solution for a single day
     
     Args:
-        sol: day solution, coo sparse
+        sol: day solution, sparse
         day: day identifier (for text identification)
         domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        mask_val: values less then this value will not appear in plotting
+        saveonly: (string) if not None, don't plot - save to location in saveonly
+        '''
 
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
@@ -215,9 +227,12 @@ def plot(sol,day,params,mask_val=0.00001):
     
     # assume domain is square, probably odd.
     midpt = domain_info[1]
-
-    plt.ion()
+    if saveonly is None:
+        plt.ion()
+    else:
+        plt.ioff()
     plt.figure()
+    ax = plt.axes()
     #remove all values that are too small to be plotted.
     sol_red = r_small_vals(sol,mask_val)
     #find the maximum distance from the origin
@@ -230,32 +245,58 @@ def plot(sol,day,params,mask_val=0.00001):
         sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
         mask_val))
     plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
-    plt.axis(plot_limits)    
+    plt.axis(plot_limits)
+    #find the max value excluding the middle using a flatiter
+    sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+        sol_fm.flat[sol_fm.size//2+1:]])
     sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
     if sat_img is None:
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
+        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
     else:
         plt.imshow(sat_img,zorder=0,extent=plot_limits)
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
+    #report the value at the origin
+    oval = sol_fm.flat[sol_fm.size//2]
+    oval = 0.0 if oval is np.ma.masked else oval
+    plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+        ha='right',va='center',transform=ax.transAxes,fontsize=16)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        plt.draw()
-        plt.pause(0.0001)
+    if saveonly is None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.draw()
+            plt.pause(0.0001)
+    else:
+        outname = saveonly+'_'+str(day)
+        format = 'png'
+        dpi = 300
+        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
+        if out_chg != '':
+            try:
+                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
+                if file != '':
+                    outname = file
+            except ValueError:
+                outname = out_chg.strip()
+        dpi_chg = input('dpi [{}]:'.format(dpi))
+        if dpi_chg != '':
+            dpi = int(dpi_chg.strip())
+        plt.savefig(outname+'.'+format,dpi=dpi,format=format)
+        print('...Figure saved to {}.'.format(outname+'.'+format))
+        print('----------------Model result visualizations----------------')
         
         
         
-def create_mp4(modelsol,days,params,mask_val=0.00001):
+def create_mp4(modelsol,params,filename,mask_val=0.00001):
     '''Create and save an mp4 video of all the plots.
-    The saved file name will be based on params.outfile.
+    The saved file name/location will be based on filename.
     
     Args:
-        modelsol: list of daily solutions, coo sparse
-        days: list of day identifiers
+        modelsol: list of daily solutions, sparse
         domain_info: rad_dist, rad_res
         mask_val: values less then this value will not appear in plotting'''
     
@@ -291,6 +332,9 @@ def create_mp4(modelsol,days,params,mask_val=0.00001):
         #remove just the pcolormesh and satellite image from before
         for col in ax.collections:
             col.remove()
+        #also remove the text from before
+        for txt in ax.texts:
+            txt.remove()
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin
@@ -303,26 +347,50 @@ def create_mp4(modelsol,days,params,mask_val=0.00001):
         sol_fm = np.flipud(np.ma.masked_less(
             sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
             mask_val))
+        #find the max value excluding the middle using a flatiter
+        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
+            sol_fm.flat[sol_fm.size//2+1:]])
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
-        ax.set_title('Parasitoid spread {0} day(s) post release'.format(
-                                                                   days[n]))
+        ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
-            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1)
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,
+                vmax=sprd_max,zorder=1)
         else:
-            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,zorder=1,alpha=1)
+            pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,
+                zorder=1,alpha=1)
+        oval = sol_fm.flat[sol_fm.size//2]
+        oval = 0.0 if oval is np.ma.masked else oval
+        ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+            ha='right',va='center',transform=ax.transAxes,fontsize=16)
         cbar.mappable = pcl
         cbar.update_bruteforce(pcl)
         cbar.solids.set_edgecolor("face")
         print('.',end="")
         sys.stdout.flush()
-        
-    anim = animation.FuncAnimation(fig,animate,frames=enumerate(modelsol),
-            blit=False,interval=500)
-    anim.save(params.outfile+'.mp4')
-    print('\n...Video saved to {0}.'.format(params.outfile+'.mp4'))
+    
+    # if we pass modelsol as is, the first and last frames won't appear...
+    #   it seems that maybe they are there and gone so fast that they never
+    #   appear. Let's not only duplicate them, put pause a little longer on them.
+
+    def animGen():
+        # Creates an animation generator
+        for n,result in enumerate(modelsol):
+            if n == 0 or n == len(modelsol)-1:
+                # pause a bit on first and last result
+                for ii in range(3):
+                    yield (n+1,result)
+            else:
+                yield (n+1, result)
+
+    # create animation
+    framegen = animGen()
+    anim = animation.FuncAnimation(fig,animate,frames=framegen,
+            blit=False,interval=850)
+    anim.save(filename+'.mp4',dpi=140,bitrate=500)
+    print('\n...Video saved to {0}.'.format(filename+'.mp4'))
     
     
     
@@ -340,39 +408,71 @@ def main(argv):
     # load parameters
     params = Run.Params()
     params.file_read_chg(filename)
+    
+    # is this a population run? for now, check filename string
+    if 'pop' in filename:
+        mask_val = 1
+    else:
+        mask_val = 0.00001
 
     dom_len = params.domain_info[1]*2 + 1
 
     # load data
-    modelsol = OrderedDict() # we use dict here for convenience
+    modelsol = []
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
+        # some code here to make loading robust to both COO and CSR.
+        CSR = False
         for day in days:
             V = npz_obj[str(day)+'_data']
-            I = npz_obj[str(day)+'_row']
-            J = npz_obj[str(day)+'_col']
-            modelsol[str(day)] = sparse.coo_matrix((V,(I,J)),
-                                                    shape=(dom_len,dom_len))
+            if CSR:
+                indices = npz_obj[str(day)+'_ind']
+                indptr = npz_obj[str(day)+'_indptr']
+                modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
+            else:
+                try:
+                    I = npz_obj[str(day)+'_row']
+                    J = npz_obj[str(day)+'_col']
+                    modelsol.append(sparse.coo_matrix((V,(I,J)),
+                                                    shape=(dom_len,dom_len)))
+                except KeyError:
+                    CSR = True
+                    indices = npz_obj[str(day)+'_ind']
+                    indptr = npz_obj[str(day)+'_indptr']
+                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
 
+    print('----------------Model result visualizations----------------')
     while True:
         val = input('Enter a day number to plot, '+
                 'or "all" to plot all.\n'+
+                '"save" or "s" and then a number will save that day to file.\n'+
                 '? will provide a list of plottable day numbers.\n'+
                 '"vid" will output a video (requires FFmpeg or menconder).\n'+
                 'Or enter q to quit:')
         val = val.strip()
         if val == '?':
-            print(*days)
+            print(*list(range(1,len(days)+1)))
         elif val.lower() == 'q' or val.lower() == 'quit':
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol.values(),days,params)
+            plot_all(modelsol,params,mask_val)
         elif val.lower() == 'vid':
-            create_mp4(modelsol.values(),days,params)
+            create_mp4(modelsol,params,filename,mask_val)
+        elif val[0] == 's':
+            try:
+                if val[:4] == 'save':
+                    val = int(val[4:].strip())
+                else:
+                    val = int(val[1:].strip())
+            except ValueError:
+                print('Could not convert {} to an integer.'.format(val))
+            plot(modelsol[val-1],val,params,mask_val,saveonly=filename)
         else:
             try:
-                plot(modelsol[val],val,params)
+                plot(modelsol[int(val)-1],val,params,mask_val)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     
