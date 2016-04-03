@@ -148,13 +148,12 @@ def get_satellite(key,center,dist):
     
     
     
-def plot_all(modelsol,params,mask_val=0.00001):
+def plot_all(modelsol,params):
     '''Function for plotting the model solution
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        domain_info: rad_dist, rad_res'''
     
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
@@ -165,6 +164,8 @@ def plot_all(modelsol,params,mask_val=0.00001):
         
     plt.figure()
     for n,sol in enumerate(modelsol):
+        #Establish a miminum for plotting based 0.00001 of the maximum
+        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin that will be plotted
@@ -210,14 +211,13 @@ def plot_all(modelsol,params,mask_val=0.00001):
 
             
             
-def plot(sol,day,params,mask_val=0.00001,saveonly=None):
+def plot(sol,day,params,saveonly=None):
     '''Plot a solution for a single day
     
     Args:
         sol: day solution, sparse
         day: day identifier (for text identification)
         domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting
         saveonly: (string) if not None, don't plot - save to location in saveonly
         '''
 
@@ -227,6 +227,8 @@ def plot(sol,day,params,mask_val=0.00001,saveonly=None):
     
     # assume domain is square, probably odd.
     midpt = domain_info[1]
+    #Establish a miminum for plotting based 0.00001 of the maximum
+    mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
     if saveonly is None:
         plt.ion()
     else:
@@ -291,14 +293,13 @@ def plot(sol,day,params,mask_val=0.00001,saveonly=None):
         
         
         
-def create_mp4(modelsol,params,filename,mask_val=0.00001):
+def create_mp4(modelsol,params,filename):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        domain_info: rad_dist, rad_res'''
     
     print('Creating spread model video',end="")
     sys.stdout.flush()
@@ -335,6 +336,8 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
         #also remove the text from before
         for txt in ax.texts:
             txt.remove()
+        #Establish a miminum for plotting based 0.00001 of the maximum
+        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin
@@ -408,12 +411,6 @@ def main(argv):
     # load parameters
     params = Run.Params()
     params.file_read_chg(filename)
-    
-    # is this a population run? for now, check filename string
-    if 'pop' in filename:
-        mask_val = 1
-    else:
-        mask_val = 0.00001
 
     dom_len = params.domain_info[1]*2 + 1
 
@@ -458,9 +455,9 @@ def main(argv):
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol,params,mask_val)
+            plot_all(modelsol,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol,params,filename,mask_val)
+            create_mp4(modelsol,params,filename)
         elif val[0] == 's':
             try:
                 if val[:4] == 'save':
@@ -469,10 +466,10 @@ def main(argv):
                     val = int(val[1:].strip())
             except ValueError:
                 print('Could not convert {} to an integer.'.format(val))
-            plot(modelsol[val-1],val,params,mask_val,saveonly=filename)
+            plot(modelsol[val-1],val,params,saveonly=filename)
         else:
             try:
-                plot(modelsol[int(val)-1],val,params,mask_val)
+                plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     

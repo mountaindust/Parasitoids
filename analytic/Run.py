@@ -502,10 +502,7 @@ def main(params):
     
     ### plot result ###
     if params.PLOT:
-        if params.PROB_MODEL:
-            Plot_Result.plot_all(modelsol,params)
-        else:
-            Plot_Result.plot_all(modelsol,params,1)
+        Plot_Result.plot_all(modelsol,params)
     
 
 if __name__ == "__main__":
