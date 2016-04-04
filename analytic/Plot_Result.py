@@ -94,7 +94,7 @@ def resfunc(lat,zoom):
     
 
     
-def get_satellite(key,center,dist):
+def get_satellite(key,service,center,dist):
     '''Get Bing satellite image for plot area
     
     Args:
@@ -112,27 +112,53 @@ def get_satellite(key,center,dist):
             PILLOW_MSG = True
         return None
     
-    if key is None or center is None:
+    if key is None or center is None or service is None:
         return None
     
     lat,long = center
     
-    # get zoom level so that we have between 400 and 800 pixels**2 resolution
+    # get zoom level so that we are within the services specified resolution
+    #   dist is only half the domain size!
     zoom = 4
-    while not dist/400 < resfunc(lat,zoom) <= dist/200:
-        zoom += 1
+    if service == 'Google':
+        # for Google, we need to be between 320 and 640 pixels**2. This is for
+        #   display area purposes - the returned figure is twice that resolution
+        while not dist/320 < resfunc(lat,zoom) <= dist/160:
+            zoom += 1
+    else:
+        # for Bing, we need to be between 400 and 800 pixels**2. This will
+        #   be the actual resolution of the image we get.
+        while not dist/400 < resfunc(lat,zoom) <= dist/200:
+            zoom += 1
         
     # get the pixel dimensions to request
     pixel_len = int(round((dist*2+1)/resfunc(lat,zoom)))
     
-    urlparams = urllib.parse.urlencode({
-        'mapSize': '{0:d},{0:d}'.format(pixel_len),
-        'format': 'jpeg',
-        'key': key})
-        
-    url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
-        '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
-        '/{0:d}?'.format(zoom)+urlparams
+    # collect parameters for maps API
+    if service == 'Bing':
+        urlparams = urllib.parse.urlencode({
+            'mapSize': '{0:d},{0:d}'.format(pixel_len),
+            'format': 'jpeg',
+            'key': key})  
+        url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
+            '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
+            '/{0:d}?'.format(zoom)+urlparams
+    
+    elif service == 'Google':
+        urlparams = urllib.parse.urlencode({
+            'center': '{0:03.6f},{1:03.6f}'.format(lat,long),
+            'zoom': '{0:d}'.format(zoom),
+            'size': '{0:d}x{0:d}'.format(pixel_len),
+            'scale': '2', #twice as many pixels, same converage area
+            'format': 'jpeg',
+            'maptype': 'satellite',
+            'key': key
+            })
+        url = 'https://maps.googleapis.com/maps/api/staticmap?'+urlparams
+    
+    else:
+        print('Unknown maps service. Continuing without satellite imagery...')
+        return None
     
     try:
         f = urllib.request.urlopen(url)
@@ -143,8 +169,8 @@ def get_satellite(key,center,dist):
         print('Continuing without satellite imagery...')
         return None
         
-    # convert to numpy array and return
-    return np.array(im.getdata(),np.uint8).reshape(im.size[1],im.size[0],3)
+    # matplotlib can plot a pillow Image object directly
+    return im
     
     
     
@@ -185,7 +211,8 @@ def plot_all(modelsol,params):
         #find the max value excluding the middle using a flatiter
         sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
             sol_fm.flat[sol_fm.size//2+1:]])
-        sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+        sat_img = get_satellite(params.maps_key,params.maps_service,
+            params.coord,xmesh[-1])
         if sat_img is None:
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
         else:
@@ -204,7 +231,7 @@ def plot_all(modelsol,params):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if n != len(modelsol)-1:
-                plt.pause(1)
+                plt.pause(0.85)
             else:
                 plt.pause(0.0001)
                 plt.show()
@@ -251,7 +278,8 @@ def plot(sol,day,params,saveonly=None):
     #find the max value excluding the middle using a flatiter
     sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
         sol_fm.flat[sol_fm.size//2+1:]])
-    sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+    sat_img = get_satellite(params.maps_key,params.maps_service,
+        params.coord,xmesh[-1])
     if sat_img is None:
         plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
     else:
@@ -317,7 +345,7 @@ def create_mp4(modelsol,params,filename):
     ax.set_ylabel('North-South (meters)')
     ax.set_title('Parasitoid spread')
     # try to get a satellite image to see if it will work
-    sat_img = get_satellite(params.maps_key,params.coord,500)
+    sat_img = get_satellite(params.maps_key,params.maps_service,params.coord,500)
     if sat_img is None:
         pcl = ax.pcolormesh([],cmap=clrmp,zorder=1,alpha=1)
         SAT = False
@@ -357,7 +385,8 @@ def create_mp4(modelsol,params,filename):
         ax.axis(plot_limits)
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
-            sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+            sat_img = get_satellite(params.maps_key,params.maps_service,
+                params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
             pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,
                 vmax=sprd_max,zorder=1)
