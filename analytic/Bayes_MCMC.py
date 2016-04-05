@@ -17,27 +17,76 @@ from io import StringIO
 from multiprocessing import Pool
 import numpy as np
 from scipy import sparse
+from matplotlib.path import Path
 import pymc as pm
 from Run import Params
 import ParasitoidModel as PM
 from CalcSol import get_solutions
 
 
-@pm.deterministic
-def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
-    '''This function acts as an interface between PyMC and the model.
-    It takes in pymc variables, puts together a parameter object from them,
-    runs the model, and then parses the result for comparison with emergence
-    data. The idea is that we will compute the likelihood of the emergence data
-    based on the assumption that this function's result is ground truth. The
-    emergence data is then a realization of a stochastic variable based on
-    the probability of observing x number of wasps given that the number of
-    wasps present was as described in this function.
-    '''
+
+params = Params()
+# Set parameters specific to Bayesian runs
+params.PLOT = False
+params.OUTPUT = False
+params.ndays = -1
+
+# This sends a message to CalcSol on whether or not to use CUDA
+if params.CUDA:
+    globalvars.cuda = True
+else:
+    globalvars.cuda = False
+# get wind data and day labels
+wind_data,days = PM.get_wind_data(*params.get_wind_params())
+
+
+
+def get_fields(filename):
+    '''This function reads in polygon data from a file which in turn describs 
+    the fields that make up each collection site. The polygon data is in the
+    form of lists of vertices, the locations of which are given in x,y
+    coordinates away from the release point. This function then returns a list
+    of matplotlib Path objects which allow point testing for inclusion.'''
     
-                    ########## SET PARAMETERS ##########
-                    
-    params = Params()
+    polys = []
+    with open(filename,'r') as f:
+        verts = []
+        codes = []
+        for line in f:
+            if line.strip() == '':
+                # end of current polygon. convert into Path object.
+                verts.append((0.,0.)) # ignored
+                codes.append(Path.CLOSEPOLY)
+                polys.append(Path(verts,codes))
+                verts = []
+                codes = []
+            else:
+                # deal with possible comments
+                c_ind = line.find('#')
+                if c_ind >= 0:
+                    line = line[:c_ind]
+                # parse the data
+                vals = line.split(',')
+                verts.append((float(vals[0]),float(vals[1])))
+                if len(codes) == 0:
+                    codes.append(Path.MOVETO)
+                else:
+                    codes.append(Path.LINETO)
+    # Convert the last polygon into a Path object if not already done
+    if len(verts) != 0:
+        verts.append((0.,0.)) # ignored
+        codes.append(Path.CLOSEPOLY)
+        polys.append(Path(verts,codes))
+        
+    return polys
+
+
+
+@pm.deterministic
+def params_obj(params=params,g_aw=g_aw,g_bw=g_bw,f_a1=f_a1,f_b1=f_b1,
+    f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,lam=lam,mu_r=mu_r):
+    '''Return altered parameter object to be passed in to simulation'''
+    
     # g wind function parameters
     params.g_params = (g_aw,g_bw)
     # f time of day function parameters
@@ -53,22 +102,15 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
     # number of time periods (based on interp_num) in one flight
     #params.n_periods = n_periods # if interp_num = 30, this is # of minutes
     
-    # Set parameters specific to Bayesian runs
-    params.PLOT = False
-    params.OUTPUT = False
-    params.ndays = ndays
+    return params
     
-                        ########## SETUP ##########
-                        
-    # This sends a message to CalcSol on whether or not to use CUDA
-    if params.CUDA:
-        globalvars.cuda = True
-    else:
-        globalvars.cuda = False
-    # get wind data and day labels
-    wind_data,days = PM.get_wind_data(*params.get_wind_params())
     
-                        ########## RUN MODEL ##########
+    
+@pm.deterministic
+def run_model(params=params_obj,wind_data=wind_data,days=days):
+    '''This function acts as an interface between PyMC and the model.
+    It provides the model based on stochastic parameters in params.
+    '''
     
     ### PHASE ONE ###
     # First, get spread probability for each day as a coo sparse matrix
@@ -102,21 +144,25 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
     ### PHASE TWO ###
     # Pass the probability list, pmf_list, and other info to convolution solver.
     #   This will return the finished population model.
-    modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
-                                params.r_dur,params.r_number,params.r_mthd())
+    with Capturing() as output:
+        modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,
+                    max_shape,params.r_dur,params.r_number,params.r_mthd())
     
     # modelsol now holds the model results for this run
+    return modelsol
     
-                    ########## PARSE SOLUTION ##########
-                    
+
+
+@pm.deterministic
+def landscape_emergence(modelsol=run_model):
+    '''Emergence observed from the model. This parses modelsol using the
+    sampling model.'''
     pass
-    
-    
     
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
     to capture the stdout of the enclosing functions. If used multiple times,
-    it will extend itself to make a longer list containing everything.
+    it can extend itself to make a longer list containing everything.
     
     Usage:
         with Capturing() as output:
@@ -133,14 +179,8 @@ class Capturing(list):
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
         sys.stdout = self._stdout
+
+
     
-    
-    
-def main(argv):
-    '''Run MCMC on the model parameters. (Plot resulting distributions?)
-    
-    Priors and other stochastic model elements should be defined in here.'''
-    pass
-    
-if __name__ == "__main__":
-    main(sys.argv[1:])
+# if __name__ == "__main__":
+    # main(sys.argv[1:])
