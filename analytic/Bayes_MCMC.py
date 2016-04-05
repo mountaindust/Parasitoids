@@ -24,12 +24,14 @@ import ParasitoidModel as PM
 from CalcSol import get_solutions
 
 
+location = 'Kalbar'
 
 params = Params()
+locinfo = LocInfo(location,params.domain_info)
 # Set parameters specific to Bayesian runs
 params.PLOT = False
 params.OUTPUT = False
-params.ndays = -1
+params.ndays = -1 # locinfo.get_landscape_sample_datesPR()[-1]?
 
 # This sends a message to CalcSol on whether or not to use CUDA
 if params.CUDA:
@@ -38,6 +40,32 @@ else:
     globalvars.cuda = False
 # get wind data and day labels
 wind_data,days = PM.get_wind_data(*params.get_wind_params())
+
+
+
+class LocInfo():
+    '''Class def to hold all info on experimental location and resulting data'''
+    
+    def __init__(self,location,domain_info):
+        '''location is a required string giving the location name.
+        All data files must be stored in ./data with the proper 
+        naming convention. domain_info is Run.Params.domain_info'''
+        
+        # Here import field location data and all emergence data.
+        
+        # Convert field locations into groups of domain cells.
+        pass
+        
+    def get_landscape_sample_datesPR(self):
+        pass
+        
+    def get_landscape_emergence_data(self):
+        '''2D array of dates and locations'''
+        pass
+        
+    def get_sampling_effort(self):
+        '''2D array of dates and locations'''
+        pass
 
 
 
@@ -154,10 +182,17 @@ def run_model(params=params_obj,wind_data=wind_data,days=days):
 
 
 @pm.deterministic
-def landscape_emergence(modelsol=run_model):
+def landscape_emergence(modelsol=run_model,beta=beta):
     '''Emergence observed from the model. This parses modelsol using the
-    sampling model.'''
+    sampling model. It should return a 2D array where the rows are each day
+    sampled and the columns are the number of E. Hayati observed.
+    
+    Args:
+        modelsol: model solution
+        beta: Bernoulli trial probability by density'''
     pass
+    
+    
     
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
