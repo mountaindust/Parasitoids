@@ -75,8 +75,10 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
     pmf_list = []
     max_shape = np.array([0,0])
     print("Calculating each day's spread in parallel...")
-    pm_args = [(day,wind_data,*params.get_model_params()) 
-                for day in days[:ndays]]
+    pm_args = [(days[0],wind_data,*params.get_model_params(),
+            params.r_start)]
+    pm_args.extend([(day,wind_data,*params.get_model_params()) 
+            for day in days[1:ndays]])
     pool = Pool()
     pmf_list = pool.starmap(PM.prob_mass,pm_args)
     pool.close()
@@ -86,18 +88,22 @@ def run_model(g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,lam,mu_r,ndays):
             if pmf.shape[dim] > max_shape[dim]:
                 max_shape[dim] = pmf.shape[dim]
                 
-    # Reshape the first probability mass function into a solution
-    modelsol = [] # holds actual model solutions
-    offset = params.domain_info[1] - pmf_list[0].shape[0]//2
-    dom_len = params.domain_info[1]*2 + 1
-    modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
-        (pmf_list[0].row+offset,pmf_list[0].col+offset)),
-        shape=(dom_len,dom_len)))
+    r_spread = [] # holds the one-day spread for each release day.
+    
+    
+    # Reshape the prob. mass function of each release day into solution form
+    for ii in range(params.r_dur):
+        offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
+        dom_len = params.domain_info[1]*2 + 1
+        r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
+            (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
+            shape=(dom_len,dom_len)).tocsr())
     
     ### PHASE TWO ###
-    # Pass the first solution, pmf_list, and other info to convolution solver
-    #   This updates modelsol with the rest of the solutions.
-    get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
+    # Pass the probability list, pmf_list, and other info to convolution solver.
+    #   This will return the finished population model.
+    modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
+                                params.r_dur,params.r_number,params.r_mthd())
     
     # modelsol now holds the model results for this run
     

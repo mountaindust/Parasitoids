@@ -377,7 +377,7 @@ def main(params):
     A Params object is required, which sets up all parameters for the simulation
     '''
         
-    # This sends a message to CalcSol to not use CUDA
+    # This sends a message to CalcSol on whether or not to use CUDA
     if params.CUDA:
         globalvars.cuda = True
     else:
