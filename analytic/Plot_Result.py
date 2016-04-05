@@ -248,6 +248,26 @@ def plot(sol,day,params,saveonly=None):
         saveonly: (string) if not None, don't plot - save to location in saveonly
         '''
 
+    bw = None
+    if saveonly is not None:
+        outname = saveonly+'_'+str(day)
+        format = 'png'
+        dpi = 300
+        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
+        if out_chg != '':
+            try:
+                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
+                if file != '':
+                    outname = file
+            except ValueError:
+                outname = out_chg.strip()
+        dpi_chg = input('dpi [{}]:'.format(dpi))
+        if dpi_chg != '':
+            dpi = int(dpi_chg.strip())
+        bw_chg = input('B/W? y/[n]:')
+        if bw_chg.strip().lower() == 'y' or bw_chg.strip().lower() == 'yes':
+            bw = True
+        
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
                                               #neighbor cell (meters).
@@ -281,10 +301,21 @@ def plot(sol,day,params,saveonly=None):
     sat_img = get_satellite(params.maps_key,params.maps_service,
         params.coord,xmesh[-1])
     if sat_img is None:
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
+        if bw is None:
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
+        else:
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
+                        vmax=sprd_max,alpha=1)
     else:
-        plt.imshow(sat_img,zorder=0,extent=plot_limits)
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
+        if bw is None:
+            plt.imshow(sat_img,zorder=0,extent=plot_limits)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
+        else:
+            sat_img = sat_img.convert('L') #B/W satellite image w/ dither
+            plt.imshow(sat_img,zorder=0,cmap=plt.get_cmap('gray'),
+                        extent=plot_limits)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
+                        vmax=sprd_max,zorder=1)
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
@@ -301,20 +332,6 @@ def plot(sol,day,params,saveonly=None):
             plt.draw()
             plt.pause(0.0001)
     else:
-        outname = saveonly+'_'+str(day)
-        format = 'png'
-        dpi = 300
-        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
-        if out_chg != '':
-            try:
-                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
-                if file != '':
-                    outname = file
-            except ValueError:
-                outname = out_chg.strip()
-        dpi_chg = input('dpi [{}]:'.format(dpi))
-        if dpi_chg != '':
-            dpi = int(dpi_chg.strip())
         plt.savefig(outname+'.'+format,dpi=dpi,format=format)
         print('...Figure saved to {}.'.format(outname+'.'+format))
         print('----------------Model result visualizations----------------')
