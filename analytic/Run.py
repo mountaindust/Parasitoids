@@ -79,8 +79,10 @@ class Params():
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 10 # if interp_num = 30, this is # of minutes per flight
         
-        # Bing maps key for satellite imagery
+        ### satellite imagry
+        # Bing/Google maps key for satellite imagery
         self.maps_key = None
+        self.maps_service = 'Google' #'Bing' or 'Google'
         
         # Parallel processing parameters
         self.min_ndays = 6 # min # of days necessary to use parallel processing
@@ -121,7 +123,7 @@ class Params():
         elif self.dataset == 'kalbar':
             self.site_name = 'data/kalbar'
             self.start_time = '00:00'
-            self.coord = (-27.945752,152.85474)
+            self.coord = (-27.945752,152.58474)
             ### release information
             # release duration (days)
             self.r_dur = 3
@@ -185,14 +187,14 @@ class Params():
         try:
             with open('config.txt', 'r') as f:
                 for line in f:
-                    words = line.split()
-                    for n,word in enumerate(words):
-                        if word == '#': #comment
-                            break
-                        elif word == '=':
-                            arg = words[n-1]
-                            val = words[n+1]
-                            self.chg_param(arg,val)
+                    c_ind = line.find('#')
+                    if c_ind >= 0:
+                        line = line[:c_ind] # chop off comments
+                    words = line.split('=')
+                    if len(words) > 1:
+                        arg = words[0].strip()
+                        val = words[1].strip()
+                        self.chg_param(arg,val)
             self.my_datasets()
         except FileNotFoundError:
             with open('config.txt', 'w') as f:
@@ -502,10 +504,7 @@ def main(params):
     
     ### plot result ###
     if params.PLOT:
-        if params.PROB_MODEL:
-            Plot_Result.plot_all(modelsol,params)
-        else:
-            Plot_Result.plot_all(modelsol,params,1)
+        Plot_Result.plot_all(modelsol,params)
     
 
 if __name__ == "__main__":

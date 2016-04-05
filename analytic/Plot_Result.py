@@ -94,7 +94,7 @@ def resfunc(lat,zoom):
     
 
     
-def get_satellite(key,center,dist):
+def get_satellite(key,service,center,dist):
     '''Get Bing satellite image for plot area
     
     Args:
@@ -112,27 +112,53 @@ def get_satellite(key,center,dist):
             PILLOW_MSG = True
         return None
     
-    if key is None or center is None:
+    if key is None or center is None or service is None:
         return None
     
     lat,long = center
     
-    # get zoom level so that we have between 400 and 800 pixels**2 resolution
+    # get zoom level so that we are within the services specified resolution
+    #   dist is only half the domain size!
     zoom = 4
-    while not dist/400 < resfunc(lat,zoom) <= dist/200:
-        zoom += 1
+    if service == 'Google':
+        # for Google, we need to be between 320 and 640 pixels**2. This is for
+        #   display area purposes - the returned figure is twice that resolution
+        while not dist/320 < resfunc(lat,zoom) <= dist/160:
+            zoom += 1
+    else:
+        # for Bing, we need to be between 400 and 800 pixels**2. This will
+        #   be the actual resolution of the image we get.
+        while not dist/400 < resfunc(lat,zoom) <= dist/200:
+            zoom += 1
         
     # get the pixel dimensions to request
     pixel_len = int(round((dist*2+1)/resfunc(lat,zoom)))
     
-    urlparams = urllib.parse.urlencode({
-        'mapSize': '{0:d},{0:d}'.format(pixel_len),
-        'format': 'jpeg',
-        'key': key})
-        
-    url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
-        '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
-        '/{0:d}?'.format(zoom)+urlparams
+    # collect parameters for maps API
+    if service == 'Bing':
+        urlparams = urllib.parse.urlencode({
+            'mapSize': '{0:d},{0:d}'.format(pixel_len),
+            'format': 'jpeg',
+            'key': key})  
+        url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
+            '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
+            '/{0:d}?'.format(zoom)+urlparams
+    
+    elif service == 'Google':
+        urlparams = urllib.parse.urlencode({
+            'center': '{0:03.6f},{1:03.6f}'.format(lat,long),
+            'zoom': '{0:d}'.format(zoom),
+            'size': '{0:d}x{0:d}'.format(pixel_len),
+            'scale': '2', #twice as many pixels, same converage area
+            'format': 'jpeg',
+            'maptype': 'satellite',
+            'key': key
+            })
+        url = 'https://maps.googleapis.com/maps/api/staticmap?'+urlparams
+    
+    else:
+        print('Unknown maps service. Continuing without satellite imagery...')
+        return None
     
     try:
         f = urllib.request.urlopen(url)
@@ -143,18 +169,17 @@ def get_satellite(key,center,dist):
         print('Continuing without satellite imagery...')
         return None
         
-    # convert to numpy array and return
-    return np.array(im.getdata(),np.uint8).reshape(im.size[1],im.size[0],3)
+    # matplotlib can plot a pillow Image object directly
+    return im
     
     
     
-def plot_all(modelsol,params,mask_val=0.00001):
+def plot_all(modelsol,params):
     '''Function for plotting the model solution
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        domain_info: rad_dist, rad_res'''
     
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
@@ -165,6 +190,8 @@ def plot_all(modelsol,params,mask_val=0.00001):
         
     plt.figure()
     for n,sol in enumerate(modelsol):
+        #Establish a miminum for plotting based 0.00001 of the maximum
+        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin that will be plotted
@@ -184,7 +211,8 @@ def plot_all(modelsol,params,mask_val=0.00001):
         #find the max value excluding the middle using a flatiter
         sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
             sol_fm.flat[sol_fm.size//2+1:]])
-        sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+        sat_img = get_satellite(params.maps_key,params.maps_service,
+            params.coord,xmesh[-1])
         if sat_img is None:
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
         else:
@@ -203,30 +231,51 @@ def plot_all(modelsol,params,mask_val=0.00001):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if n != len(modelsol)-1:
-                plt.pause(1)
+                plt.pause(0.85)
             else:
                 plt.pause(0.0001)
                 plt.show()
 
             
             
-def plot(sol,day,params,mask_val=0.00001,saveonly=None):
+def plot(sol,day,params,saveonly=None):
     '''Plot a solution for a single day
     
     Args:
         sol: day solution, sparse
         day: day identifier (for text identification)
         domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting
         saveonly: (string) if not None, don't plot - save to location in saveonly
         '''
 
+    bw = None
+    if saveonly is not None:
+        outname = saveonly+'_'+str(day)
+        format = 'png'
+        dpi = 300
+        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
+        if out_chg != '':
+            try:
+                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
+                if file != '':
+                    outname = file
+            except ValueError:
+                outname = out_chg.strip()
+        dpi_chg = input('dpi [{}]:'.format(dpi))
+        if dpi_chg != '':
+            dpi = int(dpi_chg.strip())
+        bw_chg = input('B/W? y/[n]:')
+        if bw_chg.strip().lower() == 'y' or bw_chg.strip().lower() == 'yes':
+            bw = True
+        
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
                                               #neighbor cell (meters).
     
     # assume domain is square, probably odd.
     midpt = domain_info[1]
+    #Establish a miminum for plotting based 0.00001 of the maximum
+    mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
     if saveonly is None:
         plt.ion()
     else:
@@ -249,12 +298,24 @@ def plot(sol,day,params,mask_val=0.00001,saveonly=None):
     #find the max value excluding the middle using a flatiter
     sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
         sol_fm.flat[sol_fm.size//2+1:]])
-    sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+    sat_img = get_satellite(params.maps_key,params.maps_service,
+        params.coord,xmesh[-1])
     if sat_img is None:
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
+        if bw is None:
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
+        else:
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
+                        vmax=sprd_max,alpha=1)
     else:
-        plt.imshow(sat_img,zorder=0,extent=plot_limits)
-        plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
+        if bw is None:
+            plt.imshow(sat_img,zorder=0,extent=plot_limits)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
+        else:
+            sat_img = sat_img.convert('L') #B/W satellite image w/ dither
+            plt.imshow(sat_img,zorder=0,cmap=plt.get_cmap('gray'),
+                        extent=plot_limits)
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
+                        vmax=sprd_max,zorder=1)
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
@@ -271,34 +332,19 @@ def plot(sol,day,params,mask_val=0.00001,saveonly=None):
             plt.draw()
             plt.pause(0.0001)
     else:
-        outname = saveonly+'_'+str(day)
-        format = 'png'
-        dpi = 300
-        out_chg = input('Filename and/or .ext [{}]:'.format(outname+'.'+format))
-        if out_chg != '':
-            try:
-                file, format = out_chg.strip().rsplit(sep='.',maxsplit=1)
-                if file != '':
-                    outname = file
-            except ValueError:
-                outname = out_chg.strip()
-        dpi_chg = input('dpi [{}]:'.format(dpi))
-        if dpi_chg != '':
-            dpi = int(dpi_chg.strip())
         plt.savefig(outname+'.'+format,dpi=dpi,format=format)
         print('...Figure saved to {}.'.format(outname+'.'+format))
         print('----------------Model result visualizations----------------')
         
         
         
-def create_mp4(modelsol,params,filename,mask_val=0.00001):
+def create_mp4(modelsol,params,filename):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res
-        mask_val: values less then this value will not appear in plotting'''
+        domain_info: rad_dist, rad_res'''
     
     print('Creating spread model video',end="")
     sys.stdout.flush()
@@ -316,7 +362,7 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
     ax.set_ylabel('North-South (meters)')
     ax.set_title('Parasitoid spread')
     # try to get a satellite image to see if it will work
-    sat_img = get_satellite(params.maps_key,params.coord,500)
+    sat_img = get_satellite(params.maps_key,params.maps_service,params.coord,500)
     if sat_img is None:
         pcl = ax.pcolormesh([],cmap=clrmp,zorder=1,alpha=1)
         SAT = False
@@ -335,6 +381,8 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
         #also remove the text from before
         for txt in ax.texts:
             txt.remove()
+        #Establish a miminum for plotting based 0.00001 of the maximum
+        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin
@@ -354,7 +402,8 @@ def create_mp4(modelsol,params,filename,mask_val=0.00001):
         ax.axis(plot_limits)
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if SAT:
-            sat_img = get_satellite(params.maps_key,params.coord,xmesh[-1])
+            sat_img = get_satellite(params.maps_key,params.maps_service,
+                params.coord,xmesh[-1])
             ax.imshow(sat_img,zorder=0,extent=plot_limits)
             pcl = ax.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,
                 vmax=sprd_max,zorder=1)
@@ -408,12 +457,6 @@ def main(argv):
     # load parameters
     params = Run.Params()
     params.file_read_chg(filename)
-    
-    # is this a population run? for now, check filename string
-    if 'pop' in filename:
-        mask_val = 1
-    else:
-        mask_val = 0.00001
 
     dom_len = params.domain_info[1]*2 + 1
 
@@ -458,9 +501,9 @@ def main(argv):
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol,params,mask_val)
+            plot_all(modelsol,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol,params,filename,mask_val)
+            create_mp4(modelsol,params,filename)
         elif val[0] == 's':
             try:
                 if val[:4] == 'save':
@@ -469,10 +512,10 @@ def main(argv):
                     val = int(val[1:].strip())
             except ValueError:
                 print('Could not convert {} to an integer.'.format(val))
-            plot(modelsol[val-1],val,params,mask_val,saveonly=filename)
+            plot(modelsol[val-1],val,params,saveonly=filename)
         else:
             try:
-                plot(modelsol[int(val)-1],val,params,mask_val)
+                plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     
