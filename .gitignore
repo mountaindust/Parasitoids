@@ -7,6 +7,10 @@ output/
 snippets/
 config.txt
 
+# Raw data
+*.xlsx
+*.ods
+
 # Profile output
 *.prof
 *.lprof
