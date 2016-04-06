@@ -304,7 +304,7 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     return f_func*g_func + integral_avg #np.array of length n
 
 def get_mvn_cdf_values(cell_length,mu,S):
-    """Get cdf values for a multivariate normal centered at (0,0) 
+    """Get cdf values for a multivariate normal centered near (0,0) 
     inside regular cells. To do this fast, we use a secret Fortran mulivariate
     normal CDF (mvn) due to Dr. Alan Genz.
     
@@ -508,7 +508,13 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
 
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.
-    # Add this probability to the origin cell.
+    # Add this probability to a distribution around the origin cell.
+    cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),S)
+    norm_r = int(cdf_mat.shape[0]/2)
+    total_flight_prob = pmf.sum()
+    pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
+        (1-total_flight_prob)*cdf_mat
+    # assure it sums to one by adding any error to the center cell.
     total_flight_prob = pmf.sum()
     assert total_flight_prob <= 1
     pmf[rad_res,rad_res] += 1-total_flight_prob

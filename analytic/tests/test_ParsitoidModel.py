@@ -356,13 +356,12 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
             assert pmf[0:midpt-5,midpt+5:].sum() > 0
     
     # DO THIS BLOCK LAST FOR SINGLE RUN! ALTERS pmf
-    # Midday on the first day had wind. Most of the probability will be at the
+    # Midday on the first day had wind. Most of the probability is around the
     #   origin because wind decreases the likelihood of flight, but other than
-    #   this point, most of the probabiilty should be away from the origin.
+    #   this, much of the probabiilty should be away from the origin.
     # assert np.unravel_index(pmf.argmax(), pmf.shape) != (midpt,midpt)
     pmf[midpt,midpt] = 0
-    assert pmf.sum() > 0
-    assert pmf[midpt-5:midpt+6,midpt-5:midpt+6].sum() == 0
+    assert 1 > pmf.sum() > 0
     
     
     #### Run for the entire day, using full wind_data dictionary ####
@@ -391,11 +390,12 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     assert math.isclose(pmf.sum(),1)
     assert math.isclose(firstsol.sum(),1)
     
-    # most of the probability should still be at the origin
+    # most of the probability should still be near the origin
     midpt = firstsol.shape[0]//2
-    assert firstsol[midpt,midpt] > firstsol.sum() - firstsol[midpt,midpt]
+    assert firstsol[midpt-4:midpt+5,midpt-4:midpt+5].sum() > (firstsol.sum() 
+        - firstsol[midpt-4:midpt+5,midpt-4:midpt+5].sum())
     # but not all
-    assert not math.isclose(firstsol[midpt,midpt],1)
+    assert not math.isclose(firstsol[midpt-4:midpt+5,midpt-4:midpt+5].sum(),1)
     
     
     
@@ -409,9 +409,10 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     # most of the probability should still be at the origin
     midpt2 = pmf2.shape[0]//2
     pmf2 = pmf2.tocsr()
-    assert pmf2[midpt2,midpt2] > pmf2.sum() - pmf2[midpt2,midpt2]
+    assert pmf2[midpt2-4:midpt2+5,midpt2-4:midpt2+5].sum() > (pmf2.sum() 
+        - pmf2[midpt2-4:midpt2+5,midpt2-4:midpt2+5].sum())
     # but not all
-    assert not math.isclose(pmf2[midpt2,midpt2],1)
+    assert not math.isclose(pmf2[midpt2-4:midpt2+5,midpt2-4:midpt2+5].sum(),1)
     
     # this solution should have more left at the origin than the first one
     assert pmf2[midpt2,midpt2] > firstsol[midpt,midpt]

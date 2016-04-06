@@ -14,7 +14,7 @@ import numpy as np
 from scipy import sparse
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib.image as mpimg
+import matplotlib as mpl
 import matplotlib.animation as animation
 try:
     from PIL import Image
@@ -191,7 +191,7 @@ def plot_all(modelsol,params):
     plt.figure()
     for n,sol in enumerate(modelsol):
         #Establish a miminum for plotting based 0.00001 of the maximum
-        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
+        mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin that will be plotted
@@ -208,9 +208,13 @@ def plot_all(modelsol,params):
         plt.clf()
         ax = plt.axes()
         plt.axis(plot_limits)
-        #find the max value excluding the middle using a flatiter
-        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
-            sol_fm.flat[sol_fm.size//2+1:]])
+        #find the max value excluding the middle area
+        midpt2 = sol_fm.shape[0]//2
+        sol_mid = np.array(sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5])
+        sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = np.ma.masked #mask the middle
+        sprd_max = np.max(sol_fm) #find max
+        sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = sol_mid #replace values
+        #get satellite image
         sat_img = get_satellite(params.maps_key,params.maps_service,
             params.coord,xmesh[-1])
         if sat_img is None:
@@ -261,7 +265,8 @@ def plot(sol,day,params,saveonly=None):
                     outname = file
             except ValueError:
                 outname = out_chg.strip()
-        dpi_chg = input('dpi [{}]:'.format(dpi))
+        dpi_chg = input('dpi (figsize={}) [{}]:'.format(
+            mpl.rcParams['figure.figsize'],dpi))
         if dpi_chg != '':
             dpi = int(dpi_chg.strip())
         bw_chg = input('B/W? y/[n]:')
@@ -275,7 +280,7 @@ def plot(sol,day,params,saveonly=None):
     # assume domain is square, probably odd.
     midpt = domain_info[1]
     #Establish a miminum for plotting based 0.00001 of the maximum
-    mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
+    mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
     if saveonly is None:
         plt.ion()
     else:
@@ -295,9 +300,13 @@ def plot(sol,day,params,saveonly=None):
         mask_val))
     plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
     plt.axis(plot_limits)
-    #find the max value excluding the middle using a flatiter
-    sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
-        sol_fm.flat[sol_fm.size//2+1:]])
+    #find the max value excluding the middle area
+    midpt2 = sol_fm.shape[0]//2
+    sol_mid = np.array(sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5])
+    sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = np.ma.masked #mask the middle
+    sprd_max = np.max(sol_fm) #find max
+    sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = sol_mid #replace values
+    #get satellite image
     sat_img = get_satellite(params.maps_key,params.maps_service,
         params.coord,xmesh[-1])
     if sat_img is None:
@@ -382,7 +391,7 @@ def create_mp4(modelsol,params,filename):
         for txt in ax.texts:
             txt.remove()
         #Establish a miminum for plotting based 0.00001 of the maximum
-        mask_val = 10**(np.floor(np.log10(sol.data.max()))-5)
+        mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
         #remove all values that are too small to be plotted.
         sol_red = r_small_vals(sol,mask_val)
         #find the maximum distance from the origin
@@ -395,9 +404,12 @@ def create_mp4(modelsol,params,filename):
         sol_fm = np.flipud(np.ma.masked_less(
             sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
             mask_val))
-        #find the max value excluding the middle using a flatiter
-        sprd_max = np.max([sol_fm.flat[:sol_fm.size//2],
-            sol_fm.flat[sol_fm.size//2+1:]])
+        #find the max value excluding the middle area
+        midpt2 = sol_fm.shape[0]//2
+        sol_mid = np.array(sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5])
+        sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = np.ma.masked #mask the middle
+        sprd_max = np.max(sol_fm) #find max
+        sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = sol_mid #replace values
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
@@ -495,7 +507,9 @@ def main(argv):
                 '"vid" will output a video (requires FFmpeg or menconder).\n'+
                 'Or enter q to quit:')
         val = val.strip()
-        if val == '?':
+        if val == '':
+            continue
+        elif val == '?':
             print(*list(range(1,len(days)+1)))
         elif val.lower() == 'q' or val.lower() == 'quit':
             break
