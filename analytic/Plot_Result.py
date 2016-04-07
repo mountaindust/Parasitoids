@@ -37,6 +37,7 @@ plt.register_cmap(name='alpha_viridis',data=cdict)
 clrmp = cm.get_cmap('alpha_viridis')
 clrmp.set_bad('w',alpha=0)
 
+
 def r_small_vals(A,negval):
     '''Remove negligible values from the given matrix. 
     This process significantly decreases the size of a solution and gives an
@@ -324,7 +325,7 @@ def plot(sol,day,params,saveonly=None):
             plt.imshow(sat_img,zorder=0,cmap=plt.get_cmap('gray'),
                         extent=plot_limits)
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
-                        vmax=sprd_max,zorder=1)
+                        vmax=sprd_max,zorder=1,alpha=0.65)
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
