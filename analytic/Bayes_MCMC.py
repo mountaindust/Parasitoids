@@ -12,7 +12,7 @@ __status__ = "Development"
 __version__ = "0.1"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
-import sys, os, time
+import sys, os, time, math
 from io import StringIO
 from multiprocessing import Pool
 import numpy as np
@@ -69,12 +69,13 @@ class LocInfo():
 
 
 
-def get_fields(filename):
+def get_fields(filename,center):
     '''This function reads in polygon data from a file which in turn describs 
     the fields that make up each collection site. The polygon data is in the
     form of lists of vertices, the locations of which are given in x,y
     coordinates away from the release point. This function then returns a list
-    of matplotlib Path objects which allow point testing for inclusion.'''
+    of matplotlib Path objects which allow point testing for inclusion.
+    Center is the lat/long coord of the release point.'''
     
     polys = []
     with open(filename,'r') as f:
@@ -95,7 +96,8 @@ def get_fields(filename):
                     line = line[:c_ind]
                 # parse the data
                 vals = line.split(',')
-                verts.append((float(vals[0]),float(vals[1])))
+                verts.append(latlong_tocoord(
+                            center,float(vals[0]),float(vals[1])))
                 if len(codes) == 0:
                     codes.append(Path.MOVETO)
                 else:
@@ -107,6 +109,48 @@ def get_fields(filename):
         polys.append(Path(verts,codes))
         
     return polys
+    
+    
+    
+def latlong_tocoord(center,lat,long):
+    '''Translate a lat/long coordinate into an (x,y) coordinate pair where
+    center is the origin.
+    
+    Args:
+        center: subscritable lat/long location of the origin
+        lat: latitude to translate
+        long: longitude to translate
+        
+    Returns:
+        (x,y): x,y coordinate from center, in meters'''
+        
+    R = 6378100 #Radius of the Earth in meters at equator
+    
+    o_lat = math.radians(center[0]) #origin lat in radians
+    o_long = math.radians(center[1]) #origin long in radians
+    lat = math.radians(lat)
+    long = math.radians(long)
+    
+    # # Haversine formula
+    # a = math.sin((lat-o_lat)/2)**2 + math.cos(lat)*math.cos(o_lat)*\
+        # math.sin((long-o_long)/2)**2
+    # c = 2*math.atan2(math.sqrt(a),math.sqrt(1-a))
+    # dist = R*c
+    
+    # # Bearing
+    # bear = math.atan2(math.sin(long-o_long)*math.cos(lat),
+        # math.cos(o_lat)*math.sin(lat)-math.sin(o_lat)*math.cos(lat)*
+        # math.cos(long-o_long))
+    
+    # # Approximation based on straight line from bearing
+    # x = dist*math.cos(bear)
+    # y = dist*math.sin(bear)
+    
+    # Equirectangular approximation
+    x = R*(long-o_long)*math.cos((o_lat+lat)/2)
+    y = R*(lat-o_lat)
+    
+    return (x,y)
 
 
 
@@ -148,7 +192,7 @@ def run_model(params=params_obj,wind_data=wind_data,days=days):
     pm_args = [(days[0],wind_data,*params.get_model_params(),
             params.r_start)]
     pm_args.extend([(day,wind_data,*params.get_model_params()) 
-            for day in days[1:ndays]])
+            for day in days[1:params.ndays]])
     pool = Pool()
     pmf_list = pool.starmap(PM.prob_mass,pm_args)
     pool.close()
@@ -173,7 +217,7 @@ def run_model(params=params_obj,wind_data=wind_data,days=days):
     # Pass the probability list, pmf_list, and other info to convolution solver.
     #   This will return the finished population model.
     with Capturing() as output:
-        modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,
+        modelsol = get_populations(r_spread,pmf_list,days,params.ndays,dom_len,
                     max_shape,params.r_dur,params.r_number,params.r_mthd())
     
     # modelsol now holds the model results for this run
