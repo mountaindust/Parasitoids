@@ -19,6 +19,7 @@ import numpy as np
 from scipy import sparse
 from matplotlib.path import Path
 import pymc as pm
+import globalvars
 from Run import Params
 import ParasitoidModel as PM
 from CalcSol import get_solutions
@@ -27,7 +28,6 @@ from CalcSol import get_solutions
 location = 'Kalbar'
 
 params = Params()
-locinfo = LocInfo(location,params.domain_info)
 # Set parameters specific to Bayesian runs
 params.PLOT = False
 params.OUTPUT = False
@@ -43,17 +43,33 @@ wind_data,days = PM.get_wind_data(*params.get_wind_params())
 
 
 
+###############################################################################
+#                                                                             #
+#                              Data Import                                    #
+#                                                                             #
+###############################################################################
+
 class LocInfo():
     '''Class def to hold all info on experimental location and resulting data'''
     
-    def __init__(self,location,domain_info):
-        '''location is a required string giving the location name.
-        All data files must be stored in ./data with the proper 
-        naming convention. domain_info is Run.Params.domain_info'''
+    def __init__(self,location,release_latlong,domain_info):
+        '''
+        Args: location: required string giving the location name.
+                All data files must be stored in ./data with the proper 
+                naming convention
+              domain_info: Run.Params.domain_info
+              release_latlong: lat/long coord of the release poin.'''
         
-        # Here import field location data and all emergence data.
+        # Import sentinal field locations
+        self.field_polys = get_fields(location+'fields.txt',release_latlong)
+        # Convert to cell indices
+        self.field_cells = get_field_cells(self.field_polys,domain_info)
+                
+        # Import release field grid
         
-        # Convert field locations into groups of domain cells.
+        # Here import all emergence data
+        
+
         pass
         
     def get_landscape_sample_datesPR(self):
@@ -70,12 +86,55 @@ class LocInfo():
 
 
 def get_fields(filename,center):
-    '''This function reads in polygon data from a file which in turn describs 
-    the fields that make up each collection site. The polygon data is in the
+    '''This function reads in polygon data from a file which describs boundaries
+    of the fields that make up each collection site. The polygon data is in the
     form of lists of vertices, the locations of which are given in x,y
     coordinates away from the release point. This function then returns a list
     of matplotlib Path objects which allow point testing for inclusion.
-    Center is the lat/long coord of the release point.'''
+    
+    Args:
+        filename: file name to open
+        center: lat/long coord of the release point'''
+    
+    def latlong_tocoord(center,lat,long):
+        '''Translate a lat/long coordinate into an (x,y) coordinate pair where
+        center is the origin.
+        
+        Args:
+            center: subscritable lat/long location of the origin
+            lat: latitude to translate
+            long: longitude to translate
+            
+        Returns:
+            (x,y): x,y coordinate from center, in meters'''
+            
+        R = 6378100 #Radius of the Earth in meters at equator
+        
+        o_lat = math.radians(center[0]) #origin lat in radians
+        o_long = math.radians(center[1]) #origin long in radians
+        lat = math.radians(lat)
+        long = math.radians(long)
+        
+        # # Haversine formula
+        # a = math.sin((lat-o_lat)/2)**2 + math.cos(lat)*math.cos(o_lat)*\
+            # math.sin((long-o_long)/2)**2
+        # c = 2*math.atan2(math.sqrt(a),math.sqrt(1-a))
+        # dist = R*c
+        
+        # # Bearing
+        # bear = math.atan2(math.sin(long-o_long)*math.cos(lat),
+            # math.cos(o_lat)*math.sin(lat)-math.sin(o_lat)*math.cos(lat)*
+            # math.cos(long-o_long))
+        
+        # # Approximation based on straight line from bearing
+        # x = dist*math.cos(bear)
+        # y = dist*math.sin(bear)
+        
+        # Equirectangular approximation
+        x = R*(long-o_long)*math.cos((o_lat+lat)/2)
+        y = R*(lat-o_lat)
+        
+        return (x,y)
     
     polys = []
     with open(filename,'r') as f:
@@ -110,50 +169,43 @@ def get_fields(filename,center):
         
     return polys
     
+ 
     
-    
-def latlong_tocoord(center,lat,long):
-    '''Translate a lat/long coordinate into an (x,y) coordinate pair where
-    center is the origin.
+def get_field_cells(polys,domain_info):
+    '''Get a list of lists of cell indices that represent each field.
     
     Args:
-        center: subscritable lat/long location of the origin
-        lat: latitude to translate
-        long: longitude to translate
-        
+        polys: List of Path objects representing each field
+        domain_info: (dist (m), cells) from release point to side of domain
+                        (as in the Run.Params class)
+                        
     Returns:
-        (x,y): x,y coordinate from center, in meters'''
-        
-    R = 6378100 #Radius of the Earth in meters at equator
+        fields: list with each sublist representing a field of cells'''
     
-    o_lat = math.radians(center[0]) #origin lat in radians
-    o_long = math.radians(center[1]) #origin long in radians
-    lat = math.radians(lat)
-    long = math.radians(long)
-    
-    # # Haversine formula
-    # a = math.sin((lat-o_lat)/2)**2 + math.cos(lat)*math.cos(o_lat)*\
-        # math.sin((long-o_long)/2)**2
-    # c = 2*math.atan2(math.sqrt(a),math.sqrt(1-a))
-    # dist = R*c
-    
-    # # Bearing
-    # bear = math.atan2(math.sin(long-o_long)*math.cos(lat),
-        # math.cos(o_lat)*math.sin(lat)-math.sin(o_lat)*math.cos(lat)*
-        # math.cos(long-o_long))
-    
-    # # Approximation based on straight line from bearing
-    # x = dist*math.cos(bear)
-    # y = dist*math.sin(bear)
-    
-    # Equirectangular approximation
-    x = R*(long-o_long)*math.cos((o_lat+lat)/2)
-    y = R*(lat-o_lat)
-    
-    return (x,y)
+    fields = []
+    res = domain_info[0]/domain_info[1] #cell resolution
+    # construct a list of all x,y coords (in meters) for the center of each cell
+    centers = [(x,y) for x in range(domain_info[1],-domain_info[1]-1,-1)*res
+                        for y in range(-domain_info[1],domain_info[1]+1)*res]
+    for poly in polys:
+        fields.append(np.argwhere(
+            poly.contains_points(centers).reshape(
+            domain_info[1]*2+1,domain_info[1]*2+1)))
+                
+    return fields
 
 
 
+
+###############################################################################
+#                                                                             #
+#                              PYMC Setup                                     #
+#                                                                             #
+###############################################################################
+locinfo = LocInfo(location,params.domain_info)
+    
+    
+    
 @pm.deterministic
 def params_obj(params=params,g_aw=g_aw,g_bw=g_bw,f_a1=f_a1,f_b1=f_b1,
     f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,lam=lam,mu_r=mu_r):
