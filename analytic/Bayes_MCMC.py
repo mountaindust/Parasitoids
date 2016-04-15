@@ -9,7 +9,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.1"
+__version__ = "0.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time, math
@@ -66,11 +66,29 @@ class LocInfo():
         self.field_cells = get_field_cells(self.field_polys,domain_info)
                 
         # Import release field grid
-        
+        self.grid_data = get_release_grid(location+'releasegrid.txt')
+        # Parse the columns in the field grid data
+        #   This sets up:
+        #   self.grid_cells, self.grid_samples, self.grid_collection
+        self.parse_grid_data(domain_info)
         # Here import all emergence data
         
 
         pass
+        
+    def parse_grid_data(self,domain_info):
+        res = domain_info[0]/domain_info[1] # cell length in meters
+        # In this implementation, I'm just going to assume that the area sampled
+        #   is smaller than the domain discretization. Thus, I'll just pick off
+        #   the cell where the collection was centered.
+        
+        # First two columns are x,y locations from release in meters.
+        self.grid_cells = np.array(np.around(self.grid_data[:,0]/res),
+                                    np.around(self.grid_data[:,1]/res)).T
+        # Alias sampling effort in each grid cell
+        self.grid_samples = self.grid_data[:,3]
+        # Alias collection effort
+        self.grid_collection = self.grid_data[:,4:]
         
     def get_landscape_sample_datesPR(self):
         pass
@@ -196,6 +214,33 @@ def get_field_cells(polys,domain_info):
 
 
 
+def get_release_grid(filename):
+    '''Read in the data on the release field's grid and number of leaves sampled
+    '''
+    
+    grid_data = []
+    with open(filename,'r') as f:
+        for line in f:
+            #deal with possible comments
+            c_ind = line.find('#')
+            if c_ind >= 0:
+                line = line[:c_ind]
+            if line.strip() != '':
+                #non-empty line. parse data
+                dat_list = line.split(',')
+                line_data = []
+                for dat in dat_list:
+                    line_data.append(float(dat))
+                grid_data.append(line_data)
+    # try to convert to numpy array
+    grid_data = np.array(grid_data)
+    # if no data is missing, this will have dim=2
+    assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
+        'Likely, a line in {} is incomplete.'.format(filename)
+        
+    return grid_data
+            
+    
 
 ###############################################################################
 #                                                                             #
