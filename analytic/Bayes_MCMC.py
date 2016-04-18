@@ -60,13 +60,17 @@ class LocInfo():
         pass
         
     def parse_grid_data(self,domain_info):
+        '''This might need to be edited depending on what your data looks like.
+        
+        Grid cells are returned in row,col form assuming a complete domain array
+        '''
         res = domain_info[0]/domain_info[1] # cell length in meters
         # In this implementation, I'm just going to assume that the area sampled
         #   is smaller than the domain discretization. Thus, I'll just pick off
         #   the cell where the collection was centered.
         
         # First two columns are x,y locations from release in meters.
-        self.grid_cells = np.around(self.grid_data[:,0:2]/res)
+        self.grid_cells = np.around(self.grid_data[:,0:2]/res) + domain_info[1]
         # Alias sampling effort in each grid cell
         self.grid_samples = self.grid_data[:,3]
         # Alias collection effort
@@ -192,7 +196,8 @@ def get_field_cells(polys,domain_info):
         fields.append(np.argwhere(
             poly.contains_points(centers).reshape(
             domain_info[1]*2+1,domain_info[1]*2+1)))
-                
+    
+    # fields is row,col information assuming the complete domain.
     return fields
 
 
