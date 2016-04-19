@@ -334,9 +334,13 @@ class Params():
                 else:
                     self.CUDA = bool(val)
             else:
-                raise ValueError('Unrecognized parameter {0}.'.format(arg))
-        except:
-            print('Could not parse {0}.'.format(arg),end='')
+                raise LookupError('Unrecognized parameter {0}.'.format(arg))
+        except LookupError:
+            print('Could not parse {0}.'.format(arg)+'\n ')
+            raise
+        except ValueError:
+            print('Could not parse {0}.'.format(arg)+
+                ' Try enclosing this argument in quotations.\n ')
             raise
         
                 
