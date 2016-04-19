@@ -1,6 +1,6 @@
 # Specify sampling grid in the release field. Use comma delimited format.
 # Columns are:
-# x (m W from release), y (m N from release), m^2 sampled, leaves sampled, leaves collected
+# x (m E from release), y (m N from release), m^2 sampled, leaves sampled, leaves collected
 200, 300, 1, 90, 18
 200, 250, 9, 270, 162
 200, 200, 1, 90, 18

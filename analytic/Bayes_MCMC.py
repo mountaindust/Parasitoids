@@ -44,12 +44,13 @@ class LocInfo():
               release_latlong: lat/long coord of the release poin.'''
         
         # Import sentinal field locations
-        self.field_polys = get_fields(location+'fields.txt',release_latlong)
+        self.field_polys = get_fields('./data/'+location+'fields.txt',
+            release_latlong)
         # Convert to cell indices
         self.field_cells = get_field_cells(self.field_polys,domain_info)
                 
         # Import release field grid
-        self.grid_data = get_release_grid(location+'releasegrid.txt')
+        self.grid_data = get_release_grid('./data/'+location+'releasegrid.txt')
         # Parse the columns in the field grid data
         #   This sets up:
         #   self.grid_cells, self.grid_samples, self.grid_collection
@@ -70,7 +71,9 @@ class LocInfo():
         #   the cell where the collection was centered.
         
         # First two columns are x,y locations from release in meters.
-        self.grid_cells = np.around(self.grid_data[:,0:2]/res) + domain_info[1]
+        # Change to row,col locations
+        self.grid_cells = np.array([-self.grid_data[:,1],self.grid_data[:,0]])
+        self.grid_cells = np.around(self.grid_cells/res) + domain_info[1]
         # Alias sampling effort in each grid cell
         self.grid_samples = self.grid_data[:,3]
         # Alias collection effort
@@ -190,8 +193,8 @@ def get_field_cells(polys,domain_info):
     fields = []
     res = domain_info[0]/domain_info[1] #cell resolution
     # construct a list of all x,y coords (in meters) for the center of each cell
-    centers = [(x*res,y*res) for x in range(domain_info[1],-domain_info[1]-1,-1)
-                            for y in range(-domain_info[1],domain_info[1]+1)]
+    centers = [(col*res,row*res) for row in range(domain_info[1],-domain_info[1]-1,-1)
+                            for col in range(-domain_info[1],domain_info[1]+1)]
     for poly in polys:
         fields.append(np.argwhere(
             poly.contains_points(centers).reshape(
@@ -278,7 +281,7 @@ def main():
     # get wind data and day labels
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
 
-    locinfo = LocInfo(params.site_name,params.coord,params.domain_info)
+    locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
         
     lam = pm.Beta("lambda",5,1)
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,12)

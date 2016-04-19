@@ -8,7 +8,6 @@ Author: Christopher Strickland'''
 import sys, io
 import warnings
 import math
-from collections import OrderedDict
 import urllib.parse, urllib.request
 import numpy as np
 from scipy import sparse
