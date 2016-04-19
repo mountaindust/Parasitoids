@@ -31,7 +31,7 @@ class CudaSolve():
         A_pad[:A.shape[0],:A.shape[1]] = A.toarray().astype(np.float32)
 
         # allocate space on the gpu and send A there
-        self.sol_hat_gpu = thr.to_device(A_pad)
+        self.sol_hat_gpu = thr.to_device(A_pad) #this is not actually fft yet
         
         # create compiled fft procedure
         fft_proc = fft.FFT(self.sol_hat_gpu)
@@ -92,6 +92,9 @@ class CudaSolve():
         
     def get_cursol(self,dom_shape,negval=1e-8):
         '''Return the current solution (requires ifft) with small values removed
+        Also check for non-zero entries beyond the established domain, and if
+        there are such values, re-fft the current solution to enforce the
+        zero-boundary condition.
         
         Args:
             dom_shape: shape of returned solution
@@ -112,12 +115,21 @@ class CudaSolve():
         cursol_gpu_i.set(np.zeros(cursol_gpu_r.shape).astype(np.float32))
         cursol_gpu_red = api.gpuarray.if_positive(cursol_gpu_r>negval,
             cursol_gpu_r,cursol_gpu_i)
+            
+        # Check for non-zero entries outside of the domain shape
+        # We cannot do a max over a slice (non-contiguous array restriction), so
+        #   we must copy the padded part of cursol_gpu_red first
+        cursol_gpu_i = cursol_gpu_red[dom_shape[0]:,dom_shape[1]:].copy()
+        if api.gpuarray.max(cursol_gpu_i) > 0:
+            # zero out the padded part of the solution and re-fft
+            cursol_gpu_r[dom_shape[0]:,dom_shape[1]:] = api.gpuarray.zeros(
+                (self.pad_shape-dom_shape,self.pad_shape-dom_shape),np.float32)
+            self.fft_proc(self.sol_hat_gpu,cursol_gpu_r,0)
 
 	    # pull down current solution and return unpadded coo_matrix
         return sparse.coo_matrix(
             cursol_gpu_red[:dom_shape[0],:dom_shape[1]].get())
-
-        #TODO: add method to return cursol with neg values zeroed out
+            
 
         
     def back_solve(self,prev_spread,dom_shape,negval=1e-8):    
@@ -141,7 +153,7 @@ class CudaSolve():
         bcksol = []
         
         # start with the current solution
-        bcksol_hat_gpu = self.sol_hat_gpu
+        bcksol_hat_gpu = self.sol_hat_gpu.copy()
         
         for B in prev_spread[::-1]:
             # Get array shape information
@@ -168,10 +180,21 @@ class CudaSolve():
             self.fft_proc_c(B_gpu,bcksol_hat_gpu,1)
             B_gpu = B_gpu.real
             
-            # Remove negligable values from reported real solution
+            # Check for non-zero entries outside of the domain shape
+            # We cannot do a max over a slice (non-contiguous array restriction)
+            #   we must copy the padded part of the array first
+            sol_gpu = B_gpu[dom_shape[0]:,dom_shape[1]:].copy()
+            if api.gpuarray.max(sol_gpu) > negval:
+                # zero out the padded part of the solution and re-fft
+                B_gpu[dom_shape[0]:,dom_shape[1]:] = api.gpuarray.zeros(
+                (self.pad_shape-dom_shape,self.pad_shape-dom_shape),np.float32)
+                self.fft_proc(bcksol_hat_gpu,B_gpu,0)
+            
             sol_gpu = api.gpuarray.zeros_like(B_gpu)
+            
+            # Remove negligable values from reported real solution
             sol_gpu = api.gpuarray.if_positive(B_gpu>negval,
-                B_gpu,sol_gpu) #this might not work because sol_gpu on both sides?
+                B_gpu,sol_gpu)
                 
             # pull down current solution and add unpadded coo_matrix to list
             bcksol.append(sparse.coo_matrix(

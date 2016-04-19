@@ -27,10 +27,17 @@ def fft2(A,filt_shape):
     
 def ifft2(A_hat,Ashape):
     '''Return the ifft of A_hat truncated to Ashape as a coo matrix.
+    Also return a flag (True/False) that identifies if there are non-zero entries
+    beyond the established domain, indicating a new fft is needed to enforce
+    the zero boundary condition.
     
     This is the slowest function call.'''
-    
-    return sparse.coo_matrix(fftpack.ifft2(A_hat)[:Ashape[0],:Ashape[1]].real)
+    A = fftpack.ifft2(A_hat).real
+    if A[Ashape[0]:,Ashape[1]:].max() > 1e-8:
+        flag = True
+    else:
+        flag = False
+    return (sparse.coo_matrix(A[:Ashape[0],:Ashape[1]]),flag)
     
     
     
@@ -41,8 +48,8 @@ def fftconv2(A_hat,B):
         A_hat: fft array
         B: 2D sparse array, shape must be odd
         
-    Returns:
-        fft array, A_hat times the fft of B.
+    Modifies:
+        A_hat: fft array, prev A_hat times the fft of B.
     
     The work to be done in here is padding B appropriately, shifting
     B so that the center is at B[0,0] with wrap-around.'''
@@ -79,10 +86,10 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
     # store back solutions here in reverse chronological order
     bcksol = []
     bcksol_hat = np.array(cursol_hat)
+    pad_shape = cursol_hat.shape
     for B in prev_spread[::-1]:
         # Convolution
         mmid = np.array(B.shape)//2
-        pad_shape = cursol_hat.shape
         B_hat = np.zeros(pad_shape)
         B_hat[:mmid[0]+1,:mmid[1]+1] = B[mmid[0]:,mmid[1]:].toarray()
         B_hat[:mmid[0]+1,-mmid[1]:] = B[mmid[0]:,:mmid[1]].toarray()
@@ -91,8 +98,11 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
         B_hat = fftpack.fft2(B_hat)
         bcksol_hat = B_hat * bcksol_hat
         
-        # ifft and reduce
-        bcksol.append(ifft2(bcksol_hat,dom_shape))
+        # ifft and check boundary conditions
+        sol, bndry_flag = ifft2(bcksol_hat,dom_shape)
+        if bndry_flag:
+            bcksol_hat = fft2(sol,pad_shape)
+        bcksol.append(sol)
         
     # return list in emergence order
     return bcksol[::-1]
@@ -182,7 +192,11 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             fftconv2(cursol_hat,pmf_list[n+1].tocsr())
             # get real solution
             print('Finding ifft for day {0} and reducing...'.format(n+2))
-            modelsol.append(r_small_vals(ifft2(cursol_hat,[dom_len,dom_len])))
+            A,bndry_flag = ifft2(cursol_hat,[dom_len,dom_len])
+            modelsol.append(r_small_vals(A))
+            # if the boundary has been reached, re-fft to enforce zero-bndry
+            if bndry_flag:
+                cursol_hat = fft2(A,max_shape)
             
             
 
@@ -289,7 +303,10 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             fftconv2(cursol_hat,pmf_list[n+r_dur].tocsr())
             print('Finding ifft for day {0}...'.format(r_dur+n+1))
 
-            curmodelsol[-1] = ifft2(cursol_hat,[dom_len,dom_len])
+            curmodelsol[-1],bndry_flag = ifft2(cursol_hat,[dom_len,dom_len])
+            # if the boundary has been reached, re-fft to enforce zero-bndry
+            if bndry_flag:
+                cursol_hat = fft2(curmodelsol[-1],max_shape)
             # get solutions for previous release days and reduce
             curmodelsol[:-1] = back_solve(r_spread[:-1],cursol_hat,
                                             [dom_len,dom_len])
