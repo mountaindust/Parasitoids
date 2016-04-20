@@ -141,7 +141,7 @@ class CudaSolve():
         bcksol = []
         
         # start with the current solution
-        bcksol_hat_gpu = self.sol_hat_gpu.copy()
+        bcksol_hat_gpu = self.sol_hat_gpu
         
         for B in prev_spread[::-1]:
             # Get array shape information
@@ -162,7 +162,8 @@ class CudaSolve():
             
             # fft and backwards solution update
             self.fft_proc_c(B_gpu,B_gpu,0)
-            bcksol_hat_gpu = B_gpu * bcksol_hat_gpu
+            bcksol_hat_gpu = B_gpu * bcksol_hat_gpu #this does not appear to
+                                                    #   overwite self.sol_hat_gpu
             
             # ifft over B_gpu to free the space
             self.fft_proc_c(B_gpu,bcksol_hat_gpu,1)
