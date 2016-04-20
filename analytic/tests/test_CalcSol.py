@@ -89,7 +89,8 @@ def test_convolve_same(two_arrays):
     A_hat = CS.fft2(sparse.coo_matrix(A),fft_shape)
     # update A_hat with the fft convolution
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
-    C = CS.ifft2(A_hat,A.shape).toarray()
+    C,flag = CS.ifft2(A_hat,A.shape)
+    C = C.toarray()
     assert not np.iscomplexobj(C)
     assert np.allclose(C,signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
@@ -122,13 +123,15 @@ def test_back_solve(many_arrays):
     B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
     CS.fftconv2(B_hat,sparse.csr_matrix(C))
     CS.fftconv2(B_hat,sparse.csr_matrix(D))
-    BCD = CS.ifft2(B_hat,B.shape).toarray()
+    BCD,flag = CS.ifft2(B_hat,B.shape)
+    BCD = BCD.toarray()
     
     A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
     CS.fftconv2(A_hat,sparse.csr_matrix(C))
     CS.fftconv2(A_hat,sparse.csr_matrix(D))
-    ABCD = CS.ifft2(A_hat,A.shape).toarray()
+    ABCD,flag = CS.ifft2(A_hat,A.shape)
+    ABCD = ABCD.toarray()
 
     # there's periodic boundary issues here that still need to be addressed...
     assert np.allclose(bckCD[1].toarray(),BCD)
@@ -148,13 +151,15 @@ def test_cuda_back_solve(many_arrays):
     B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
     CS.fftconv2(B_hat,sparse.csr_matrix(C))
     CS.fftconv2(B_hat,sparse.csr_matrix(D))
-    BCD = CS.ifft2(B_hat,B.shape).toarray()
+    BCD,flag = CS.ifft2(B_hat,B.shape)
+    BCD = BCD.toarray()
     
     A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
     CS.fftconv2(A_hat,sparse.csr_matrix(C))
     CS.fftconv2(A_hat,sparse.csr_matrix(D))
-    ABCD = CS.ifft2(A_hat,A.shape).toarray()
+    ABCD,flag = CS.ifft2(A_hat,A.shape)
+    ABCD = ABCD.toarray()
     
     # there's periodic boundary issues here that still need to be addressed...
     # abs tolerance has to be jacked up here... it looks like roundoff errors
