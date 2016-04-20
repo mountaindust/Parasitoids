@@ -199,7 +199,7 @@ def plot_all(modelsol,params):
         rmax = max(np.fabs(sol_red.row-midpt).max(),
             np.fabs(sol_red.col-midpt).max())
         #construct xmesh and a masked solution array based on this
-        rmax = min(rmax+5,midpt) # add a bit of frame space
+        rmax = int(min(rmax+5,midpt)) # add a bit of frame space
         xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
             rmax*cell_dist+cell_dist/2,rmax*2+2)
         sol_fm = np.flipud(np.ma.masked_less(
@@ -293,7 +293,7 @@ def plot(sol,day,params,saveonly=None):
     #find the maximum distance from the origin
     rmax = max(np.fabs(sol_red.row-midpt).max(),np.fabs(sol_red.col-midpt).max())
     #construct xmesh and a masked solution array based on this
-    rmax = min(rmax+5,midpt) # add a bit of frame space
+    rmax = int(min(rmax+5,midpt)) # add a bit of frame space
     xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
         rmax*cell_dist+cell_dist/2,rmax*2+2)
     sol_fm = np.flipud(np.ma.masked_less(
@@ -399,7 +399,7 @@ def create_mp4(modelsol,params,filename):
         rmax = max(np.fabs(sol_red.row-midpt).max(),
                    np.fabs(sol_red.col-midpt).max())
         #construct xmesh and a masked solution array based on this
-        rmax = min(rmax+5,midpt) # add a bit of frame space
+        rmax = int(min(rmax+5,midpt)) # add a bit of frame space
         xmesh = np.linspace(-rmax*cell_dist-cell_dist/2,
             rmax*cell_dist+cell_dist/2,rmax*2+2)
         sol_fm = np.flipud(np.ma.masked_less(

@@ -31,7 +31,7 @@ class CudaSolve():
         A_pad[:A.shape[0],:A.shape[1]] = A.toarray().astype(np.float32)
 
         # allocate space on the gpu and send A there
-        self.sol_hat_gpu = thr.to_device(A_pad)
+        self.sol_hat_gpu = api.gpuarray.to_gpu(A_pad)
         
         # create compiled fft procedure
         fft_proc = fft.FFT(self.sol_hat_gpu)
@@ -79,7 +79,7 @@ class CudaSolve():
         B_pad[-mmid[0]:,:mmid[1]+1] = \
             B[:mmid[0],mmid[1]:].astype(np.float32).toarray()
 
-        B_gpu = thr.to_device(B_pad)
+        B_gpu = api.gpuarray.to_gpu(B_pad)
         if mem_print:
             print('GPU memory: free={0}, total={1}'.format(
                 api.cuda.mem_get_info()[0],api.cuda.mem_get_info()[1]))
@@ -104,14 +104,31 @@ class CudaSolve():
             np.dtype(np.float32).itemsize)*2
         
         # Assign temporary space for real and complex ifft and calculate
-        cursol_gpu_r = thr.array(self.pad_shape,dtype=np.float32)
-        cursol_gpu_i = thr.array(self.pad_shape,dtype=np.float32)
+        cursol_gpu_r = api.gpuarray.empty(self.pad_shape,dtype=np.float32)
+        cursol_gpu_i = api.gpuarray.empty(self.pad_shape,dtype=np.float32)
         self.ifft_proc_c(cursol_gpu_r,cursol_gpu_i,self.sol_hat_gpu,1)
         
         # Remove negligable values from reported real solution
         cursol_gpu_i.set(np.zeros(cursol_gpu_r.shape).astype(np.float32))
         cursol_gpu_red = api.gpuarray.if_positive(cursol_gpu_r>negval,
             cursol_gpu_r,cursol_gpu_i)
+            
+        # Check for non-zero entries outside of the domain shape
+        # We cannot do a max over a slice (non-contiguous array restriction), so
+        #   we must copy the padded part of cursol_gpu_red first
+        maxval = max(api.gpuarray.max(
+            cursol_gpu_red[dom_shape[0]:,dom_shape[1]:].copy()).get(),
+            api.gpuarray.max(
+            cursol_gpu_red[:dom_shape[0],dom_shape[1]:].copy()).get(),
+            api.gpuarray.max(
+            cursol_gpu_red[dom_shape[0]:,:dom_shape[1]].copy()).get())
+        if maxval > 0:
+            # zero out the padded part of the solution and re-fft
+            print('Re-fft')
+            self.sol_hat_gpu = api.gpuarray.zeros_like(self.sol_hat_gpu)
+            self.sol_hat_gpu[:dom_shape[0],:dom_shape[1]] = \
+                cursol_gpu_r[:dom_shape[0],:dom_shape[1]].copy().astype('complex64')
+            self.fft_proc_c(self.sol_hat_gpu,self.sol_hat_gpu,0)
 
 	    # pull down current solution and return unpadded coo_matrix
         return sparse.coo_matrix(
@@ -158,7 +175,7 @@ class CudaSolve():
             B_pad[-mmid[0]:,:mmid[1]+1] = \
                 B[:mmid[0],mmid[1]:].astype(np.float32).toarray()
             
-            B_gpu = thr.to_device(B_pad)
+            B_gpu = api.gpuarray.to_gpu(B_pad)
             
             # fft and backwards solution update
             self.fft_proc_c(B_gpu,B_gpu,0)
@@ -173,6 +190,23 @@ class CudaSolve():
             sol_gpu = api.gpuarray.zeros_like(B_gpu)
             sol_gpu = api.gpuarray.if_positive(B_gpu>negval,
                 B_gpu,sol_gpu) #this might not work because sol_gpu on both sides?
+                
+            # Check for non-zero entries outside of the domain shape
+            # We cannot do a max over a slice (non-contiguous array restriction)
+            #   We must copy the padded part of cursol_gpu_red first
+            maxval = max(api.gpuarray.max(
+                sol_gpu[dom_shape[0]:,dom_shape[1]:].copy()).get(),
+                api.gpuarray.max(
+                sol_gpu[:dom_shape[0],dom_shape[1]:].copy()).get(),
+                api.gpuarray.max(
+                sol_gpu[dom_shape[0]:,:dom_shape[1]].copy()).get())
+            if maxval > 0:
+                print('Re-fft')
+                # zero out the padded part of the solution and re-fft
+                bcksol_hat_gpu = api.gpuarray.zeros_like(bcksol_hat_gpu)
+                bcksol_hat_gpu[:dom_shape[0],:dom_shape[1]] = \
+                    B_gpu[:dom_shape[0],:dom_shape[1]].copy().astype('complex64')
+                self.fft_proc_c(bcksol_hat_gpu,bcksol_hat_gpu,0)
                 
             # pull down current solution and add unpadded coo_matrix to list
             bcksol.append(sparse.coo_matrix(
