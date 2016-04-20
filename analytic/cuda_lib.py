@@ -132,7 +132,7 @@ class CudaSolve():
             
 
         
-    def back_solve(self,prev_spread,dom_shape,negval=1e-8):    
+    def back_solve(self,prev_spread,dom_shape,mem_print=True,negval=1e-8):    
         '''For each filter in prev_spread, convolute progressively in reverse order.
         The number of arrays returned will be equal to len(prev_spread).
         The last filter in prev_spread will be applied first, and the result
@@ -200,5 +200,8 @@ class CudaSolve():
             bcksol.append(sparse.coo_matrix(
                 sol_gpu[:dom_shape[0],:dom_shape[1]].get()))
                 
+        if mem_print:
+            print('GPU memory: free={0}, total={1}'.format(
+                api.cuda.mem_get_info()[0],api.cuda.mem_get_info()[1]))
         # return list in chronological order
         return bcksol[::-1]

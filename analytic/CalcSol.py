@@ -277,7 +277,7 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             curmodelsol[-1] = gpu_solver.get_cursol([dom_len,dom_len])
             # get GPU solutions for previous release days
             curmodelsol[:-1] = gpu_solver.back_solve(r_spread[:-1],
-                                                     [dom_len,dom_len])
+                                                     [dom_len,dom_len],n==0)
             # get new population spread
             popmodel.append(r_small_vals(np.sum(curmodelsol[d]*dist(d+1)
                 for d in range(r_dur))*r_number).tocsr())
