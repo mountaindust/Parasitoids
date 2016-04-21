@@ -264,6 +264,7 @@ class Capturing(list):
 ###############################################################################
 
 def main():
+    '''Need to catch PM.BndsError and return a zero likelihood'''
 
     params = Params()
     # Set up location here with command line arguments in a list.

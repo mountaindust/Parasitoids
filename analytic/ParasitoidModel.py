@@ -374,9 +374,18 @@ def get_mvn_cdf_values(cell_length,mu,S):
         
     return cdf_mat
 
+
+
+class BndsError(Exception):
+    def __str__(self):
+        return 'Index error in calculating prob_mass.\n'+\
+            'Most likely, wind yields spread that goes off the domain'+\
+            ' in a single time period.'
     
-def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
-                start_time=None):
+    
+    
+def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
+                rad_dist,rad_res,start_time=None):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
@@ -387,6 +396,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
+        - Dlprams -- out-of-flow diffusion coefficients
         - mu_r -- parameter to scale distance vs. windspeed
         - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
@@ -407,6 +417,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
     hprob = h_flight_prob(day_wind, *hparams)
     
     S = Dmat(*Dparams) #get diffusion covarience matrix
+    Sl = Dmat(*Dlparams) # get out-of-flow diffusion covarience matrix
     
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
@@ -492,24 +503,19 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
         
         
         #approximate integral over time
-        # This try/except will probably need to be removed when we do the
-        #   Bayesian stuff. If things are flying clean off the map in a single
-        #   day, we want that to return a null result but not stop the program
-        try:
-            if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1]:
-                raise IndexError
-            pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
+        # Return a unique error if the domain is not big enough so that it can
+        # be handled in context.
+        if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
+            row_min < 0 or col_min < 0:
+            raise BndsError
+        pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat)
-        except IndexError:
-            print('Index error in calculating prob_mass.\n'+
-            'Most likely, wind is sending parasitoids clear off the domain'+
-            ' in a single time period.')
-            raise
+
 
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.
     # Add this probability to a distribution around the origin cell.
-    cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),S)
+    cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
     norm_r = int(cdf_mat.shape[0]/2)
     total_flight_prob = pmf.sum()
     pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \

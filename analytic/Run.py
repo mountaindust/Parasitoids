@@ -68,8 +68,10 @@ class Params():
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (6, 3, 18, 3)
-        # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
+        # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
         self.Dparams = (21.1,10.6,0)
+        # Out-of-flow diffusion coefficients
+        self.Dlparams = (21.1,10.6,0)
 
         ### general flight parameters
         # Probability of any flight during the day under ideal circumstances
@@ -301,6 +303,10 @@ class Params():
                 strinfo = val.strip('()').split(',')
                 self.Dparams = (float(strinfo[0]),float(strinfo[1]),
                     float(strinfo[2]))
+            elif arg == 'Dlparams':
+                strinfo = val.strip('()').split(',')
+                self.Dlparams = (float(strinfo[0]),float(strinfo[1]),
+                    float(strinfo[2]))
             elif arg == 'lam':
                 self.lam = float(val)
             elif arg == 'mu_r':
@@ -364,10 +370,11 @@ class Params():
     ########    Methods for getting function parameters    ########
         
     def get_model_params(self):
-        '''Return params in order necessary to run model, 
+        '''Return params in order of ParasitoidModel.prob_mass signature, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
-        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)       
+        return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.n_periods,
+            *self.domain_info)  
         
         
     def get_wind_params(self):
