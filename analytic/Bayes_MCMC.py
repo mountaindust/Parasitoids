@@ -73,7 +73,8 @@ class LocInfo():
         # First two columns are x,y locations from release in meters.
         # Change to row,col locations
         self.grid_cells = np.array([-self.grid_data[:,1],self.grid_data[:,0]])
-        self.grid_cells = np.around(self.grid_cells/res) + domain_info[1]
+        self.grid_cells = (np.around(self.grid_cells/res) + 
+                            domain_info[1]).astype(int)
         # Alias sampling effort in each grid cell
         self.grid_samples = self.grid_data[:,3]
         # Alias collection effort
