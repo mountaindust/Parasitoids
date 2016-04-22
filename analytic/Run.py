@@ -112,7 +112,7 @@ class Params():
             self.coord = (-24.851614,113.731267)
             ### release information
             # release duration (days)
-            self.r_dur = 12
+            self.r_dur = 5
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
@@ -126,7 +126,7 @@ class Params():
             self.coord = (-27.945752,152.58474)
             ### release information
             # release duration (days)
-            self.r_dur = 3
+            self.r_dur = 2
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
