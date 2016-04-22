@@ -35,6 +35,6 @@ def test_get_fields(field_info):
     filename += 'fields.txt'
     polys = Bayes.get_fields(filename,center)
     # polys should be a list of Path objects
-    assert type(polys) is list
-    assert type(polys[0]) is Path
-    assert len(polys) == 7
+    assert type(polys) is dict
+    assert type(list(polys.values())[0]) is Path
+    assert len(polys.keys()) == 7

@@ -40,7 +40,7 @@ def main():
     ax.axis(plot_limits)
     ax.imshow(sat_img,zorder=0,extent=plot_limits)
     # attach the emergence field paths to PathPatch and add to plot
-    for poly in locinfo.field_polys:
+    for poly in locinfo.field_polys.values():
         ax.add_patch(patches.PathPatch(poly,facecolor='none',edgecolor='r',lw=2))
         
     # we should probably plot the cells here too to make sure they match.
@@ -50,7 +50,7 @@ def main():
     #clrmp.set_bad(alpha=0)
     
     grayvals = np.zeros((dom_len,dom_len))
-    for field in locinfo.field_cells:
+    for field in locinfo.field_cells.values():
         for r,c in field:
             grayvals[r,c] = 0.5
     cell_locs = np.flipud(np.ma.masked_values(grayvals,0))

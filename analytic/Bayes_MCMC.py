@@ -97,12 +97,15 @@ def get_fields(filename,center):
     '''This function reads in polygon data from a file which describs boundaries
     of the fields that make up each collection site. The polygon data is in the
     form of lists of vertices, the locations of which are given in x,y
-    coordinates away from the release point. This function then returns a list
+    coordinates away from the release point. This function then returns a dict
     of matplotlib Path objects which allow point testing for inclusion.
     
     Args:
         filename: file name to open
-        center: lat/long coord of the release point'''
+        center: lat/long coord of the release point
+        
+    Returns:
+        polys: dict of Path objects'''
     
     def latlong_tocoord(center,lat,long):
         '''Translate a lat/long coordinate into an (x,y) coordinate pair where
@@ -123,31 +126,17 @@ def get_fields(filename,center):
         lat = math.radians(lat)
         long = math.radians(long)
         
-        # # Haversine formula
-        # a = math.sin((lat-o_lat)/2)**2 + math.cos(lat)*math.cos(o_lat)*\
-            # math.sin((long-o_long)/2)**2
-        # c = 2*math.atan2(math.sqrt(a),math.sqrt(1-a))
-        # dist = R*c
-        
-        # # Bearing
-        # bear = math.atan2(math.sin(long-o_long)*math.cos(lat),
-            # math.cos(o_lat)*math.sin(lat)-math.sin(o_lat)*math.cos(lat)*
-            # math.cos(long-o_long))
-        
-        # # Approximation based on straight line from bearing
-        # x = dist*math.cos(bear)
-        # y = dist*math.sin(bear)
-        
         # Equirectangular approximation
         x = R*(long-o_long)*math.cos((o_lat+lat)/2)
         y = R*(lat-o_lat)
         
         return (x,y)
     
-    polys = []
+    polys = {}
     with open(filename,'r') as f:
         verts = []
         codes = []
+        id = None
         for line in f:
             # deal with possible comments
             c_ind = line.find('#')
@@ -158,23 +147,29 @@ def get_fields(filename,center):
                     # end of current polygon. convert into Path object.
                     verts.append((0.,0.)) # ignored
                     codes.append(Path.CLOSEPOLY)
-                    polys.append(Path(verts,codes))
+                    polys[id] = Path(verts,codes)
                     verts = []
                     codes = []
+                    id = None
             else:
                 # parse the data
-                vals = line.split(',')
-                verts.append(latlong_tocoord(
-                            center,float(vals[0]),float(vals[1])))
-                if len(codes) == 0:
-                    codes.append(Path.MOVETO)
+                if id is None:
+                    # expect a field identifier first
+                    id = line
                 else:
-                    codes.append(Path.LINETO)
+                    vals = line.split(',')
+                    
+                    verts.append(latlong_tocoord(
+                                center,float(vals[0]),float(vals[1])))
+                    if len(codes) == 0:
+                        codes.append(Path.MOVETO)
+                    else:
+                        codes.append(Path.LINETO)
     # Convert the last polygon into a Path object if not already done
     if len(verts) != 0:
         verts.append((0.,0.)) # ignored
         codes.append(Path.CLOSEPOLY)
-        polys.append(Path(verts,codes))
+        polys[id] = Path(verts,codes)
         
     return polys
     
@@ -184,22 +179,22 @@ def get_field_cells(polys,domain_info):
     '''Get a list of lists of cell indices that represent each field.
     
     Args:
-        polys: List of Path objects representing each field
+        polys: Dict of Path objects representing each field
         domain_info: (dist (m), cells) from release point to side of domain
                         (as in the Run.Params class)
                         
     Returns:
-        fields: list with each sublist representing a field of cells'''
+        fields: dict containing lists (fields) cells indices'''
     
-    fields = []
+    fields = {}
     res = domain_info[0]/domain_info[1] #cell resolution
     # construct a list of all x,y coords (in meters) for the center of each cell
     centers = [(col*res,row*res) for row in range(domain_info[1],-domain_info[1]-1,-1)
                             for col in range(-domain_info[1],domain_info[1]+1)]
-    for poly in polys:
-        fields.append(np.argwhere(
+    for id,poly in polys.items():
+        fields[id] = np.argwhere(
             poly.contains_points(centers).reshape(
-            domain_info[1]*2+1,domain_info[1]*2+1)))
+            domain_info[1]*2+1,domain_info[1]*2+1))
     
     # fields is row,col information assuming the complete domain.
     return fields
