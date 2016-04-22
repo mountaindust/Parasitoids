@@ -16,6 +16,7 @@ import sys, os, time, math
 from io import StringIO
 from multiprocessing import Pool
 import numpy as np
+import pandas as pd
 from scipy import sparse
 from matplotlib.path import Path
 import pymc as pm
@@ -37,26 +38,45 @@ class LocInfo():
     
     def __init__(self,location,release_latlong,domain_info):
         '''
-        Args: location: required string giving the location name.
-                All data files must be stored in ./data with the proper 
-                naming convention
-              domain_info: Run.Params.domain_info
-              release_latlong: lat/long coord of the release poin.'''
+        Args: 
+            location: required string giving the location name.
+                        All data files must be stored in ./data with the proper 
+                        naming convention (see below)
+            release_latlong: lat/long coord of the release point
+            domain_info: Run.Params.domain_info
+        '''
         
-        # Import sentinal field locations
+        ##### Import sentinal field locations from text file #####
+        # Field labels should match those used in the emergence data 
         self.field_polys = get_fields('./data/'+location+'fields.txt',
-            release_latlong)
-        # Convert to cell indices
+            release_latlong) # this is a dict. keys are field labels
+        # Convert to dict of cell indices
         self.field_cells = get_field_cells(self.field_polys,domain_info)
                 
-        # Import release field grid
-        self.grid_data = get_release_grid('./data/'+location+'releasegrid.txt')
-        # Parse the columns in the field grid data
-        #   This sets up:
-        #   self.grid_cells, self.grid_samples, self.grid_collection
-        self.parse_grid_data(domain_info)
-        # Here import all emergence data
+        ##### Import release field grid from text file #####
+        # This is just a raw data import. self.grid_data is a numpy array
+        self.grid_data = ('./data/'+location+'releasegrid.txt')
         
+        ##### Parse the columns in the field grid data #####
+        #   Please see/edit method implementation for particulars.
+        #   This initializes the following properties:
+        #       self.grid_cells
+        #       self.grid_samples
+        #       self.grid_collection
+        self.parse_grid_data(domain_info)
+        
+        ##### Oviposition to emergence time #####
+        # For now, assume this is a constant
+        self.incubation_time = 15 # days (Average of 16 & 14)
+        
+        ##### Import and parse sentinel field emergence data #####
+        #   What this section looks like will be highly dependent on the 
+        #       particulars of your dataset - every dataset is different.
+        #       Fire up pandas in an ipython notebook and play with your data
+        #       until you have what you need. Then put that procedure in the
+        #       following method. What the method needs to accomplish is detailed
+        #       in its docstring.
+        self.get_sentinel_emergence(location)
 
         pass
         
@@ -80,12 +100,66 @@ class LocInfo():
         # Alias collection effort
         self.grid_collection = self.grid_data[:,4:]
         
-    def get_landscape_sample_datesPR(self):
-        pass
+    def get_sentinel_emergence(self,location):
+        '''Get data relating to sentinel field emergence observations.
+        This implementation will need to change completely according to the
+            structure of your dataset. Parsing routines for multiple locations'
+            data can be stored here - just extend the if-then clause based on
+            the value of the location argument.
+        WHAT IS REQURIED:
+            self.release_date: pandas Timestamp of release date (no time of day)
+            self.sent_DataFrames: a list of pandas DataFrames, one for each
+                                    collection date.
+        EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
+            id: Field indentifier that matches the keys in self.field_cells
+            datePR: Num of days the emergence occured post-release (dtype=Timedelta)
+            E_total: Total number of wasp emergences in that field on that date
+            All_total: Total number of all emergences in that field on that date
+                        (this will later be summed to obtain emergences per
+                         field/collection)
+        '''
         
-    def get_landscape_emergence_data(self):
-        '''2D array of dates and locations'''
-        pass
+        if location == 'kalbar':
+            # location of data excel file
+            data_loc = 'data/sampling_details.xlsx'
+            # date of release (as a pandas TimeStamp, year-month-day)
+            #   (leave off time of release)
+            self.release_date = pd.Timestamp('2005-03-15')
+            # list of sentinel field collection dates (as pandas TimeStamps)
+            self.sent_collection_dates = [pd.Timestamp('2005-05-31')]
+            # initialize list of sentinel emergence DataFrames
+            self.sent_DataFrames = []
+            
+            ### Pandas
+            # load the sentinel fields sheet
+            sentinel_fields_data = pd.read_excel(
+                                    data_loc,sheetname='Kal-sentinels-raw')
+            # rename the headings with spaces in them
+            sentinel_fields_data.rename(
+                    columns={"Field descrip":"descrip","date emerged":"date", 
+                            "Field ID (jpgs)": "id",
+                            "Field ID (paper)":"paperid"}, inplace=True)
+            sentinel_fields_data.drop('descrip',1,inplace=True)
+            sentinel_fields_data.drop('paperid',1,inplace=True)
+            sentinel_fields_data.sort_values(['id','date'], inplace=True)
+            # get sum of all the emergences
+            col_list = list(sentinel_fields_data)
+            for name in ['id','date']:
+                col_list.remove(name)
+            sentinel_fields_data['All_total'] = \
+                        sentinel_fields_data[col_list].sum(axis=1)
+            # get the number of E Hayati emergences per day
+            sentinel_fields_data['E_total'] = \
+                        sentinel_fields_data[['Efemales','Emales']].sum(axis=1)
+            # get the dates post-release
+            sentinel_fields_data['datePR'] = \
+                        sentinel_fields_data['date'] - self.release_date
+                        
+            ### Store DataFrame in list
+            self.sent_DataFrames.append(sentinel_fields_data)
+            
+        else:
+            raise NotImplementedError
         
     def get_sampling_effort(self):
         '''2D array of dates and locations'''
