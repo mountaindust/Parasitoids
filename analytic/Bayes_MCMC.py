@@ -295,12 +295,16 @@ def main():
     sig_x = pm.Gamma("sig_x",6,1)
     sig_y = pm.Gamma("sig_y",6,1)
     corr = pm.Uniform("rho",-1,1)
+    sig_x_l = pm.Gamma("sig_x",6,1)
+    sig_y_l = pm.Gamma("sig_y",6,1)
+    corr_l = pm.Uniform("rho",-1,1)
     mu_r = pm.Normal("mu_r",1.5,1/0.75**2)
     #n_periods = pm.Poisson("t_dur",10)
         
     @pm.deterministic
     def params_obj(params=params,g_aw=g_aw,g_bw=g_bw,f_a1=f_a1,f_b1=f_b1,
-        f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,lam=lam,mu_r=mu_r):
+        f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,
+        sig_x_l=sig_x_l,sig_y_l=sig_y_l,corr_l=corr_l,lam=lam,mu_r=mu_r):
         '''Return altered parameter object to be passed in to simulation'''
         
         # g wind function parameters
@@ -309,6 +313,7 @@ def main():
         params.f_params = (f_a1,f_b1,f_a2,f_b2)
         # Diffusion coefficients
         params.Dparams = (sig_x,sig_y,corr)
+        params.Dlparams = (sig_x_l,sig_y_l,corr_l)
         # Probability of any flight during the day under ideal circumstances
         params.lam = lam
         
