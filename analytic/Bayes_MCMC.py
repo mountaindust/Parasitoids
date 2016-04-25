@@ -53,25 +53,21 @@ class LocInfo():
         # Convert to dict of cell indices
         self.field_cells = get_field_cells(self.field_polys,domain_info)
                 
-        ##### Import release field grid from text file #####
-        # This is just a raw data import. self.grid_data is a numpy array.
-        # It contains the following columns (in order):
+        ##### Import and parse release field grid #####
+        #   What this looks like depends on your data. See implementation of
+        #       self.get_release_grid for details.
+        #   grid_data contains the following columns (in order):
         #       xcoord: distance east from release point in meters
         #       ycoord: distance north from release point in meters
-        #       others
-        # Something in the other loaded columns needs to give an indication of
-        #   the sampling (direct observation) effort, to be parsed and stored in
-        #   self.grid_samples, and the collection (for later emergence) effort,
-        #   to be parsed and stored in self.grid_collection.
-        self.grid_data = get_release_grid('./data/'+location+'releasegrid.txt')
-        
-        ##### Parse the columns in the field grid data #####
-        #   Please see/edit method implementation for particulars.
-        #   This initializes the following properties:
-        #       self.grid_cells
+        #   Initializes:
         #       self.grid_samples
         #       self.grid_collection
-        self.parse_grid_data(domain_info)
+        grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
+        # Get row/column indices from xcoord and ycoord in grid_data
+        res = domain_info[0]/domain_info[1] # cell length in meters
+        self.grid_cells = np.array([-grid_data[:,1],grid_data[:,0]])
+        self.grid_cells = (np.around(self.grid_cells/res) + 
+                            domain_info[1]).astype(int)
         
         ##### Oviposition to emergence time #####
         # For now, assume this is a constant
@@ -93,26 +89,60 @@ class LocInfo():
         #   Again, highly dependent on what your dataset looks like. See method
         #       docstring for details.
         self.get_releasefield_emergence(location)
+        # Get row/column indices from xcoord and ycoord
+        for dframe in self.release_DataFrames:
+            dframe['row'] = ((-dframe['ycoord']/res).round(0) +
+                domain_info[1]).astype(int)
+            dframe['column'] = ((dframe['xcoord']/res).round(0) +
+                domain_info[1]).astype(int)
+                
+    def get_release_grid(self,filename):
+        '''Read in data on the release field's grid and sampling effort.
+        This will need to be edited depending on what your data looks like.
+        Data is expected to contain info about the data collection points in the
+            release field. Something in the other loaded columns needs to give
+            an indication of the sampling (direct observation) effort, to be 
+            parsed and stored in self.grid_samples, and the collection 
+            (for later emergence) effort, to be parsed and stored in 
+            self.grid_collection.
         
-    def parse_grid_data(self,domain_info):
-        '''This might need to be edited depending on what your data looks like.
-        
-        Grid cells are returned in row,col form assuming a complete domain array
+        Sets:
+            self.grid_samples: sampling effort in each grid cell
+            self.grid_collection: emergence leaf collection effort
+            
+        Returns:
+            2D array of x,y grid point coordinates in meters away from the 
+                release point. Each row is a point; col 0 is x, col 1 is y.
         '''
-        res = domain_info[0]/domain_info[1] # cell length in meters
-        # In this implementation, I'm just going to assume that the area sampled
-        #   is smaller than the domain discretization. Thus, I'll just pick off
-        #   the cell where the collection was centered.
         
-        # First two columns are x,y locations from release in meters.
-        # Change to row,col locations
-        self.grid_cells = np.array([-self.grid_data[:,1],self.grid_data[:,0]])
-        self.grid_cells = (np.around(self.grid_cells/res) + 
-                            domain_info[1]).astype(int)
+        grid_data = []
+        with open(filename,'r') as f:
+            for line in f:
+                #deal with possible comments
+                c_ind = line.find('#')
+                if c_ind >= 0:
+                    line = line[:c_ind]
+                if line.strip() != '':
+                    #non-empty line. parse data
+                    dat_list = line.split(',')
+                    line_data = []
+                    for dat in dat_list:
+                        line_data.append(float(dat))
+                    grid_data.append(line_data)
+        # try to convert to numpy array
+        grid_data = np.array(grid_data)
+        # if no data is missing, this will have dim=2
+        assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
+            'Likely, a line in {} is incomplete.'.format(filename)
+            
+        ### Now parse the data and return the x,y coordinates
         # Alias sampling effort in each grid cell
-        self.grid_samples = self.grid_data[:,3]
+        self.grid_samples = grid_data[:,3]
         # Alias collection effort
-        self.grid_collection = self.grid_data[:,4:]
+        self.grid_collection = grid_data[:,4]
+        return grid_data[:,:2]
+        
+
         
     def get_sentinel_emergence(self,location):
         '''Get data relating to sentinel field emergence observations.
@@ -346,34 +376,6 @@ def get_field_cells(polys,domain_info):
     
     # fields is row,col information assuming the complete domain.
     return fields
-
-
-
-def get_release_grid(filename):
-    '''Read in the data on the release field's grid and number of leaves sampled
-    '''
-    
-    grid_data = []
-    with open(filename,'r') as f:
-        for line in f:
-            #deal with possible comments
-            c_ind = line.find('#')
-            if c_ind >= 0:
-                line = line[:c_ind]
-            if line.strip() != '':
-                #non-empty line. parse data
-                dat_list = line.split(',')
-                line_data = []
-                for dat in dat_list:
-                    line_data.append(float(dat))
-                grid_data.append(line_data)
-    # try to convert to numpy array
-    grid_data = np.array(grid_data)
-    # if no data is missing, this will have dim=2
-    assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
-        'Likely, a line in {} is incomplete.'.format(filename)
-        
-    return grid_data
             
     
     
