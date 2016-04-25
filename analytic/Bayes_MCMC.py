@@ -54,8 +54,16 @@ class LocInfo():
         self.field_cells = get_field_cells(self.field_polys,domain_info)
                 
         ##### Import release field grid from text file #####
-        # This is just a raw data import. self.grid_data is a numpy array
-        self.grid_data = ('./data/'+location+'releasegrid.txt')
+        # This is just a raw data import. self.grid_data is a numpy array.
+        # It contains the following columns (in order):
+        #       xcoord: distance east from release point in meters
+        #       ycoord: distance north from release point in meters
+        #       others
+        # Something in the other loaded columns needs to give an indication of
+        #   the sampling (direct observation) effort, to be parsed and stored in
+        #   self.grid_samples, and the collection (for later emergence) effort,
+        #   to be parsed and stored in self.grid_collection.
+        self.grid_data = get_release_grid('./data/'+location+'releasegrid.txt')
         
         ##### Parse the columns in the field grid data #####
         #   Please see/edit method implementation for particulars.
@@ -76,9 +84,15 @@ class LocInfo():
         #       until you have what you need. Then put that procedure in the
         #       following method. What the method needs to accomplish is detailed
         #       in its docstring.
+        #   Initializes:
+        #       self.release_data
+        #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
 
-        pass
+        ##### Import and parse release field emergence data #####
+        #   Again, highly dependent on what your dataset looks like. See method
+        #       docstring for details.
+        self.get_releasefield_emergence(location)
         
     def parse_grid_data(self,domain_info):
         '''This might need to be edited depending on what your data looks like.
@@ -126,7 +140,7 @@ class LocInfo():
             #   (leave off time of release)
             self.release_date = pd.Timestamp('2005-03-15')
             # list of sentinel field collection dates (as pandas TimeStamps)
-            self.sent_collection_dates = [pd.Timestamp('2005-05-31')]
+            #self.sent_collection_dates = [pd.Timestamp('2005-05-31')]
             # initialize list of sentinel emergence DataFrames
             self.sent_DataFrames = []
             
@@ -161,12 +175,72 @@ class LocInfo():
         else:
             raise NotImplementedError
         
+    def get_releasefield_emergence(self,location):
+        '''Get data relating to release field emergence observations.
+        This implementation will need to change completely according to the
+            structure of your dataset. Parsing routines for multiple locations'
+            data can be stored here - just extend the if-then clause based on
+            the value of the location argument.
+        WHAT IS REQURIED:
+            self.releasefield_id: identifier matching the release field key
+                                    in the dict self.field_cells
+            self.release_DataFrames: a list of pandas DataFrames, one for each
+                                    collection date.
+        EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
+            xcoord: distance east from release point in meters (grid collection point)
+            ycoord: distance north from release point in meters (grid collection point)
+            datePR: Num of days the emergence occured post-release (dtype=Timedelta)
+            E_total: Total number of wasp emergences in that field on that date
+            All_total: Total number of all emergences in that field on that date
+                        (this will later be summed to obtain emergences per
+                         field/collection)
+        '''
+        
+        if location == 'kalbar':
+            # location of data excel file
+            data_loc = 'data/sampling_details.xlsx'
+            # release field id
+            self.releasefield_id = 'A'
+            # initialize list of sentinel emergence DataFrames
+            self.release_DataFrames = []
+            
+            ### Pandas
+            # load the sentinel fields sheet
+            release_field_data = pd.read_excel(
+                                    data_loc,sheetname='Kal-releasefield-raw')
+            # in our data, North was on the left of the grid. So switch coordinates
+            release_field_data['temp'] = release_field_data['xcoord']
+            release_field_data['xcoord'] = release_field_data['ycoord']
+            # need to flip orientation
+            release_field_data['ycoord'] = -release_field_data['temp']
+            release_field_data.drop('temp',1,inplace=True)
+            # put release point at the origin
+            release_field_data['ycoord'] += 300
+            release_field_data['xcoord'] -= 200
+            col_list = list(release_field_data)
+            for name in ['Field','xcoord','ycoord','date emerged']:
+                col_list.remove(name)
+            release_field_data['All_total'] = \
+                release_field_data[col_list].sum(axis=1)
+            release_field_data['E_total'] = \
+                release_field_data[['Efemales','Emales']].sum(axis=1)
+            release_field_data['datePR'] = \
+                release_field_data['date emerged'] - self.release_date
+                
+            ### Store DataFrame in list
+            self.release_DataFrames.append(release_field_data)
+            
+        else:
+            raise NotImplementedError
+
+    
+
     def get_sampling_effort(self):
         '''2D array of dates and locations'''
         pass
-
-
-
+    
+    
+    
 def get_fields(filename,center):
     '''This function reads in polygon data from a file which describs boundaries
     of the fields that make up each collection site. The polygon data is in the
