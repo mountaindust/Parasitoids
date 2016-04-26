@@ -8,8 +8,10 @@ snippets/
 config.txt
 
 # Raw data
-*.xlsx
 *.ods
+
+# Autobackup files
+~*
 
 # Profile output
 *.prof

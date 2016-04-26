@@ -68,10 +68,7 @@ class LocInfo():
         self.grid_cells = np.array([-grid_data[:,1],grid_data[:,0]])
         self.grid_cells = (np.around(self.grid_cells/res) + 
                             domain_info[1]).astype(int)
-        
-        ##### Oviposition to emergence time #####
-        # For now, assume this is a constant
-        self.incubation_time = 15 # days (Average of 16 & 14)
+        # self.grid_cells is now transposed: row 0 = row index, row 1 = col index
         
         ##### Import and parse sentinel field emergence data #####
         #   What this section looks like will be highly dependent on the 
@@ -81,20 +78,34 @@ class LocInfo():
         #       following method. What the method needs to accomplish is detailed
         #       in its docstring.
         #   Initializes:
-        #       self.release_data
+        #       self.release_date
+        #       self.collection_dates
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
 
         ##### Import and parse release field emergence data #####
         #   Again, highly dependent on what your dataset looks like. See method
         #       docstring for details.
+        #   Initializes:
+        #       self.releasefield_id
+        #       self.release_DataFrames
         self.get_releasefield_emergence(location)
-        # Get row/column indices from xcoord and ycoord
+        # Further parsing
+        self.emerg_grids = []
         for dframe in self.release_DataFrames:
+            # Get row/column indices from xcoord and ycoord
             dframe['row'] = ((-dframe['ycoord']/res).round(0) +
                 domain_info[1]).astype(int)
             dframe['column'] = ((dframe['xcoord']/res).round(0) +
                 domain_info[1]).astype(int)
+            # Sort the dataframes so that as one loops over the days, the row/col
+            #   info will occur in the same order.
+            dframe.sort_values(['datePR','row','column'],inplace=True)
+            # Get the grid points that were collected
+            oneday = dframe['datePR'] == dframe['datePR'].min()
+            self.emerg_grids.append(zip(dframe['row'][oneday].values,
+                                        dframe['col'][oneday].values))
+            
                 
     def get_release_grid(self,filename):
         '''Read in data on the release field's grid and sampling effort.
@@ -142,8 +153,6 @@ class LocInfo():
         self.grid_collection = grid_data[:,4]
         return grid_data[:,:2]
         
-
-        
     def get_sentinel_emergence(self,location):
         '''Get data relating to sentinel field emergence observations.
         This implementation will need to change completely according to the
@@ -152,6 +161,7 @@ class LocInfo():
             the value of the location argument.
         WHAT IS REQURIED:
             self.release_date: pandas Timestamp of release date (no time of day)
+            self.collection_dates: a list of Timestamp collection dates
             self.sent_DataFrames: a list of pandas DataFrames, one for each
                                     collection date.
         EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
@@ -169,6 +179,8 @@ class LocInfo():
             # date of release (as a pandas TimeStamp, year-month-day)
             #   (leave off time of release)
             self.release_date = pd.Timestamp('2005-03-15')
+            # dates of collection as a list of TimeStamps
+            self.collection_dates = [pd.Timestamp('2005-03-31')]
             # list of sentinel field collection dates (as pandas TimeStamps)
             #self.sent_collection_dates = [pd.Timestamp('2005-05-31')]
             # initialize list of sentinel emergence DataFrames
@@ -216,6 +228,8 @@ class LocInfo():
                                     in the dict self.field_cells
             self.release_DataFrames: a list of pandas DataFrames, one for each
                                     collection date.
+            (Note: we assume the collection dates are the same as for the
+                sentinel fields)
         EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
             xcoord: distance east from release point in meters (grid collection point)
             ycoord: distance north from release point in meters (grid collection point)
@@ -262,8 +276,6 @@ class LocInfo():
             
         else:
             raise NotImplementedError
-
-    
 
     def get_sampling_effort(self):
         '''2D array of dates and locations'''
@@ -377,6 +389,69 @@ def get_field_cells(polys,domain_info):
     # fields is row,col information assuming the complete domain.
     return fields
             
+    
+    
+###############################################################################
+#                                                                             #
+#                         Supporting functions                                #
+#                                                                             #
+###############################################################################
+    
+def popdensity_to_emergence(modelsol,locinfo):
+    '''Translate population model to corresponding expected emergence dates per
+    wasp assuming it oviposits on each date in the model.
+    Only use the locations in which data was actually collected.
+    '''
+    
+    # Assume collections are done at the end of the day.
+    
+    ### Oviposition to emergence time ###
+    # For now, assume this is a constant
+    incubation_time = 15 # days (Average of 16 & 14)
+    
+    ### First consider release field grid ###
+    release_emerg = []
+    for dframe in locinfo.release_DataFrames:
+        # Each dataframe should be sorted already, 'datePR','row','column'.
+        # Also, the grid for each collection is stored in the list
+        #   locinfo.emerg_grids
+        
+        dframe_min = dframe['datePR'].min().days
+        dframe_max = dframe['datePR'].max().days
+        
+        # For each collection, find the earliest and latest oviposition date PR 
+        #   that we need to consider. 0 = end of release day.
+        start_day = max(dframe_min - incubation_time,0)
+        last_day = (locinfo.collection_dates[n] - locinfo.release_date).days
+        # Go through each feasible days of the model, projecting emergence
+        emerg_proj = np.zeros((len(locinfo.emerg_grids[n]), 
+            dframe_max + 1 - dframe_min))
+        #emerg_proj holds each grid point in its rows and a different emergence
+        #   day in its columns. These days start at dframe_min
+        #   and go to dframe_max
+        # We need to have already converted the dataframes to something
+        #   that can be quickly compared to whatever comes out here...
+        for day in range(start_day,last_day+1):
+            n = 0
+            for r,c in locinfo.emerg_grids[n]:
+                # project forward and store.
+                # This function can be more complicated if we want to try and
+                #   be more precise
+                emerg_proj[n,max(day+incubation_time-dframe_min,0)] = \
+                    modelsol[day][r,c]
+                n += 1
+        # now consolidate these days into just the days data was collected.
+        # first, get unique dates
+        collection_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+        modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[n]),
+                                        len(collection_datesPR)))
+        col_indices = collection_datesPR - dframe_min
+        modelsol_grid_emerg[:,0] = emerg_proj[:,0]
+        for n,col in enumerate(col_indices[1:]):
+            col_last = col_indices[n]
+            modelsol_grid_emerg[n+1] = emerg_proj[col_last+1:col+1].sum(axis=1)
+        release_emerg.append(modelsol_grid_emerg)
+    
     
     
 class Capturing(list):
@@ -514,7 +589,7 @@ def main():
             modelsol = get_populations(r_spread,pmf_list,days,params.ndays,dom_len,
                         max_shape,params.r_dur,params.r_number,params.r_mthd())
         
-        # modelsol now holds the model results for this run
+        # modelsol now holds the model results for this run as CSR sparse arrays
         return modelsol
         
 
