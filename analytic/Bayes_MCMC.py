@@ -110,6 +110,34 @@ class LocInfo():
             oneday = dframe['datePR'] == dframe['datePR'].min()
             self.emerg_grids.append(zip(dframe['row'][oneday].values,
                                         dframe['col'][oneday].values))
+                                        
+        ##### Gather data in a form that can be quickly compared to the #####
+        #####   output of popdensity_to_emergence                       #####
+        # Want two lists: release_emerg and sentinel_emerg
+        # Rows are locations, columns are days
+        self.release_emerg = []
+        self.release_emerg_total = [] #all emergence observations summed
+        self.sentinel_emerg = []
+        self.sentinel_emerg_total = []
+        for dframe in self.release_DataFrames:
+            obs_datesPR = dframe['datePR'].unique()
+            E_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
+            All_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
+            for ndate,date in enumerate(obs_datesPR):
+                E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
+                All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
+            self.release_emerg.append(E_array)
+            self.release_emerg_total.append(All_array)
+        for dframe in self.sent_DataFrames:
+            obs_datesPR = dframe['datePR'].unique()
+            E_array = np.zeros((len(self.sent_ids),len(obs_datesPR)))
+            All_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
+            for ndate,date in enumerate(obs_datesPR):
+                E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
+                All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
+            self.sentinel_emerg.append(E_array)
+            self.sentinel_emerg_all.append(All_array)
+        
             
                 
     def get_release_grid(self,filename):
