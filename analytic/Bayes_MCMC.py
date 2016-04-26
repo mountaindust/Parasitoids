@@ -82,6 +82,9 @@ class LocInfo():
         #       self.collection_dates
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
+        # Sort
+        for dframe in self.sent_DataFrames:
+            dframe.sort_values(['datePR','id'],inplace=True)
 
         ##### Import and parse release field emergence data #####
         #   Again, highly dependent on what your dataset looks like. See method
@@ -411,47 +414,75 @@ def popdensity_to_emergence(modelsol,locinfo):
     
     ### First consider release field grid ###
     release_emerg = []
-    for dframe in locinfo.release_DataFrames:
+    for nframe,dframe in enumerate(locinfo.release_DataFrames):
         # Each dataframe should be sorted already, 'datePR','row','column'.
         # Also, the grid for each collection is stored in the list
-        #   locinfo.emerg_grids
-        
+        #   locinfo.emerg_grids.
+        # Find the min and max emergence observation dates PR.
         dframe_min = dframe['datePR'].min().days
         dframe_max = dframe['datePR'].max().days
         
-        # For each collection, find the earliest and latest oviposition date PR 
-        #   that we need to consider. 0 = end of release day.
-        start_day = max(dframe_min - incubation_time,0)
-        last_day = (locinfo.collection_dates[n] - locinfo.release_date).days
-        # Go through each feasible days of the model, projecting emergence
-        emerg_proj = np.zeros((len(locinfo.emerg_grids[n]), 
-            dframe_max + 1 - dframe_min))
-        #emerg_proj holds each grid point in its rows and a different emergence
-        #   day in its columns. These days start at dframe_min
-        #   and go to dframe_max
-        # We need to have already converted the dataframes to something
-        #   that can be quickly compared to whatever comes out here...
-        for day in range(start_day,last_day+1):
-            n = 0
-            for r,c in locinfo.emerg_grids[n]:
-                # project forward and store.
-                # This function can be more complicated if we want to try and
-                #   be more precise
-                emerg_proj[n,max(day+incubation_time-dframe_min,0)] = \
-                    modelsol[day][r,c]
+        ### Find the earliest and latest oviposition date PR that we need to ###
+        ### consider for this collection. 0 = end of release day.            ###
+        # This is dependent on how incubation time is defined
+        start_day = max(dframe_min - incubation_time,0) # days post release!
+        ########################################################################
+        
+        # The last day oviposition is possible is always on the day of collection
+        last_day = (locinfo.collection_dates[nframe]-locinfo.release_date).days
+        
+        #
+        # Go through each feasible oviposition day of the model, projecting emergence
+        #
+        
+        # emerg_proj holds each grid point in its rows and a different emergence
+        #   day in its columns.
+        # Feasible emergence days start at collection and go until observation stopped
+        emerg_proj = np.zeros((len(locinfo.emerg_grids[nframe]), 
+            dframe_max + 1 - last_day))
+        
+        # go through feasible oviposition days
+        for nday,day in enumerate(range(start_day,last_day+1)):
+            n = 0 # row/col count
+            # in each one, go through grid points projecting emergence date
+            #   potentials per adult wasp per cell.
+            for r,c in locinfo.emerg_grids[nframe]:
+                ###                Project forward and store                 ###
+                ### This function can be more complicated if we want to try  ###
+                ###   and be more precise. It's a mapping from feasible      ###
+                ###   oviposition dates to array of feasible emergence dates ###
+                emerg_proj[n,nday] = modelsol[day][r,c]
+                ################################################################
                 n += 1
+                
         # now consolidate these days into just the days data was collected.
         # first, get unique dates
-        collection_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+        obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
         modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[n]),
-                                        len(collection_datesPR)))
-        col_indices = collection_datesPR - dframe_min
-        modelsol_grid_emerg[:,0] = emerg_proj[:,0]
+                                        len(obs_datesPR)))
+        col_indices = obs_datesPR - last_day
+        modelsol_grid_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1]
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]
             modelsol_grid_emerg[n+1] = emerg_proj[col_last+1:col+1].sum(axis=1)
         release_emerg.append(modelsol_grid_emerg)
-    
+        
+    ### Now project sentinel field emergence ###
+    sentinel_emerg = []
+    for nframe,dframe in enumerate(locinfo.sent_DataFrames):
+        # Each dataframe should be sorted already, 'datePR','id' 
+        # Find the min and max emergence observation dates PR.
+        dframe_min = dframe['datePR'].min().days
+        dframe_max = dframe['datePR'].max().days
+        
+        ### Find the earliest and latest oviposition date PR that we need to ###
+        ### consider for this collection. 0 = end of release day.            ###
+        # This is dependent on how incubation time is defined
+        start_day = max(dframe_min - incubation_time,0) # days post release!
+        ########################################################################
+        
+        # The last day oviposition is possible is always on the day of collection
+        last_day = (locinfo.collection_dates[nframe]-locinfo.release_date).days
     
     
 class Capturing(list):
