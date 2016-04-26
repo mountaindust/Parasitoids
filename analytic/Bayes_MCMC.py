@@ -82,9 +82,11 @@ class LocInfo():
         #       self.collection_dates
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
-        # Sort
+        # Sort and get ordered list(s) of sentinel field ids
+        self.sent_ids = []
         for dframe in self.sent_DataFrames:
             dframe.sort_values(['datePR','id'],inplace=True)
+            self.sent_ids.append(self.dframe['id'].unique())
 
         ##### Import and parse release field emergence data #####
         #   Again, highly dependent on what your dataset looks like. See method
@@ -412,7 +414,7 @@ def popdensity_to_emergence(modelsol,locinfo):
     # For now, assume this is a constant
     incubation_time = 15 # days (Average of 16 & 14)
     
-    ### First consider release field grid ###
+    ### Project release field grid ###
     release_emerg = []
     for nframe,dframe in enumerate(locinfo.release_DataFrames):
         # Each dataframe should be sorted already, 'datePR','row','column'.
@@ -458,7 +460,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         # now consolidate these days into just the days data was collected.
         # first, get unique dates
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-        modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[n]),
+        modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[nframe]),
                                         len(obs_datesPR)))
         col_indices = obs_datesPR - last_day
         modelsol_grid_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1]
@@ -467,7 +469,7 @@ def popdensity_to_emergence(modelsol,locinfo):
             modelsol_grid_emerg[n+1] = emerg_proj[col_last+1:col+1].sum(axis=1)
         release_emerg.append(modelsol_grid_emerg)
         
-    ### Now project sentinel field emergence ###
+    ### Project sentinel field emergence ###
     sentinel_emerg = []
     for nframe,dframe in enumerate(locinfo.sent_DataFrames):
         # Each dataframe should be sorted already, 'datePR','id' 
@@ -483,7 +485,51 @@ def popdensity_to_emergence(modelsol,locinfo):
         
         # The last day oviposition is possible is always on the day of collection
         last_day = (locinfo.collection_dates[nframe]-locinfo.release_date).days
+        
+        #
+        # Go through each feasible oviposition day of the model, projecting emergence
+        #
+        
+        # emerg_proj holds each sentinel field in its rows and a different 
+        #   emergence day in its columns.
+        # Feasible emergence days start at collection and go until observation stopped
+        emerg_proj = np.zeros((len(locinfo.sent_ids[nframe]), 
+            dframe_max + 1 - last_day))
+            
+        # go through feasible oviposition days
+        for nday,day in enumerate(range(start_day,last_day+1)):
+            # for each day, aggregate the population in each sentinel field
+            for n,field_id in enumerate(locinfo.sent_ids[nframe]):
+                ###     Sum the field cells, project forward and store       ###
+                ### This function can be more complicated if we want to try  ###
+                ###   and be more precise. It's a mapping from feasible      ###
+                ###   oviposition dates to array of feasible emergence dates ###
+                field_total = modelsol[day][locinfo.field_cells[field_id][:,0],
+                                    locinfo.field_cells[field_id][:,1]].sum()
+                emerg_proj[n,nday] = field_total
+                ################################################################
+        
+        # now consolidate these days into just the days data was collected.
+        # first, get unique dates
+        obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+        modelsol_field_emerg = np.zeros((len(locinfo.sent_ids[nframe]),
+                                        len(obs_datesPR)))
+        col_indices = obs_datesPR - last_day
+        modelsol_field_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1]
+        for n,col in enumerate(col_indices[1:]):
+            col_last = col_indices[n]
+            modelsol_field_emerg[n+1] = emerg_proj[col_last+1:col+1].sum(axis=1)
+        sentinel_emerg.append(modelsol_field_emerg)
+        
+    ### This process results in two lists, release_emerg and sentinel_emerg.
+    ###     Each entry corresponds to a data collection day.
+    ###     Each column corresponds to an emergence observation day (as in data)
+    ###     Each row corresponds to a grid point or sentinel field, respectively
+    ### This format will need to match a structured data arrays for comparison
     
+    return (release_emerg,sentinel_emerg)
+        
+        
     
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
