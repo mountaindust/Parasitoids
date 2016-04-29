@@ -56,16 +56,16 @@ class LocInfo():
         ##### Import and parse release field grid #####
         #   What this looks like depends on your data. See implementation of
         #       self.get_release_grid for details.
-        #   grid_data contains the following columns (in order):
+        #   grid_data contains the following columns:
         #       xcoord: distance east from release point in meters
         #       ycoord: distance north from release point in meters
-        #   Initializes:
-        #       self.grid_samples
-        #       self.grid_collection
-        grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
+        #       samples: sampling effort at each point via direct observation
+        #       collection: collection effort at each point (for emergence)
+        self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
         # Get row/column indices from xcoord and ycoord in grid_data
         res = domain_info[0]/domain_info[1] # cell length in meters
-        self.grid_cells = np.array([-grid_data[:,1],grid_data[:,0]])
+        self.grid_cells = np.array([-self.grid_data['ycoord'].values,
+                                    self.grid_data['xcoord'].values])
         self.grid_cells = (np.around(self.grid_cells/res) + 
                             domain_info[1]).astype(int)
         # self.grid_cells is now transposed: row 0 = row index, row 1 = col index
@@ -86,7 +86,7 @@ class LocInfo():
         self.sent_ids = []
         for dframe in self.sent_DataFrames:
             dframe.sort_values(['datePR','id'],inplace=True)
-            self.sent_ids.append(self.dframe['id'].unique())
+            self.sent_ids.append(dframe['id'].unique())
 
         ##### Import and parse release field emergence data #####
         #   Again, highly dependent on what your dataset looks like. See method
@@ -109,7 +109,7 @@ class LocInfo():
             # Get the grid points that were collected
             oneday = dframe['datePR'] == dframe['datePR'].min()
             self.emerg_grids.append(zip(dframe['row'][oneday].values,
-                                        dframe['col'][oneday].values))
+                                        dframe['column'][oneday].values))
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
@@ -121,22 +121,23 @@ class LocInfo():
         self.sentinel_emerg_total = []
         for dframe in self.release_DataFrames:
             obs_datesPR = dframe['datePR'].unique()
-            E_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
-            All_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
+            datelen = len(dframe['row'][dframe['datePR'] == dframe['datePR'].min()].values)
+            E_array = np.zeros((datelen,len(obs_datesPR)))
+            All_array = np.zeros((datelen,len(obs_datesPR)))
             for ndate,date in enumerate(obs_datesPR):
                 E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
                 All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
             self.release_emerg.append(E_array)
             self.release_emerg_total.append(All_array)
-        for dframe in self.sent_DataFrames:
+        for ndframe,dframe in enumerate(self.sent_DataFrames):
             obs_datesPR = dframe['datePR'].unique()
-            E_array = np.zeros((len(self.sent_ids),len(obs_datesPR)))
-            All_array = np.zeros((len(self.emerg_grids),len(obs_datesPR)))
+            E_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
+            All_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
             for ndate,date in enumerate(obs_datesPR):
                 E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
                 All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
             self.sentinel_emerg.append(E_array)
-            self.sentinel_emerg_all.append(All_array)
+            self.sentinel_emerg_total.append(All_array)
         
             
                 
@@ -149,14 +150,13 @@ class LocInfo():
             parsed and stored in self.grid_samples, and the collection 
             (for later emergence) effort, to be parsed and stored in 
             self.grid_collection.
-        
-        Sets:
-            self.grid_samples: sampling effort in each grid cell
-            self.grid_collection: emergence leaf collection effort
             
         Returns:
-            2D array of x,y grid point coordinates in meters away from the 
-                release point. Each row is a point; col 0 is x, col 1 is y.
+            DataFrame with the following columns:
+                xcoord: distance east from release point in meters
+                ycoord: distance north from release point in meters
+                samples: sampling effort at each point via direct observation
+                collection: collection effort at each point (for emergence)
         '''
         
         grid_data = []
@@ -179,12 +179,13 @@ class LocInfo():
         assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
             'Likely, a line in {} is incomplete.'.format(filename)
             
-        ### Now parse the data and return the x,y coordinates
-        # Alias sampling effort in each grid cell
-        self.grid_samples = grid_data[:,3]
-        # Alias collection effort
-        self.grid_collection = grid_data[:,4]
-        return grid_data[:,:2]
+        # column 2 and 3 are redundant for our purposes
+        grid_data = np.delete(grid_data,2,axis=1)
+        
+        # Convert to pandas dataframe
+        grid_info = pd.DataFrame(grid_data,
+                            columns=['xcoord','ycoord','samples','collection'])
+        return grid_info
         
     def get_sentinel_emergence(self,location):
         '''Get data relating to sentinel field emergence observations.
@@ -309,10 +310,6 @@ class LocInfo():
             
         else:
             raise NotImplementedError
-
-    def get_sampling_effort(self):
-        '''2D array of dates and locations'''
-        pass
     
     
     
@@ -431,8 +428,8 @@ def get_field_cells(polys,domain_info):
 ###############################################################################
     
 def popdensity_to_emergence(modelsol,locinfo):
-    '''Translate population model to corresponding expected emergence dates per
-    wasp assuming it oviposits on each date in the model.
+    '''Translate population model to corresponding expected number of wasps in
+    a given location whose oviposition would result in a given emergence date. 
     Only use the locations in which data was actually collected.
     '''
     
@@ -653,9 +650,13 @@ def main():
         
         
     @pm.deterministic
-    def run_model(params=params_obj,wind_data=wind_data,days=days):
+    def pop_model(params=params_obj,locinfo=locinfo,wind_data=wind_data,days=days):
         '''This function acts as an interface between PyMC and the model.
-        It provides the model based on stochastic parameters in params.
+        Not only does it run the model, but it provides an emergence potential 
+        based on the population model result projected forward from feasible
+        oviposition dates. To modify how this projection happens, edit 
+        popdensity_to_emergence. Returned values from this function should be
+        nearly ready to compare to data.
         '''
         
         ### PHASE ONE ###
@@ -695,20 +696,19 @@ def main():
                         max_shape,params.r_dur,params.r_number,params.r_mthd())
         
         # modelsol now holds the model results for this run as CSR sparse arrays
-        return modelsol
         
-
-
-    # @pm.deterministic
-    # def landscape_emergence(modelsol=run_model,beta=beta):
-        # '''Emergence observed from the model. This parses modelsol using the
-        # sampling model. It should return a 2D array where the rows are each day
-        # sampled and the columns are the number of E. Hayati observed.
+        # get emergence potential (measured in expected number of wasps previously
+        #   present whose oviposition would result in emergence on the given date)
+        #   from the model result
+        release_emerg,sentinel_emerg = popdensity_to_emergence(modelsol,locinfo)
+        return (release_emerg,sentinel_emerg)
         
-        # Args:
-            # modelsol: model solution
-            # beta: Bernoulli trial probability by density'''
-        # pass
+        
+        
+    # Given the expected wasp densities from pop_model, actual wasp densities
+    #   are modeled as a Poisson random variable about that mean.
+    # Each wasp in the area then has a small probability of being seen
+        
 
     
 if __name__ == "__main__":

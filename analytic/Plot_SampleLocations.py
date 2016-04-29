@@ -60,7 +60,7 @@ def main():
     # now plot the grid cells
     grid_locs = np.zeros((dom_len,dom_len))
     for n,x in enumerate(locinfo.grid_cells[0,:]):
-        if locinfo.grid_samples[n] == 90: # this bit is data specific
+        if locinfo.grid_data['samples'][n] == 90: # this bit is data specific
             grid_locs[locinfo.grid_cells[0,n],locinfo.grid_cells[1,n]] = 0.01
         else:
             grid_locs[locinfo.grid_cells[0,n],locinfo.grid_cells[1,n]] = 1
