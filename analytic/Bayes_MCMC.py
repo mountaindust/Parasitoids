@@ -52,8 +52,12 @@ class LocInfo():
             release_latlong) # this is a dict. keys are field labels
         # Convert to dict of cell indices
         self.field_cells = get_field_cells(self.field_polys,domain_info)
+        # Get the number of cells in each sentinal field
+        self.field_sizes = {}
+        for key,val in self.field_cells.items():
+            self.field_sizes[key] = max(val.shape)
                 
-        ##### Import and parse release field grid #####
+        ##### Import and parse full release field grid information #####
         #   What this looks like depends on your data. See implementation of
         #       self.get_release_grid for details.
         #   grid_data contains the following columns:
@@ -116,28 +120,39 @@ class LocInfo():
         # Want two lists: release_emerg and sentinel_emerg
         # Rows are locations, columns are days
         self.release_emerg = []
-        self.release_emerg_total = [] #all emergence observations summed
+        self.release_collection = []
+        #self.release_emerg_total = [] #all emergence observations summed
         self.sentinel_emerg = []
-        self.sentinel_emerg_total = []
+        #self.sentinel_emerg_total = []
         for dframe in self.release_DataFrames:
             obs_datesPR = dframe['datePR'].unique()
             datelen = len(dframe['row'][dframe['datePR'] == dframe['datePR'].min()].values)
+            #Get collection effort at each unique grid point
+            r_array = []
+            for x,y in dframe.loc[dframe['datePR'] == dframe['datePR'].min(),\
+                ['xcoord','ycoord']].values:
+                r_array.append(self.grid_data[(self.grid_data['xcoord'] == x) & \
+                    (self.grid_data['ycoord'] == y)]['collection'].values[0])
+            r_array = np.array(r_array)
+            r_array = r_array/r_array.max()
+            self.release_collection.append(r_array)
+            #Collect E. Hayati emergence into an ndarray
             E_array = np.zeros((datelen,len(obs_datesPR)))
-            All_array = np.zeros((datelen,len(obs_datesPR)))
+            #All_array = np.zeros((datelen,len(obs_datesPR)))
             for ndate,date in enumerate(obs_datesPR):
                 E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
-                All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
+                #All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
             self.release_emerg.append(E_array)
-            self.release_emerg_total.append(All_array)
+            #self.release_emerg_total.append(All_array)
         for ndframe,dframe in enumerate(self.sent_DataFrames):
             obs_datesPR = dframe['datePR'].unique()
             E_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
-            All_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
+            #All_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
             for ndate,date in enumerate(obs_datesPR):
                 E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
-                All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
+                #All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
             self.sentinel_emerg.append(E_array)
-            self.sentinel_emerg_total.append(All_array)
+            #self.sentinel_emerg_total.append(All_array)
         
             
                 
@@ -581,7 +596,7 @@ class Capturing(list):
 
 ###############################################################################
 #                                                                             #
-#                              PYMC Setup                                     #
+#                             PYMC Setup & Run                                #
 #                                                                             #
 ###############################################################################
 
@@ -606,23 +621,51 @@ def main():
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
-        
-    lam = pm.Beta("lambda",5,1)
-    f_a1 = pm.TruncatedNormal("a_1",6,1,0,12)
-    f_a2 = pm.TruncatedNormal("a_2",18,1,12,24)
-    f_b1 = pm.Gamma("b_1",3,1)
-    f_b2 = pm.Gamma("b_2",3,1)
-    g_aw = pm.Gamma("a_w",2.2,1)
-    g_bw = pm.Gamma("b_w",5,1)
-    sig_x = pm.Gamma("sig_x",6,1)
-    sig_y = pm.Gamma("sig_y",6,1)
-    corr = pm.Uniform("rho",-1,1)
-    sig_x_l = pm.Gamma("sig_x",6,1)
-    sig_y_l = pm.Gamma("sig_y",6,1)
-    corr_l = pm.Uniform("rho",-1,1)
-    mu_r = pm.Normal("mu_r",1.5,1/0.75**2)
+    
+    
+    
+    #### Model priors ####
+    lam = pm.Beta("lambda",5,1,value=0.95)
+    f_a1 = pm.TruncatedNormal("a_1",6,1,0,12,value=6)
+    f_a2 = pm.TruncatedNormal("a_2",18,1,12,24,value=18)
+    f_b1 = pm.Gamma("b_1",3,1,value=3) #alpha,beta parameterization
+    f_b2 = pm.Gamma("b_2",3,1,value=3)
+    g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
+    g_bw = pm.Gamma("b_w",5,1,value=5)
+    sig_x = pm.Gamma("sig_x",42.2,2,value=21.1)
+    sig_y = pm.Gamma("sig_y",10.6,1,value=10.6)
+    corr = pm.Uniform("rho",-1,1,value=0)
+    sig_x_l = pm.Gamma("sig_x",42.2,2,value=21.1)
+    sig_y_l = pm.Gamma("sig_y",10.6,1,value=10.6)
+    corr_l = pm.Uniform("rho",-1,1,value=0)
+    mu_r = pm.Normal("mu_r",1.5,1/0.75**2,value=1.5)
     #n_periods = pm.Poisson("t_dur",10)
-        
+    #r = prev. time exponent
+    xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.5) # obs prob of emergence in release
+                                                       #  field given max leaf collection
+    
+    #### Data collection model background for sentinel fields ####
+    # Need to fix linear units for area. Let's use cells.
+    # Effective collection area (constant between fields) is very uncertain
+    A_collected = pm.TruncatedNormal("A_collected",25,50,0,
+                                    min(locinfo.field_sizes.values()),value=16)  
+    # Each field has its own binomial probability.
+    N = len(locinfo.sent_ids)
+    field_obs_probs = np.empty(N, dtype=object)
+    field_obs_vars = np.empty(N, dtype=object)
+    field_obs_means = np.empty(N, dtype=object)
+    for n,key in enumerate(locinfo.sent_ids):
+        #auto-create deterministic variables
+        field_obs_means[n] = A_collected/locinfo.field_sizes[key]
+        #Lambda to get deterministic variables
+        field_obs_vars[n] = pm.Lambda("var_{}".format(key),lambda m=mean: min(m,0.1))
+        sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
+            field_obs_means[n]*(1-field_obs_means[n]-field_obs_vars[n])/field_obs_vars[n],
+            (field_obs_means[n]-field_obs_vars[n])*(1-field_obs_means[n])/field_obs_vars[n])
+    
+    
+    #### Collect variables ####
     @pm.deterministic
     def params_obj(params=params,g_aw=g_aw,g_bw=g_bw,f_a1=f_a1,f_b1=f_b1,
         f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,
@@ -648,7 +691,8 @@ def main():
         return params
         
         
-        
+    
+    #### Run model ####
     @pm.deterministic
     def pop_model(params=params_obj,locinfo=locinfo,wind_data=wind_data,days=days):
         '''This function acts as an interface between PyMC and the model.
@@ -701,13 +745,64 @@ def main():
         #   present whose oviposition would result in emergence on the given date)
         #   from the model result
         release_emerg,sentinel_emerg = popdensity_to_emergence(modelsol,locinfo)
+        
+        ## This process results in two lists, release_emerg and sentinel_emerg.
+        ##     Each entry corresponds to a data collection day.
+        ##     Each column corresponds to an emergence observation day (as in data)
+        ##     Each row corresponds to a grid point or sentinel field, respectively
         return (release_emerg,sentinel_emerg)
         
         
         
+    ### Parse the results of pop_model into separate deterministic variables ###
+    @pm.deterministic
+    def sent_poi_rates(locinfo=locinfo,xi=xi,emerg_model=pop_model[1],
+            betas=sent_obs_probs):
+        '''xi is constant, emerg is a list of ndarrays, betas is a 1D array of
+        field probabilities'''
+        Ncollections = len(locinfo.sent_DataFrames)
+        poi_rates = []
+        for ii in range(Ncollections):
+            ndays = len(locinfo.sent_DataFrames[ii]['datePR'].unique())
+            tile_betas = np.tile(betas,(ndays,1)).T
+            poi_rates.append(xi*emerg_model[ii]*tile_betas)
+        return poi_rates
+        
+    @pm.deterministic
+    def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,emerg_model=pop_model[0]):
+        '''xi is constant, emerg is a list of ndarrays. collection effort is
+        specified in locinfo.'''
+        Ncollections = len(locinfo.release_DataFrames)
+        poi_rates = []
+        for ii in range(Ncollections):
+            r_effort = locinfo.release_collection[ii] #fraction of max collection
+            ndays = len(locinfo.release_DataFrames[ii]['datePR'].unique())
+            tile_betas = np.tile(r_effort*beta,(ndays,1)).T
+            poi_rates.append(xi*emerg_model[ii]*tile_betas)
+        return poi_rates
+            
+    
+
+    
     # Given the expected wasp densities from pop_model, actual wasp densities
-    #   are modeled as a Poisson random variable about that mean.
-    # Each wasp in the area then has a small probability of being seen
+    #   are modeled as a thinned Poisson random variable about that mean.
+    # Each wasp in the area then has a small probability of being seen.
+    
+    ### Connect sentinel emergence data to model ###
+    N_sent_collections = len(locinfo.sent_DataFrames)
+    # Create list of collection variables
+    sent_collections = []
+    for ii in range(N_sent_collections):
+        sent_collections.append(pm.Poisson("sent_em_obs_{}".format(ii),
+            sent_poi_rates[ii], value=locinfo.sentinel_emerg[ii], observed=True))
+            
+    ### Connect release-field emergence data to model ###
+    N_release_collections = len(locinfo.release_DataFrames)
+    # Create list of collection variables
+    rel_collections = []
+    for ii in range(N_release_collections):
+        rel_collections.append(pm.Poisson("rel_em_obs_{}".format(ii),
+            rel_poi_rates[ii], value=locinfo.release_emerg[ii], observed=True))
         
 
     
