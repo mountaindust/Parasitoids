@@ -131,8 +131,10 @@ class LocInfo():
             r_array = []
             for x,y in dframe.loc[dframe['datePR'] == dframe['datePR'].min(),\
                 ['xcoord','ycoord']].values:
-                r_array.append(self.grid_data[(self.grid_data['xcoord'] == x) & \
-                    (self.grid_data['ycoord'] == y)]['collection'].values[0])
+                valary = self.grid_data[(self.grid_data['xcoord'] == x) & \
+                    (self.grid_data['ycoord'] == y)]['collection'].values
+                assert valary.shape == (1,) #each specified only once
+                r_array.append(valary[0])
             r_array = np.array(r_array)
             r_array = r_array/r_array.max()
             self.release_collection.append(r_array)
