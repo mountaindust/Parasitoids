@@ -7,6 +7,7 @@ Author: Christopher Strickland'''
 import pytest
 import numpy as np
 from matplotlib.path import Path
+import Data_Import
 import Bayes_MCMC as Bayes
 
 ###############################################################################
@@ -33,7 +34,7 @@ def field_info():
 def test_get_fields(field_info):
     filename,center = field_info
     filename += 'fields.txt'
-    polys = Bayes.get_fields(filename,center)
+    polys = Data_Import.get_fields(filename,center)
     # polys should be a list of Path objects
     assert type(polys) is dict
     assert type(list(polys.values())[0]) is Path

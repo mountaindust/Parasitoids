@@ -9,12 +9,6 @@ Author: Christopher Strickland
 Email: cstrickland@samsi.info 
 '''
 
-__author__ = "Christopher Strickland"
-__email__ = "cstrickland@samsi.info"
-__status__ = "Development"
-__version__ = "0.0"
-__copyright__ = "Copyright 2015, Christopher Strickland"
-
 import numpy as np
 from scipy import sparse
 import matplotlib.pyplot as plt
@@ -22,7 +16,7 @@ import matplotlib.cm as cm
 from matplotlib.path import Path
 import matplotlib.patches as patches
 from Run import Params
-from Bayes_MCMC import LocInfo
+from Data_Import import LocInfo
 from Plot_Result import get_satellite
 
 def main():
