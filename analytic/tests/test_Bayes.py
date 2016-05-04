@@ -21,7 +21,8 @@ def field_info():
    # kalbar info
    filename = 'data/kalbar'
    center = (-27.945752,152.58474)
-   return (filename,center)
+   domain_info = (5000.0,1000)
+   return (filename,center,domain_info)
    
    
    
@@ -32,10 +33,23 @@ def field_info():
 ###############################################################################
 
 def test_get_fields(field_info):
-    filename,center = field_info
+    ''' Test the public functions of Data_Import, which load data on 
+    field locations and the release grid.
+    '''
+    filename,center,domain_info = field_info
     filename += 'fields.txt'
     polys = Data_Import.get_fields(filename,center)
-    # polys should be a list of Path objects
+    # polys should be a dict of Path objects
     assert type(polys) is dict
-    assert type(list(polys.values())[0]) is Path
-    assert len(polys.keys()) == 7
+    # Fields: A, B, C, D, E, F, G
+    assert type(polys['A']) is Path
+    assert len(polys) == 7
+
+    # Also test get_field_cells
+    field_cells = Data_Import.get_field_cells(polys,domain_info)
+    # This should be a list of lists
+    assert type(field_cells) is dict
+    assert isinstance(field_cells['A'],np.ndarray)
+
+    ### Less trivial testing for these methods is accomplished by running
+    ###     Plot_SampleLocations.py which plots the fields and polys together

@@ -9,8 +9,33 @@ import numpy as np
 import pandas as pd
 from matplotlib.path import Path
 
-class LocInfo():
-    '''Class def to hold all info on experimental location and resulting data'''
+class LocInfo(object):
+    '''Class def to hold all info on experimental location and resulting data.
+    Properties:
+        ### Loaded from field boundary information ###
+        field_polys: dict of Path objects
+        field_cells: dict of cell lists
+        field_sizes: dict of cell counts
+
+        ### Loaded from release grid info ###
+        grid_data: DataFrame (xcoord,ycoord,samples,collection)
+        grid_cells: grid location array, row 0 = row index, row 1 = col index
+
+        ### Sentinel field emergence data ###
+        release_date: Timestamp
+        collection_dates: list of Timestamps
+        sent_DataFrames: (id,datePR,E_total,All_total)
+        sent_ids: list of field ID strings in same order as DataFrames
+
+        ### Release field emergence data ###
+        releasefield_id: string, field ID
+        release_DataFrames: (xcoord,ycoord,datePR,E_total,All_total)
+        emerg_grids: list of (row,col) lists, grid pts used in emerg collection
+
+        ### PyMC friendly data structures ###
+        release_emerg: list of arrays
+        release_collection: list of arrays
+        sentinel_emerg: list of arrays'''
     
     def __init__(self,location,release_latlong,domain_info):
         '''
@@ -304,7 +329,9 @@ class LocInfo():
         else:
             raise NotImplementedError
     
-    
+### End LocInfo ###
+
+
     
 def get_fields(filename,center):
     '''This function reads in polygon data from a file which describs boundaries
@@ -351,6 +378,7 @@ def get_fields(filename,center):
         codes = []
         id = None
         for line in f:
+            line = line.strip()
             # deal with possible comments
             c_ind = line.find('#')
             if c_ind >= 0:
@@ -389,7 +417,7 @@ def get_fields(filename,center):
  
     
 def get_field_cells(polys,domain_info):
-    '''Get a list of lists of cell indices that represent each field.
+    '''Get a dict of lists of cell indices that represent each field.
     
     Args:
         polys: Dict of Path objects representing each field
@@ -402,8 +430,10 @@ def get_field_cells(polys,domain_info):
     fields = {}
     res = domain_info[0]/domain_info[1] #cell resolution
     # construct a list of all x,y coords (in meters) for the center of each cell
-    centers = [(col*res,row*res) for row in range(domain_info[1],-domain_info[1]-1,-1)
-                            for col in range(-domain_info[1],domain_info[1]+1)]
+    colmesh,rowmesh = np.meshgrid(
+                    res*np.arange(domain_info[1],-domain_info[1]-1,-1),
+                    res*np.arange(-domain_info[1],domain_info[1]+1))
+    centers = np.array([colmesh.flatten(),rowmesh.flatten()]).T
     for id,poly in polys.items():
         fields[id] = np.argwhere(
             poly.contains_points(centers).reshape(
