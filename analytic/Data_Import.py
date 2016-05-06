@@ -322,12 +322,18 @@ class LocInfo(object):
                 release_field_data[['Efemales','Emales']].sum(axis=1)
             release_field_data['datePR'] = \
                 release_field_data['date emerged'] - self.release_date
+            
+            ### Remove origin collection data (not well defined)
+            release_field_data = release_field_data[\
+                (release_field_data['xcoord'] != 0) & \
+                (release_field_data['ycoord'] != 0)]
                 
             ### Store DataFrame in list
             self.release_DataFrames.append(release_field_data)
             
         else:
             raise NotImplementedError
+
     
 ### End LocInfo ###
 
@@ -431,9 +437,10 @@ def get_field_cells(polys,domain_info):
     res = domain_info[0]/domain_info[1] #cell resolution
     # construct a list of all x,y coords (in meters) for the center of each cell
     colmesh,rowmesh = np.meshgrid(
-                    res*np.arange(domain_info[1],-domain_info[1]-1,-1),
-                    res*np.arange(-domain_info[1],domain_info[1]+1))
+                    res*np.arange(-domain_info[1],domain_info[1]+1),
+                    res*np.arange(domain_info[1],-domain_info[1]-1,-1))
     centers = np.array([colmesh.flatten(),rowmesh.flatten()]).T
+    # For each field, get the cells that are located in the field.
     for id,poly in polys.items():
         fields[id] = np.argwhere(
             poly.contains_points(centers).reshape(
