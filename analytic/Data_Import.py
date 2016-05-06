@@ -49,10 +49,10 @@ class LocInfo(object):
         
         ##### Import sentinal field locations from text file #####
         # Field labels should match those used in the emergence data 
-        self.field_polys = get_fields('./data/'+location+'fields.txt',
+        self.field_polys = LocInfo.get_fields('./data/'+location+'fields.txt',
             release_latlong) # this is a dict. keys are field labels
         # Convert to dict of cell indices
-        self.field_cells = get_field_cells(self.field_polys,domain_info)
+        self.field_cells = LocInfo.get_field_cells(self.field_polys,domain_info)
         # Get the number of cells in each sentinal field
         self.field_sizes = {}
         for key,val in self.field_cells.items():
@@ -156,10 +156,125 @@ class LocInfo(object):
                 #All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values
             self.sentinel_emerg.append(E_array)
             #self.sentinel_emerg_total.append(All_array)
+
+
+
+    @staticmethod
+    def get_fields(filename,center):
+        '''This function reads in polygon data from a file which describs boundaries
+        of the fields that make up each collection site. The polygon data is in the
+        form of lists of vertices, the locations of which are given in x,y
+        coordinates away from the release point. This function then returns a dict
+        of matplotlib Path objects which allow point testing for inclusion.
+    
+        Args:
+            filename: file name to open
+            center: lat/long coord of the release point
+        
+        Returns:
+            polys: dict of Path objects'''
+    
+        def latlong_tocoord(center,lat,long):
+            '''Translate a lat/long coordinate into an (x,y) coordinate pair where
+            center is the origin.
+        
+            Args:
+                center: subscritable lat/long location of the origin
+                lat: latitude to translate
+                long: longitude to translate
+            
+            Returns:
+                (x,y): x,y coordinate from center, in meters'''
+            
+            R = 6378100 #Radius of the Earth in meters at equator
+        
+            o_lat = math.radians(center[0]) #origin lat in radians
+            o_long = math.radians(center[1]) #origin long in radians
+            lat = math.radians(lat)
+            long = math.radians(long)
+        
+            # Equirectangular approximation
+            x = R*(long-o_long)*math.cos((o_lat+lat)/2)
+            y = R*(lat-o_lat)
+        
+            return (x,y)
+    
+        polys = {}
+        with open(filename,'r') as f:
+            verts = []
+            codes = []
+            id = None
+            for line in f:
+                line = line.strip()
+                # deal with possible comments
+                c_ind = line.find('#')
+                if c_ind >= 0:
+                    line = line[:c_ind]
+                if line.strip() == '':
+                    if len(verts) > 0:
+                        # end of current polygon. convert into Path object.
+                        verts.append((0.,0.)) # ignored
+                        codes.append(Path.CLOSEPOLY)
+                        polys[id] = Path(verts,codes)
+                        verts = []
+                        codes = []
+                        id = None
+                else:
+                    # parse the data
+                    if id is None:
+                        # expect a field identifier first
+                        id = line
+                    else:
+                        vals = line.split(',')
+                    
+                        verts.append(latlong_tocoord(
+                                    center,float(vals[0]),float(vals[1])))
+                        if len(codes) == 0:
+                            codes.append(Path.MOVETO)
+                        else:
+                            codes.append(Path.LINETO)
+        # Convert the last polygon into a Path object if not already done
+        if len(verts) != 0:
+            verts.append((0.,0.)) # ignored
+            codes.append(Path.CLOSEPOLY)
+            polys[id] = Path(verts,codes)
+        
+        return polys
+    
+ 
+    
+    @staticmethod
+    def get_field_cells(polys,domain_info):
+        '''Get a dict of lists of cell indices that represent each field.
+    
+        Args:
+            polys: Dict of Path objects representing each field
+            domain_info: (dist (m), cells) from release point to side of domain
+                            (as in the Run.Params class)
+                        
+        Returns:
+            fields: dict containing lists (fields) cells indices'''
+    
+        fields = {}
+        res = domain_info[0]/domain_info[1] #cell resolution
+        # construct a list of all x,y coords (in meters) for the center of each cell
+        colmesh,rowmesh = np.meshgrid(
+                        res*np.arange(-domain_info[1],domain_info[1]+1),
+                        res*np.arange(domain_info[1],-domain_info[1]-1,-1))
+        centers = np.array([colmesh.flatten(),rowmesh.flatten()]).T
+        # For each field, get the cells that are located in the field.
+        for id,poly in polys.items():
+            fields[id] = np.argwhere(
+                poly.contains_points(centers).reshape(
+                domain_info[1]*2+1,domain_info[1]*2+1))
+    
+        # fields is row,col information assuming the complete domain.
+        return fields
         
             
-                
-    def get_release_grid(self,filename):
+    
+    @staticmethod            
+    def get_release_grid(filename):
         '''Read in data on the release field's grid and sampling effort.
         This will need to be edited depending on what your data looks like.
         Data is expected to contain info about the data collection points in the
@@ -333,118 +448,3 @@ class LocInfo(object):
             
         else:
             raise NotImplementedError
-
-    
-### End LocInfo ###
-
-
-    
-def get_fields(filename,center):
-    '''This function reads in polygon data from a file which describs boundaries
-    of the fields that make up each collection site. The polygon data is in the
-    form of lists of vertices, the locations of which are given in x,y
-    coordinates away from the release point. This function then returns a dict
-    of matplotlib Path objects which allow point testing for inclusion.
-    
-    Args:
-        filename: file name to open
-        center: lat/long coord of the release point
-        
-    Returns:
-        polys: dict of Path objects'''
-    
-    def latlong_tocoord(center,lat,long):
-        '''Translate a lat/long coordinate into an (x,y) coordinate pair where
-        center is the origin.
-        
-        Args:
-            center: subscritable lat/long location of the origin
-            lat: latitude to translate
-            long: longitude to translate
-            
-        Returns:
-            (x,y): x,y coordinate from center, in meters'''
-            
-        R = 6378100 #Radius of the Earth in meters at equator
-        
-        o_lat = math.radians(center[0]) #origin lat in radians
-        o_long = math.radians(center[1]) #origin long in radians
-        lat = math.radians(lat)
-        long = math.radians(long)
-        
-        # Equirectangular approximation
-        x = R*(long-o_long)*math.cos((o_lat+lat)/2)
-        y = R*(lat-o_lat)
-        
-        return (x,y)
-    
-    polys = {}
-    with open(filename,'r') as f:
-        verts = []
-        codes = []
-        id = None
-        for line in f:
-            line = line.strip()
-            # deal with possible comments
-            c_ind = line.find('#')
-            if c_ind >= 0:
-                line = line[:c_ind]
-            if line.strip() == '':
-                if len(verts) > 0:
-                    # end of current polygon. convert into Path object.
-                    verts.append((0.,0.)) # ignored
-                    codes.append(Path.CLOSEPOLY)
-                    polys[id] = Path(verts,codes)
-                    verts = []
-                    codes = []
-                    id = None
-            else:
-                # parse the data
-                if id is None:
-                    # expect a field identifier first
-                    id = line
-                else:
-                    vals = line.split(',')
-                    
-                    verts.append(latlong_tocoord(
-                                center,float(vals[0]),float(vals[1])))
-                    if len(codes) == 0:
-                        codes.append(Path.MOVETO)
-                    else:
-                        codes.append(Path.LINETO)
-    # Convert the last polygon into a Path object if not already done
-    if len(verts) != 0:
-        verts.append((0.,0.)) # ignored
-        codes.append(Path.CLOSEPOLY)
-        polys[id] = Path(verts,codes)
-        
-    return polys
-    
- 
-    
-def get_field_cells(polys,domain_info):
-    '''Get a dict of lists of cell indices that represent each field.
-    
-    Args:
-        polys: Dict of Path objects representing each field
-        domain_info: (dist (m), cells) from release point to side of domain
-                        (as in the Run.Params class)
-                        
-    Returns:
-        fields: dict containing lists (fields) cells indices'''
-    
-    fields = {}
-    res = domain_info[0]/domain_info[1] #cell resolution
-    # construct a list of all x,y coords (in meters) for the center of each cell
-    colmesh,rowmesh = np.meshgrid(
-                    res*np.arange(-domain_info[1],domain_info[1]+1),
-                    res*np.arange(domain_info[1],-domain_info[1]-1,-1))
-    centers = np.array([colmesh.flatten(),rowmesh.flatten()]).T
-    # For each field, get the cells that are located in the field.
-    for id,poly in polys.items():
-        fields[id] = np.argwhere(
-            poly.contains_points(centers).reshape(
-            domain_info[1]*2+1,domain_info[1]*2+1))
-    
-    # fields is row,col information assuming the complete domain.
-    return fields

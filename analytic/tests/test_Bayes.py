@@ -7,7 +7,7 @@ Author: Christopher Strickland'''
 import pytest
 import numpy as np
 from matplotlib.path import Path
-import Data_Import
+from Data_Import import LocInfo
 import Bayes_MCMC as Bayes
 
 ###############################################################################
@@ -33,12 +33,12 @@ def field_info():
 ###############################################################################
 
 def test_get_fields(field_info):
-    ''' Test the public functions of Data_Import, which load data on 
+    ''' Test the static functions of LocInfo which load data on 
     field locations and the release grid.
     '''
     filename,center,domain_info = field_info
     filename += 'fields.txt'
-    polys = Data_Import.get_fields(filename,center)
+    polys = LocInfo.get_fields(filename,center)
     # polys should be a dict of Path objects
     assert type(polys) is dict
     # Fields: A, B, C, D, E, F, G
@@ -46,7 +46,7 @@ def test_get_fields(field_info):
     assert len(polys) == 7
 
     # Also test get_field_cells
-    field_cells = Data_Import.get_field_cells(polys,domain_info)
+    field_cells = LocInfo.get_field_cells(polys,domain_info)
     # This should be a list of lists
     assert type(field_cells) is dict
     assert isinstance(field_cells['A'],np.ndarray)
