@@ -24,12 +24,13 @@ class LocInfo(object):
         ### Sentinel field emergence data ###
         release_date: Timestamp
         collection_dates: list of Timestamps
-        sent_DataFrames: (id,datePR,E_total,All_total)
+        sent_DataFrames: list, (id,datePR,E_total,All_total)
         sent_ids: list of field ID strings in same order as DataFrames
 
         ### Release field emergence data ###
         releasefield_id: string, field ID
-        release_DataFrames: (xcoord,ycoord,datePR,E_total,All_total)
+        release_DataFrames: list, (row,column,xcoord,ycoord,datePR,
+                                    E_total,All_total)
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
 
         ### PyMC friendly data structures ###
@@ -113,8 +114,8 @@ class LocInfo(object):
             dframe.sort_values(['datePR','row','column'],inplace=True)
             # Get the grid points that were collected
             oneday = dframe['datePR'] == dframe['datePR'].min()
-            self.emerg_grids.append(zip(dframe['row'][oneday].values,
-                                        dframe['column'][oneday].values))
+            self.emerg_grids.append(list(zip(dframe['row'][oneday].values,
+                                        dframe['column'][oneday].values)))
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
