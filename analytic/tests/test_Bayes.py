@@ -196,3 +196,17 @@ def test_model_emergence(locinfo,modelsol):
         # test shape against locinfo ndarray
         assert n_fields == sentinel_emerg[ii].shape[0]
         assert n_obs == sentinel_emerg[ii].shape[1]
+
+        # make sure that the grid points match from model to data
+        for n,cell in enumerate(locinfo.emerg_grids[ii]):
+            for day in locinfo.release_DataFrames[ii]['datePR'].unique():
+                assert tuple(locinfo.release_DataFrames[ii]
+                    [locinfo.release_DataFrames[ii]['datePR']==day]
+                    [['row','column']].values[n,:]) == cell
+
+        # same for sentinel fields
+        for n,field in enumerate(locinfo.sent_ids[ii]):
+            for day in locinfo.sent_DataFrames[ii]['datePR'].unique():
+                assert locinfo.sent_DataFrames[ii]\
+                    [locinfo.sent_DataFrames[ii]['datePR']==day]\
+                    ['id'].values[n] == field
