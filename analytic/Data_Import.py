@@ -119,7 +119,7 @@ class LocInfo(object):
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
-        # Want two lists: release_emerg and sentinel_emerg
+        # Want three lists: release emerg, collection effort, sentinel emerg
         # Rows are locations, columns are days
         self.release_emerg = []
         self.release_collection = []

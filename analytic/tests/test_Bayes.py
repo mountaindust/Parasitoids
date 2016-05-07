@@ -4,11 +4,14 @@
 
 Author: Christopher Strickland'''
 
+import os.path
 import pytest
 import numpy as np
 import pandas as pd
+from scipy import sparse
 from matplotlib.path import Path
 from Data_Import import LocInfo
+from Run import Params
 import Bayes_MCMC as Bayes
 
 ###############################################################################
@@ -17,14 +20,65 @@ import Bayes_MCMC as Bayes
 #                                                                             #
 ###############################################################################
 
-@pytest.fixture()
-def field_info():
+@pytest.fixture(scope="module")
+def locinfo():
    # kalbar info
-   filename = 'data/kalbar'
+   loc_name = 'kalbar'
    center = (-27.945752,152.58474)
    domain_info = (5000.0,1000)
-   return (filename,center,domain_info)
+   return LocInfo(loc_name,center,domain_info)
+
+# path to sample pop model output
+sample_data = 'output/from_nemo/kalbar_pop0420-1939'
+
+@pytest.fixture()
+def modelsol():
+    # return a sample model solution
+    if not (os.path.isfile(sample_data+'.npz') and 
+            os.path.isfile(sample_data+'.json')):
+        return None
+    else:
+        # load parameters
+        params = Params()
+        params.file_read_chg(sample_data)
+
+        dom_len = params.domain_info[1]*2 + 1
+
+        # load data
+        modelsol = []
+        with np.load(sample_data+'.npz') as npz_obj:
+            days = npz_obj['days']
+            # some code here to make loading robust to both COO and CSR.
+            CSR = False
+            for day in days:
+                V = npz_obj[str(day)+'_data']
+                if CSR:
+                    indices = npz_obj[str(day)+'_ind']
+                    indptr = npz_obj[str(day)+'_indptr']
+                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                        shape=(dom_len,dom_len)))
+                else:
+                    try:
+                        I = npz_obj[str(day)+'_row']
+                        J = npz_obj[str(day)+'_col']
+                        modelsol.append(sparse.coo_matrix((V,(I,J)),
+                                                        shape=(dom_len,dom_len)))
+                    except KeyError:
+                        CSR = True
+                        indices = npz_obj[str(day)+'_ind']
+                        indptr = npz_obj[str(day)+'_indptr']
+                        modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                        shape=(dom_len,dom_len)))
+        return modelsol
    
+
+
+############                    Decorators                ############
+
+data_avail = pytest.mark.skipif(not (os.path.isfile(sample_data+'.npz') and 
+                                     os.path.isfile(sample_data+'.json')),
+                                reason = 'Could not find file {}.'.format(
+                                    sample_data))
    
    
 ###############################################################################
@@ -33,11 +87,8 @@ def field_info():
 #                                                                             #
 ###############################################################################
 
-def test_LocInfo(field_info):
+def test_LocInfo(locinfo):
     '''Test initialization of LocInfo object'''
-    filename,center,domain_info = field_info
-    
-    locinfo = LocInfo('kalbar',center,domain_info)
 
     ### Field boundary information ###
 
@@ -103,3 +154,45 @@ def test_LocInfo(field_info):
         assert tuple(cell) in locinfo.emerg_grids[0]
 
     ### PyMC friendly data structures ###
+    # these primarily need to be verfied against model output, so we will test
+    #   them there.
+
+
+@data_avail
+def test_model_emergence(locinfo,modelsol):
+    '''Test the translation of population model results to emergence information,
+    and how this compares with the PyMC friendly data structures in LocInfo'''
+
+    release_emerg,sentinel_emerg = Bayes.popdensity_to_emergence(modelsol,locinfo)
+
+    # This process results in two lists, release_emerg and sentinel_emerg.
+    #     Each list entry corresponds to a data collection day (one array)
+    #     In each array:
+    #     Each column corresponds to an emergence observation day (as in data)
+    #     Each row corresponds to a grid point or sentinel field, respectively
+
+    # These lists are emergence potential as in wasp population numbers.
+    #   To get observed emergence, collection and oviposition rate must be
+    #   modeled. But this is done in Bayesian fashion and won't be reproduced here.
+
+    # Regardless, these numbers are now considered independent variables and
+    #   should match the general shape of the data stored in locinfo.
+
+    assert isinstance(release_emerg,list)
+    for ii in range(len(release_emerg)):
+        n_grid_pts, n_obs = release_emerg[ii].shape
+        # test shape against data info
+        assert n_grid_pts == len(locinfo.emerg_grids[ii])
+        assert n_obs == len(locinfo.release_DataFrames[ii]['datePR'].unique())
+        # test shape against locinfo ndarrays
+        assert n_grid_pts == locinfo.release_emerg[ii].shape[0]
+        assert n_obs == locinfo.release_emerg[ii].shape[1]
+        assert n_grid_pts == locinfo.release_collection[ii].size
+
+        n_fields, n_obs = sentinel_emerg[ii].shape
+        # test shape against data info
+        assert n_fields == len(locinfo.sent_ids[ii])
+        assert n_obs == len(locinfo.sent_DataFrames[ii]['datePR'].unique())
+        # test shape against locinfo ndarray
+        assert n_fields == sentinel_emerg[ii].shape[0]
+        assert n_obs == sentinel_emerg[ii].shape[1]
