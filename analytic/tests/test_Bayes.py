@@ -210,3 +210,7 @@ def test_model_emergence(locinfo,modelsol):
                 assert locinfo.sent_DataFrames[ii]\
                     [locinfo.sent_DataFrames[ii]['datePR']==day]\
                     ['id'].values[n] == field
+
+        # release_collection should be relative numbers
+        assert locinfo.release_collection[ii].max() == 1
+        assert locinfo.release_collection[ii].min() >= 0

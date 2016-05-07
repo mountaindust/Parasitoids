@@ -191,7 +191,7 @@ class Capturing(list):
 ###############################################################################
 
 def main():
-    '''Need to catch PM.BndsError and return a zero likelihood'''
+    '''Need to catch any non-PM.BndsError and dump state'''
 
     params = Params()
     # Set up location here with command line arguments in a list.
@@ -303,9 +303,24 @@ def main():
         pm_args.extend([(day,wind_data,*params.get_model_params()) 
                 for day in days[1:params.ndays]])
         pool = Pool()
-        pmf_list = pool.starmap(PM.prob_mass,pm_args)
-        pool.close()
-        pool.join()
+        try:
+            pmf_list = pool.starmap(PM.prob_mass,pm_args)
+        except PM.BndsError as e:
+            # return output full of zeros, but of correct type/size
+            release_emerg = []
+            for nframe,dframe in enumerate(locinfo.release_DataFrames):
+                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
+                                     len(obs_datesPR))))
+            sentinel_emerg = []
+            for nframe,dframe in enumerate(locinfo.sent_DataFrames):
+                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                sentinel_emerg.append(np.zeros((len(locinfo.sent_ids[nframe]),
+                                      len(obs_datesPR))))
+            return (release_emerg,sentinel_emerg)
+        finally:
+            pool.close()
+            pool.join()
         for pmf in pmf_list:
             for dim in range(2):
                 if pmf.shape[dim] > max_shape[dim]:

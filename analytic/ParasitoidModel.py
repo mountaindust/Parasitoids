@@ -379,7 +379,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
 class BndsError(Exception):
     def __str__(self):
         return 'Index error in calculating prob_mass.\n'+\
-            'Most likely, wind yields spread that goes off the domain'+\
+            'Most likely, wind results in spread that goes off the domain'+\
             ' in a single time period.'
     
     
