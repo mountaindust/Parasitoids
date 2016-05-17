@@ -346,7 +346,7 @@ class LocInfo(object):
             data_loc = 'data/sampling_details.xlsx'
             # date of release (as a pandas TimeStamp, year-month-day)
             #   (leave off time of release)
-            self.release_date = pd.Timestamp('2005-03-15')
+            self.release_date = pd.Timestamp('2005-03-12')
             # dates of collection as a list of TimeStamps
             self.collection_dates = [pd.Timestamp('2005-03-31')]
             # list of sentinel field collection dates (as pandas TimeStamps)
