@@ -401,7 +401,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
         - rad_res -- number of cells from center to side of the domain
-        - start_time -- (optional) time at which release occurred
+        - start_time -- (optional) time at which release occurred (units=day)
         
     Returns:
         - pmf -- 2D spatial probability mass function of finding the parasitoid

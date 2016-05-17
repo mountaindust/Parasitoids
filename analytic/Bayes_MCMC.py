@@ -39,11 +39,14 @@ def popdensity_to_emergence(modelsol,locinfo):
     Only use the locations in which data was actually collected.
     '''
     
-    # Assume collections are done at the end of the day.
+    # Assume collections are done at the beginning of the day, observations
+    #   of collection data at the end of the day. So, oviposition is not possible
+    #   on the day of collection, but emergence is.
     
     ### Oviposition to emergence time ###
     # For now, assume this is a constant
     incubation_time = 15 # days (Average of 16 & 14)
+    max_incubation_time = 15
     
     ### Project release field grid ###
     release_emerg = []
@@ -51,17 +54,16 @@ def popdensity_to_emergence(modelsol,locinfo):
         # Each dataframe should be sorted already, 'datePR','row','column'.
         # Also, the grid for each collection is stored in the list
         #   locinfo.emerg_grids.
-        # Find the min and max emergence observation dates PR.
-        dframe_min = dframe['datePR'].min().days
-        dframe_max = dframe['datePR'].max().days
         
+        collection_day = (locinfo.collection_datesPR[nframe]).days
+
         ### Find the earliest and latest oviposition date PR that we need to ###
-        ### consider for this collection. 0 = end of release day.            ###
-        # This is dependent on how incubation time is defined
-        start_day = max(dframe_min - incubation_time,0) # days post release!
+        ### simulate for this collection. 0 = release day.                   ###
+        # The last day oviposition is possible is the day before collection
+        # The earliest day oviposition is possible is the max incubation time
+        #   before the first possible emergence
+        start_day = max(collection_day - max_incubation_time,0) # days post release!
         ########################################################################
-        # The last day oviposition is possible is always on the day of collection
-        last_day = (locinfo.collection_dates[nframe]-locinfo.release_date).days
         
         #
         # Go through each feasible oviposition day of the model, projecting emergence
@@ -69,12 +71,12 @@ def popdensity_to_emergence(modelsol,locinfo):
         
         # emerg_proj holds each grid point in its rows and a different emergence
         #   day in its columns.
-        # Feasible emergence days start at collection and go until observation stopped
+        # Feasible emergence days span the maximum incubation time.
         emerg_proj = np.zeros((len(locinfo.emerg_grids[nframe]), 
-            dframe_max + 1 - last_day))
+            max_incubation_time))
         
         # go through feasible oviposition days
-        for nday,day in enumerate(range(start_day,last_day+1)):
+        for nday,day in enumerate(range(start_day,collection_day)):
             n = 0 # row/col count
             # in each one, go through grid points projecting emergence date
             #   potentials per adult wasp per cell.
@@ -83,6 +85,8 @@ def popdensity_to_emergence(modelsol,locinfo):
                 ### This function can be more complicated if we want to try  ###
                 ###   and be more precise. It's a mapping from feasible      ###
                 ###   oviposition dates to array of feasible emergence dates ###
+                # nday represents index of feasible emergence days, [collect,+max)
+                # day represents feasible oviposition days, [start,collect)
                 emerg_proj[n,nday] = modelsol[day][r,c]
                 ################################################################
                 n += 1
@@ -92,7 +96,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
         modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[nframe]),
                                         len(obs_datesPR)))
-        col_indices = obs_datesPR - last_day
+        col_indices = obs_datesPR - collection_day
         modelsol_grid_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]
@@ -103,17 +107,16 @@ def popdensity_to_emergence(modelsol,locinfo):
     sentinel_emerg = []
     for nframe,dframe in enumerate(locinfo.sent_DataFrames):
         # Each dataframe should be sorted already, 'datePR','id' 
-        # Find the min and max emergence observation dates PR.
-        dframe_min = dframe['datePR'].min().days
-        dframe_max = dframe['datePR'].max().days
         
+        collection_day = (locinfo.collection_datesPR[nframe]).days
+
         ### Find the earliest and latest oviposition date PR that we need to ###
-        ### consider for this collection. 0 = end of release day.            ###
-        # This is dependent on how incubation time is defined
-        start_day = max(dframe_min - incubation_time,0) # days post release!
+        ### simulate for this collection. 0 = release day.                   ###
+        # The last day oviposition is possible is the day before collection
+        # The earliest day oviposition is possible is the max incubation time
+        #   before the first possible emergence
+        start_day = max(collection_day - max_incubation_time,0) # days post release!
         ########################################################################
-        # The last day oviposition is possible is always on the day of collection
-        last_day = (locinfo.collection_dates[nframe]-locinfo.release_date).days
         
         #
         # Go through each feasible oviposition day of the model, projecting emergence
@@ -123,10 +126,10 @@ def popdensity_to_emergence(modelsol,locinfo):
         #   emergence day in its columns.
         # Feasible emergence days start at collection and go until observation stopped
         emerg_proj = np.zeros((len(locinfo.sent_ids[nframe]), 
-            dframe_max + 1 - last_day))
+            max_incubation_time))
             
         # go through feasible oviposition days
-        for nday,day in enumerate(range(start_day,last_day+1)):
+        for nday,day in enumerate(range(start_day,collection_day)):
             # for each day, aggregate the population in each sentinel field
             for n,field_id in enumerate(locinfo.sent_ids[nframe]):
                 ###     Sum the field cells, project forward and store       ###
@@ -143,7 +146,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
         modelsol_field_emerg = np.zeros((len(locinfo.sent_ids[nframe]),
                                         len(obs_datesPR)))
-        col_indices = obs_datesPR - last_day
+        col_indices = obs_datesPR - collection_day
         modelsol_field_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]

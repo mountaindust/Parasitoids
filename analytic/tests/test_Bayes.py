@@ -122,9 +122,9 @@ def test_LocInfo(locinfo):
 
     ### Sentinel field emergence data ###
     assert isinstance(locinfo.release_date,pd.Timestamp)
-    assert isinstance(locinfo.collection_dates,list)
-    assert isinstance(locinfo.collection_dates[0],pd.Timestamp)
-    assert locinfo.collection_dates[0] > locinfo.release_date
+    assert isinstance(locinfo.collection_datesPR,list)
+    assert isinstance(locinfo.collection_datesPR[0],pd.Timedelta)
+    assert locinfo.collection_datesPR[0] > pd.Timedelta('0 days')
     assert isinstance(locinfo.sent_DataFrames[0],pd.DataFrame)
     for key in ['id','datePR','E_total','All_total']:
         assert key in locinfo.sent_DataFrames[0].keys()
@@ -134,7 +134,7 @@ def test_LocInfo(locinfo):
     for key in locinfo.sent_ids[0]:
         assert key in locinfo.field_cells.keys()
     # Test emergence post release dates
-    minTimedelta = locinfo.collection_dates[0] - locinfo.release_date
+    minTimedelta = locinfo.collection_datesPR[0]
     for Td in locinfo.sent_DataFrames[0]['datePR']:
         assert Td >= minTimedelta
 

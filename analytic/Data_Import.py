@@ -23,15 +23,18 @@ class LocInfo(object):
 
         ### Sentinel field emergence data ###
         release_date: Timestamp
-        collection_dates: list of Timestamps
-        sent_DataFrames: list, (id,datePR,E_total,All_total)
+        collection_datesPR: list of TimeDeltas
+        sent_DataFrames: list of sample days, (id,datePR,E_total,All_total)
         sent_ids: list of field ID strings in same order as DataFrames
 
         ### Release field emergence data ###
         releasefield_id: string, field ID
-        release_DataFrames: list, (row,column,xcoord,ycoord,datePR,
-                                    E_total,All_total)
+        release_DataFrames: list of sample days, (row,column,xcoord,ycoord,
+                                                    datePR,E_total,All_total)
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
+        
+        ### Release field grid observation data ###
+
 
         ### PyMC friendly data structures ###
         release_emerg: list of arrays
@@ -85,7 +88,7 @@ class LocInfo(object):
         #       in its docstring.
         #   Initializes:
         #       self.release_date
-        #       self.collection_dates
+        #       self.collection_datesPR
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
         # Sort and get ordered list(s) of sentinel field ids
@@ -329,7 +332,7 @@ class LocInfo(object):
             the value of the location argument.
         WHAT IS REQURIED:
             self.release_date: pandas Timestamp of release date (no time of day)
-            self.collection_dates: a list of Timestamp collection dates
+            self.collection_datesPR: a list of TimeDelta collection dates PR
             self.sent_DataFrames: a list of pandas DataFrames, one for each
                                     collection date.
         EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
@@ -346,11 +349,13 @@ class LocInfo(object):
             data_loc = 'data/sampling_details.xlsx'
             # date of release (as a pandas TimeStamp, year-month-day)
             #   (leave off time of release)
-            self.release_date = pd.Timestamp('2005-03-12')
-            # dates of collection as a list of TimeStamps
-            self.collection_dates = [pd.Timestamp('2005-03-31')]
+            self.release_date = pd.Timestamp('2005-03-13')
+            # dates of collection PR as a list of TimeDeltas
+            self.collection_datesPR = [pd.Timestamp('2005-03-31')]
+            for n,date in enumerate(self.collection_datesPR):
+                self.collection_datesPR[n] = date - self.release_date
             # list of sentinel field collection dates (as pandas TimeStamps)
-            #self.sent_collection_dates = [pd.Timestamp('2005-05-31')]
+            #self.collection_dates = [pd.Timestamp('2005-05-31')]
             # initialize list of sentinel emergence DataFrames
             self.sent_DataFrames = []
             
@@ -449,3 +454,45 @@ class LocInfo(object):
             
         else:
             raise NotImplementedError
+
+    def get_grid_observations(self,location):
+        '''Get data relating to release field grid observations
+        This implementation will need to change completely according to the
+            structure of your dataset. Parsing routines for multiple locations'
+            data can be stored here - just extend the if-then clause based on
+            the value of the location argument.
+        WHAT IS REQURIED:
+            self.grid_obs_DataFrame: a pandas DataFrame with all non-zero
+                                     observations
+            self.grid_obs_dates: list of Timestamps of observation dates
+        THE DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
+            xcoord: distance east from release point in meters (grid collection point)
+            ycoord: distance north from release point in meters (grid collection point)
+            datePR: Num of days the observation occured post-release (dtype=Timedelta)
+            obs_count: Total number of wasp observations in that field on that date
+        '''
+
+        if location == 'kalbar':
+            # location of data excel file
+            data_loc = '../data/adult_counts_kalbar.xlsx'
+
+            ### Pandas
+            # load the grid adult counts sheet
+            grid_obs = pd.read_excel(data_loc,sheetname='adult counts field A')
+            # rename the headings with spaces in them
+            grid_obs.rename(columns={"x coor":"x","y coor":"y", 
+                                     "num leaves viewed": "leaves",
+                                     "num hayati":"obs_count"}, inplace=True)
+            # we don't really care about the leaf num columns
+            grid_obs = grid_obs[['date','collector','x','y','leaves','obs_count']]
+            # in our data, North was on the left of the grid. So switch coordinates
+            grid_obs['xcoord'] = grid_obs['y']
+            grid_obs['ycoord'] = -grid_obs['x'] # need to flip orientation
+            grid_obs.drop(['x','y'],1,inplace=True)
+            # put release point at the origin
+            grid_obs['ycoord'] += 300
+            grid_obs['xcoord'] -= 200
+            # convert date to datePR
+            grid_obs['datePR'] = grid_obs['date'] - release_date
+            grid_obs.sort_values(['datePR','xcoord','ycoord'],inplace=True)
+            # print(grid_obs['datePR'].map(lambda t: t.days).unique())

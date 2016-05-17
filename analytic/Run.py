@@ -128,11 +128,11 @@ class Params():
             self.coord = (-27.945752,152.58474)
             ### release information
             # release duration (days)
-            self.r_dur = 3
+            self.r_dur = 1
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
-            self.r_start = 0.354 #8:30am
+            self.r_start = None # wind didn't record until midnight post release
             # total number of wasps 
             self.r_number = 130000
             
