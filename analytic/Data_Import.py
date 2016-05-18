@@ -34,8 +34,13 @@ class LocInfo(object):
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
         
         ### Release field grid observation data ###
-        grid_obs_DataFrame: DataFrame of grid obs data
-        grid_obs_datesPR: list of obs dates PR
+        grid_obs_DataFrame: DataFrame of grid obs data (xcoord,ycoord,datePR,
+                                                        obs_count)
+        grid_obs_datesPR: list of obs dates PR (Timedelta)
+
+        ### Cardinal direction observation data ###
+        card_obs_DataFrames: list of sample days, (direction,distance,obs_count)
+        card_obs_datesPR: list of obs dates PR (Timedelta)
 
         ### PyMC friendly data structures ###
         release_emerg: list of arrays
@@ -122,11 +127,18 @@ class LocInfo(object):
                                         dframe['column'][oneday].values)))
 
         ##### Import and parse grid adult observation data #####
-        #   Dependent on what you dataset looks like; add pandas to method.
+        #   Dependent on what your dataset looks like; add pandas to method.
         #   Initializes:
         #       self.grid_obs_DataFrame
         #       self.grid_obs_datesPR
         self.get_grid_observations(location)
+
+        ##### Import and parse cardinal direction adult observation data #####
+        #   Dependent on what your dataset looks like; add pandas to method.
+        #   Initializes:
+        #       self.card_obs_DataFrames
+        #       self.card_obs_datesPR
+        self.get_card_observations(location)
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
@@ -474,7 +486,7 @@ class LocInfo(object):
                                      observations. It will be assumed that the
                                      entire grid was sampled, but that omissions
                                      are zeros.
-            self.grid_obs_datesPR: list of Timestamps of observation dates
+            self.grid_obs_datesPR: list of Timedeltas of observation dates
         THE DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
             xcoord: distance east from release point in meters (grid collection point)
             ycoord: distance north from release point in meters (grid collection point)
@@ -508,3 +520,37 @@ class LocInfo(object):
             self.grid_obs_datesPR = grid_obs['datePR'].map(
                                     lambda t: t.days).unique()
             self.grid_obs_DataFrame = grid_obs
+
+    def get_card_observations(self,location):
+        '''Get data relating to release field grid observations
+        This implementation will need to change completely according to the
+            structure of your dataset. Parsing routines for multiple locations'
+            data can be stored here - just extend the if-then clause based on
+            the value of the location argument.
+        WHAT IS REQURIED:
+            self.card_obs_DataFrames: list of pandas DataFrames with cardinal
+                                        direction observations. Each DataFrame
+                                        is a separate date.
+            self.card_obs_datesPR: list of Timedeltas of observation dates
+        THE DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
+            direction: string, cardinal direction (north,south,east,west)
+            distance: in meters
+            obs_count: Total number of wasp observations in that field on that date
+        '''
+
+        # location of data excel file
+        data_loc = 'data/adult_counts_kalbar.xlsx'
+
+        # names of the data sheets
+        sheets = ['cardinal 15 mar 05','cardinal 21 mar 05']
+
+        self.card_obs_DataFrames = []
+        self.card_obs_datesPR = []
+        for sheet in sheets:
+            # load the cardinal directions sheet
+            cardinal_obs = pd.read_excel(data_loc,sheetname=sheet)
+            # rename the one heading with a space
+            cardinal_obs.rename(columns={"num adults":"obs_count"}, inplace=True)
+            cardinal_obs.drop('num viewers',1,inplace=True)
+            self.card_obs_datesPR.append(cardinal_obs['date'][0])
+            self.card_obs_DataFrames.append(cardinal_obs)
