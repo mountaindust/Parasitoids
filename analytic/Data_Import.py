@@ -34,7 +34,8 @@ class LocInfo(object):
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
         
         ### Release field grid observation data ###
-
+        grid_obs_DataFrame: DataFrame of grid obs data
+        grid_obs_datesPR: list of obs dates PR
 
         ### PyMC friendly data structures ###
         release_emerg: list of arrays
@@ -119,6 +120,13 @@ class LocInfo(object):
             oneday = dframe['datePR'] == dframe['datePR'].min()
             self.emerg_grids.append(list(zip(dframe['row'][oneday].values,
                                         dframe['column'][oneday].values)))
+
+        ##### Import and parse grid adult observation data #####
+        #   Dependent on what you dataset looks like; add pandas to method.
+        #   Initializes:
+        #       self.grid_obs_DataFrame
+        #       self.grid_obs_datesPR
+        self.get_grid_observations(location)
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
@@ -463,8 +471,10 @@ class LocInfo(object):
             the value of the location argument.
         WHAT IS REQURIED:
             self.grid_obs_DataFrame: a pandas DataFrame with all non-zero
-                                     observations
-            self.grid_obs_dates: list of Timestamps of observation dates
+                                     observations. It will be assumed that the
+                                     entire grid was sampled, but that omissions
+                                     are zeros.
+            self.grid_obs_datesPR: list of Timestamps of observation dates
         THE DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
             xcoord: distance east from release point in meters (grid collection point)
             ycoord: distance north from release point in meters (grid collection point)
@@ -474,7 +484,7 @@ class LocInfo(object):
 
         if location == 'kalbar':
             # location of data excel file
-            data_loc = '../data/adult_counts_kalbar.xlsx'
+            data_loc = 'data/adult_counts_kalbar.xlsx'
 
             ### Pandas
             # load the grid adult counts sheet
@@ -493,6 +503,8 @@ class LocInfo(object):
             grid_obs['ycoord'] += 300
             grid_obs['xcoord'] -= 200
             # convert date to datePR
-            grid_obs['datePR'] = grid_obs['date'] - release_date
+            grid_obs['datePR'] = grid_obs['date'] - self.release_date
             grid_obs.sort_values(['datePR','xcoord','ycoord'],inplace=True)
-            # print(grid_obs['datePR'].map(lambda t: t.days).unique())
+            self.grid_obs_datesPR = grid_obs['datePR'].map(
+                                    lambda t: t.days).unique()
+            self.grid_obs_DataFrame = grid_obs
