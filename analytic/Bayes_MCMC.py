@@ -188,6 +188,49 @@ def popdensity_grid(modelsol,locinfo):
     return grid_counts
 
 
+
+def popdensity_card(modelsol,locinfo,domain_info):
+    '''Translate population model to expected number of wasps in cardinal
+    directions.
+    '''
+
+    # Assume observations are done at the beginning of the day.
+    # Form a list, one entry per sample day
+    card_counts = []
+    res = domain_info[0]/domain_info[1] # cell length in meters
+
+    for nday,date in enumerate(locinfo.card_obs_datesPR):
+        # get array shape
+        obslen = locinfo.card_obs[nday].shape[1]
+        day_count = np.zeros((4,obslen))
+        # the release point is an undisturbed 5x5m area from which all
+        #   sampling distances are calculated.
+        dist = 5
+        for step in range(obslen):
+            dist += locinfo.step_size[nday]
+            cell_delta = dist//res
+            # north
+            day_count[0,step] = modelsol[date.days-1][domain_info[1]-cell_delta,
+                                                      domain_info[1]]
+            # south
+            day_count[1,step] = modelsol[date.days-1][domain_info[1]+cell_delta,
+                                                      domain_info[1]]
+            # east
+            day_count[2,step] = modelsol[date.days-1][domain_info[1],
+                                                      domain_info[1]+cell_delta]
+            # west
+            day_count[3,step] = modelsol[date.days-1][domain_info[1],
+                                                      domain_info[1]-cell_delta]
+        card_counts.append(day_count)
+
+    ### Return list of ndarrays where:
+    ###     Each column corresponds to step in the cardinal direction
+    ###     Each row corresponds to a cardinal direction: north,south,east,west
+
+    return card_counts
+
+
+
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
     to capture the stdout of the enclosing functions. If used multiple times,

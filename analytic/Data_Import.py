@@ -42,6 +42,8 @@ class LocInfo(object):
         ### Cardinal direction observation data ###
         card_obs_DataFrames: list of sample days, (direction,distance,obs_count)
         card_obs_datesPR: list of obs dates PR (Timedelta)
+        step_size: list of floats (meters)
+        card_obs: list of arrays
 
         ### PyMC friendly data structures ###
         release_emerg: list of arrays
@@ -156,7 +158,22 @@ class LocInfo(object):
         #   Initializes:
         #       self.card_obs_DataFrames
         #       self.card_obs_datesPR
+        #       self.step_size
         self.get_card_observations(location)
+        # Form a data structure that can be compared to popdensity_grid
+        self.card_obs = []
+        for dframe in self.card_obs_DataFrames:
+            north = dframe[dframe['direction']=='north']['obs_count'].values
+            south = dframe[dframe['direction']=='south']['obs_count'].values
+            east = dframe[dframe['direction']=='east']['obs_count'].values
+            west = dframe[dframe['direction']=='west']['obs_count'].values
+            maxlen = max(north.size,south.size,east.size,west.size)
+            card_obs = np.zeros((4,maxlen))
+            card_obs[0,:north.size] = north
+            card_obs[1,:south.size] = south
+            card_obs[2,:east.size] = east
+            card_obs[3,:west.size] = west
+            self.card_obs.append(card_obs)
                                         
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
@@ -549,25 +566,28 @@ class LocInfo(object):
                                         direction observations. Each DataFrame
                                         is a separate date.
             self.card_obs_datesPR: list of Timedeltas of observation dates
+            self.step_size: list of step sizes (meters) for sampling
         THE DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
             direction: string, cardinal direction (north,south,east,west)
             distance: in meters
             obs_count: Total number of wasp observations in that field on that date
         '''
 
-        # location of data excel file
-        data_loc = 'data/adult_counts_kalbar.xlsx'
+        if location == 'kalbar':
+            # location of data excel file
+            data_loc = 'data/adult_counts_kalbar.xlsx'
 
-        # names of the data sheets
-        sheets = ['cardinal 15 mar 05','cardinal 21 mar 05']
-
-        self.card_obs_DataFrames = []
-        self.card_obs_datesPR = []
-        for sheet in sheets:
-            # load the cardinal directions sheet
-            cardinal_obs = pd.read_excel(data_loc,sheetname=sheet)
-            # rename the one heading with a space
-            cardinal_obs.rename(columns={"num adults":"obs_count"}, inplace=True)
-            cardinal_obs.drop('num viewers',1,inplace=True)
-            self.card_obs_datesPR.append(cardinal_obs['date'][0])
-            self.card_obs_DataFrames.append(cardinal_obs)
+            # names of the data sheets
+            sheets = ['cardinal 15 mar 05','cardinal 21 mar 05']
+            self.step_size = [2,2]
+            self.card_obs_DataFrames = []
+            self.card_obs_datesPR = []
+            for sheet in sheets:
+                # load the cardinal directions sheet
+                cardinal_obs = pd.read_excel(data_loc,sheetname=sheet)
+                # rename the one heading with a space
+                cardinal_obs.rename(columns={"num adults":"obs_count"},inplace=True)
+                cardinal_obs.drop('num viewers',1,inplace=True)
+                cardinal_obs.sort_values(['direction','distance'],inplace=True)
+                self.card_obs_datesPR.append(cardinal_obs['date'][0])
+                self.card_obs_DataFrames.append(cardinal_obs)
