@@ -9,7 +9,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.2"
+__version__ = "0.3"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, time
@@ -302,8 +302,12 @@ def main():
     #n_periods = pm.Poisson("t_dur",10)
     #r = prev. time exponent
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.5) # obs prob of emergence in release
-                                                       #  field given max leaf collection
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.5) # obs prob of emergence 
+                                # in release field given max leaf collection
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.5) # probability of
+            # observing a wasp present in the grid cell given max leaf sampling
+    card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
+            # observing a wasp present in the grid cell given max leaf sampling
     
     #### Data collection model background for sentinel fields ####
     # Need to fix linear units for area. Let's use cells.
@@ -423,24 +427,32 @@ def main():
 
         # get the expected wasp populations at grid points on sample days
         grid_counts = popdensity_grid(modelsol,locinfo)
+
+        # get the expected wasp populations in cardinal directions
+        card_counts = popdensity_card(modelsol,locinfo,params.domain_info)
         
         ## For the lists release_emerg and sentinel_emerg:
-        ##     Each list entry corresponds to a data collection day (one array)
-        ##     In each array:
-        ##     Each column corresponds to an emergence observation day (as in data)
-        ##     Each row corresponds to a grid point or sentinel field, respectively
+        ##    Each list entry corresponds to a data collection day (one array)
+        ##    In each array:
+        ##    Each column corresponds to an emergence observation day (as in data)
+        ##    Each row corresponds to a grid point or sentinel field, respectively
         ## For the array grid_counts:
-        ##     Each column corresponds to an observation day
-        ##     Each row corresponds to a grid point
-        return (release_emerg,sentinel_emerg,grid_counts)
+        ##    Each column corresponds to an observation day
+        ##    Each row corresponds to a grid point
+        ## For the list card_counts:
+        ##    Each list entry corresponds to a sampling day (one array)
+        ##    Each column corresponds to a step in a cardinal direction
+        ##    Each row corresponds to a cardinal direction 
+        return (release_emerg,sentinel_emerg,grid_counts,card_counts)
         
         
         
     ### Parse the results of pop_model into separate deterministic variables ###
     @pm.deterministic
-    def sent_poi_rates(locinfo=locinfo,xi=xi,emerg_model=pop_model[1],
-            betas=sent_obs_probs):
-        '''xi is constant, emerg is a list of ndarrays, betas is a 1D array of
+    def sent_poi_rates(locinfo=locinfo,xi=xi,betas=sent_obs_probs,
+                       emerg_model=pop_model[1]):
+        '''Return Poisson probabilities for sentinal field emergence
+        xi is constant, emerg is a list of ndarrays, betas is a 1D array of
         field probabilities'''
         Ncollections = len(locinfo.sent_DataFrames)
         poi_rates = []
@@ -452,8 +464,9 @@ def main():
         
     @pm.deterministic
     def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,
-            emerg_model=pop_model[0]):
-        '''xi is constant, emerg is a list of ndarrays. collection effort is
+                      emerg_model=pop_model[0]):
+        '''Return Poisson probabilities for release field grid emergence
+        xi is constant, emerg is a list of ndarrays. collection effort is
         specified in locinfo.'''
         Ncollections = len(locinfo.release_DataFrames)
         poi_rates = []
@@ -464,7 +477,21 @@ def main():
             poi_rates.append(xi*emerg_model[ii]*tile_betas)
         return poi_rates
             
-    
+    @pm.deterministic
+    def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
+                       obs_model=pop_model[2]):
+        '''Return Poisson probabilities for grid sampling
+        obs_model is an ndarray, sampling effort is specified in locinfo.'''
+        return beta*locinfo.grid_samples*obs_model
+
+    @pm.deterministic
+    def card_poi_rates(beta=card_obs_prob,obs_model=pop_model[3]):
+        '''Return Poisson probabilities for cardinal direction sampling
+        obs_model is a list of ndarrays, sampling effort is assumed constant'''
+        poi_rates = []
+        for obs in obs_model:
+            poi_rates.append(beta*obs)
+        return poi_rates
 
     
     # Given the expected wasp densities from pop_model, actual wasp densities
@@ -486,6 +513,18 @@ def main():
     for ii in range(N_release_collections):
         rel_collections.append(pm.Poisson("rel_em_obs_{}".format(ii),
             rel_poi_rates[ii], value=locinfo.release_emerg[ii], observed=True))
+
+    ### Connect grid sampling data to model ###
+    grid_obs = pm.Poisson("grid_obs",grid_poi_rates,value=locinfo.grid_obs,
+                          observed=True)
+
+    ### Connect cardinal direction data to model ###
+    N_card_collections = len(locinfo.card_obs_DataFrames)
+    # Create list of sampling variables
+    card_collections = []
+    for ii in range(N_card_collections):
+        card_collections.append(pm.Poisson("card_obs_{}".format(ii),
+            card_poi_rates[ii], value=locinfo.card_obs[ii], observed=True))
         
 
     
