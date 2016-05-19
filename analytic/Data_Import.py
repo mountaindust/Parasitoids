@@ -80,7 +80,8 @@ class LocInfo(object):
         #       samples: sampling effort at each point via direct observation
         #       collection: collection effort at each point (for emergence)
         self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
-        # Get row/column indices from xcoord and ycoord in grid_data
+        #####
+        ### Get row/column indices from xcoord and ycoord in grid_data
         res = domain_info[0]/domain_info[1] # cell length in meters
         self.grid_cells = np.array([-self.grid_data['ycoord'].values,
                                     self.grid_data['xcoord'].values])
@@ -100,7 +101,8 @@ class LocInfo(object):
         #       self.collection_datesPR
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
-        # Sort and get ordered list(s) of sentinel field ids
+        #####
+        ### Sort and get ordered list(s) of sentinel field ids
         self.sent_ids = []
         for dframe in self.sent_DataFrames:
             dframe.sort_values(['datePR','id'],inplace=True)
@@ -113,7 +115,8 @@ class LocInfo(object):
         #       self.releasefield_id
         #       self.release_DataFrames
         self.get_releasefield_emergence(location)
-        # Further parsing
+        #####
+        ### Further parsing, including sorting the DataFrame
         self.emerg_grids = []
         for dframe in self.release_DataFrames:
             # Get row/column indices from xcoord and ycoord
@@ -135,7 +138,11 @@ class LocInfo(object):
         #       self.grid_obs_DataFrame
         #       self.grid_obs_datesPR
         self.get_grid_observations(location)
-        # Form a data structure that can be compared to popdensity_grid
+        #####
+        ### Sort the DataFrame
+        self.grid_obs_DataFrame.sort_values(['datePR','xcoord','ycoord'],
+                                            inplace=True)
+        ### Form a data structure that can be compared to popdensity_grid
         self.grid_obs = np.zeros((self.grid_cells.shape[0],
                                   len(self.grid_obs_datesPR)))
         self.grid_samples = np.zeros((self.grid_cells.shape[0],
@@ -160,9 +167,12 @@ class LocInfo(object):
         #       self.card_obs_datesPR
         #       self.step_size
         self.get_card_observations(location)
-        # Form a data structure that can be compared to popdensity_grid
+        #####
+        ### Sort each DataFrame and form a data structure that can be compared 
+        ### to popdensity_grid
         self.card_obs = []
         for dframe in self.card_obs_DataFrames:
+            dframe.sort_values(['direction','distance'],inplace=True)
             north = dframe[dframe['direction']=='north']['obs_count'].values
             south = dframe[dframe['direction']=='south']['obs_count'].values
             east = dframe[dframe['direction']=='east']['obs_count'].values
@@ -551,7 +561,6 @@ class LocInfo(object):
             grid_obs['xcoord'] -= 200
             # convert date to datePR
             grid_obs['datePR'] = grid_obs['date'] - self.release_date
-            grid_obs.sort_values(['datePR','xcoord','ycoord'],inplace=True)
             self.grid_obs_datesPR = grid_obs['datePR'].unique()
             self.grid_obs_DataFrame = grid_obs
 
@@ -588,6 +597,5 @@ class LocInfo(object):
                 # rename the one heading with a space
                 cardinal_obs.rename(columns={"num adults":"obs_count"},inplace=True)
                 cardinal_obs.drop('num viewers',1,inplace=True)
-                cardinal_obs.sort_values(['direction','distance'],inplace=True)
-                self.card_obs_datesPR.append(cardinal_obs['date'][0])
+                self.card_obs_datesPR.append(cardinal_obs['date'].iloc[0])
                 self.card_obs_DataFrames.append(cardinal_obs)
