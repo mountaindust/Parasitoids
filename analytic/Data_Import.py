@@ -30,13 +30,14 @@ class LocInfo(object):
         ### Release field emergence data ###
         releasefield_id: string, field ID
         release_DataFrames: list of sample days, (row,column,xcoord,ycoord,
-                                                    datePR,E_total,All_total)
+                                                  datePR,E_total,All_total)
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
         
         ### Release field grid observation data ###
-        grid_obs_DataFrame: DataFrame of grid obs data (xcoord,ycoord,datePR,
-                                                        obs_count)
+        grid_obs_DataFrame: DataFrame (xcoord,ycoord,datePR,obs_count)
         grid_obs_datesPR: list of obs dates PR (Timedelta)
+        grid_obs: ndarray to compare to popdensity_grid
+        grid_samples: ndarray with relative sampling effort
 
         ### Cardinal direction observation data ###
         card_obs_DataFrames: list of sample days, (direction,distance,obs_count)
@@ -44,7 +45,7 @@ class LocInfo(object):
 
         ### PyMC friendly data structures ###
         release_emerg: list of arrays
-        release_collection: list of arrays
+        release_collection: list of arrays, relative collection effort
         sentinel_emerg: list of arrays'''
     
     def __init__(self,location,release_latlong,domain_info):
@@ -82,8 +83,8 @@ class LocInfo(object):
         self.grid_cells = np.array([-self.grid_data['ycoord'].values,
                                     self.grid_data['xcoord'].values])
         self.grid_cells = (np.around(self.grid_cells/res) + 
-                            domain_info[1]).astype(int)
-        # self.grid_cells is now transposed: row 0 = row index, row 1 = col index
+                            domain_info[1]).T.astype(int)
+        # self.grid_cells is now: col 0 = row index, col 1 = col index
         
         ##### Import and parse sentinel field emergence data #####
         #   What this section looks like will be highly dependent on the 
@@ -132,6 +133,23 @@ class LocInfo(object):
         #       self.grid_obs_DataFrame
         #       self.grid_obs_datesPR
         self.get_grid_observations(location)
+        # Form a data structure that can be compared to popdensity_grid
+        self.grid_obs = np.zeros((self.grid_cells.shape[0],
+                                  len(self.grid_obs_datesPR)))
+        self.grid_samples = np.zeros((self.grid_cells.shape[0],
+                                  len(self.grid_obs_datesPR)))
+        for nday,date in enumerate(self.grid_obs_datesPR):
+            # for each date, get the number of samples taken and num observed
+            #   at each grid point
+            for n in range(self.grid_data.shape[0]):
+                self.grid_samples[n,nday] = self.grid_data['samples'].iloc[n]
+                xyrow = pd.merge(self.grid_data.iloc[n:n+1],
+                                 self.grid_obs_DataFrame[
+                                 self.grid_obs_DataFrame['datePR']==date],
+                                 on=['xcoord','ycoord'], how='inner')
+                if not xyrow.empty:
+                    self.grid_obs[n,nday] = xyrow['obs_count'].values
+        self.grid_samples = self.grid_samples/self.grid_samples.max()
 
         ##### Import and parse cardinal direction adult observation data #####
         #   Dependent on what your dataset looks like; add pandas to method.
@@ -517,8 +535,7 @@ class LocInfo(object):
             # convert date to datePR
             grid_obs['datePR'] = grid_obs['date'] - self.release_date
             grid_obs.sort_values(['datePR','xcoord','ycoord'],inplace=True)
-            self.grid_obs_datesPR = grid_obs['datePR'].map(
-                                    lambda t: t.days).unique()
+            self.grid_obs_datesPR = grid_obs['datePR'].unique()
             self.grid_obs_DataFrame = grid_obs
 
     def get_card_observations(self,location):

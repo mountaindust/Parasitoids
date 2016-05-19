@@ -114,8 +114,8 @@ def test_LocInfo(locinfo):
     for key in ['xcoord','ycoord','samples','collection']:
         assert key in locinfo.grid_data.keys()
     assert isinstance(locinfo.grid_cells,np.ndarray)
-    assert locinfo.grid_cells.shape[0] == 2
-    assert locinfo.grid_data['xcoord'].size == locinfo.grid_cells.shape[1]
+    assert locinfo.grid_cells.shape[1] == 2
+    assert locinfo.grid_data['xcoord'].size == locinfo.grid_cells.shape[0]
 
     # Less trivial testing for the above is accomplished by running
     #     Plot_SampleLocations.py which plots the fields and polys together
@@ -148,7 +148,7 @@ def test_LocInfo(locinfo):
                   locinfo.release_DataFrames[0]['All_total'].values)
     for Td in locinfo.release_DataFrames[0]['datePR']:
         assert Td >= minTimedelta
-    grid_cells_list = locinfo.grid_cells.T.tolist()
+    grid_cells_list = locinfo.grid_cells.tolist()
     for cell in locinfo.release_DataFrames[0][['row','column']].values.tolist():
         assert cell in grid_cells_list
         assert tuple(cell) in locinfo.emerg_grids[0]

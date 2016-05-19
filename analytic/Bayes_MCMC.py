@@ -164,6 +164,30 @@ def popdensity_to_emergence(modelsol,locinfo):
         
         
     
+def popdensity_grid(modelsol,locinfo):
+    '''Translate population model to corresponding expected number of wasps in
+    each grid point
+    '''
+
+    # Assume observations are done at the beginning of the day.
+    grid_counts = np.zeros((locinfo.grid_cells.shape[0],
+                            len(locinfo.grid_obs_datesPR)))
+
+    for nday,date in enumerate(locinfo.grid_obs_datesPR):
+        n = 0 # row/col count
+        # for each day, get expected population at each grid point
+        for r,c in locinfo.grid_cells:
+            # model holds end-of-day PR results
+            grid_counts[n,nday] = modelsol[date.days-1][r,c]
+            n += 1
+
+    ### Return ndarray where:
+    ###     Each column corresponds to an observation day
+    ###     Each row corresponds to a grid point
+
+    return grid_counts
+
+
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
     to capture the stdout of the enclosing functions. If used multiple times,
@@ -353,13 +377,19 @@ def main():
         #   present whose oviposition would result in emergence on the given date)
         #   from the model result
         release_emerg,sentinel_emerg = popdensity_to_emergence(modelsol,locinfo)
+
+        # get the expected wasp populations at grid points on sample days
+        grid_counts = popdensity_grid(modelsol,locinfo)
         
-        ## This process results in two lists, release_emerg and sentinel_emerg.
+        ## For the lists release_emerg and sentinel_emerg:
         ##     Each list entry corresponds to a data collection day (one array)
         ##     In each array:
         ##     Each column corresponds to an emergence observation day (as in data)
         ##     Each row corresponds to a grid point or sentinel field, respectively
-        return (release_emerg,sentinel_emerg)
+        ## For the array grid_counts:
+        ##     Each column corresponds to an observation day
+        ##     Each row corresponds to a grid point
+        return (release_emerg,sentinel_emerg,grid_counts)
         
         
         
@@ -378,7 +408,8 @@ def main():
         return poi_rates
         
     @pm.deterministic
-    def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,emerg_model=pop_model[0]):
+    def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,
+            emerg_model=pop_model[0]):
         '''xi is constant, emerg is a list of ndarrays. collection effort is
         specified in locinfo.'''
         Ncollections = len(locinfo.release_DataFrames)
