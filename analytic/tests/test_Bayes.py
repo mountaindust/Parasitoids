@@ -153,6 +153,30 @@ def test_LocInfo(locinfo):
         assert cell in grid_cells_list
         assert tuple(cell) in locinfo.emerg_grids[0]
 
+    ### Grid observation data ###
+    assert isinstance(locinfo.grid_obs_DataFrame,pd.DataFrame)
+    assert isinstance(locinfo.grid_obs_datesPR,list)
+    assert isinstance(locinfo.grid_obs_datesPR[0],pd.Timedelta)
+    assert isinstance(locinfo.grid_obs,np.ndarray)
+    assert isinstance(locinfo.grid_samples,np.ndarray)
+    assert np.all(locinfo.grid_obs.shape == locinfo.grid_samples.shape)
+    assert locinfo.grid_samples.max() == 1
+    # grid_obs should not be all zeros, asssuming something was seen
+    assert locinfo.grid_obs.max() > 0
+
+    ### Cardinal direction data ###
+    assert isinstance(locinfo.card_obs_DataFrames,list)
+    assert isinstance(locinfo.card_obs_DataFrames[0],pd.DataFrame)
+    assert isinstance(locinfo.card_obs_datesPR,list)
+    assert isinstance(locinfo.card_obs_datesPR[0],pd.Timedelta)
+    assert isinstance(locinfo.step_size,list)
+    assert isinstance(locinfo.card_obs,list)
+    assert isinstance(locinfo.card_obs[0],np.ndarray)
+    assert len(locinfo.card_obs_DataFrames) == len(locinfo.card_obs_datesPR)\
+        == len(locinfo.step_size) == len(locinfo.card_obs)
+    for c_obs in locinfo.card_obs:
+        assert c_obs.shape[0] == 4
+
     ### PyMC friendly data structures ###
     # these primarily need to be verfied against model output, so we will test
     #   them there.

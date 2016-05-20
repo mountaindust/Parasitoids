@@ -561,7 +561,11 @@ class LocInfo(object):
             grid_obs['xcoord'] -= 200
             # convert date to datePR
             grid_obs['datePR'] = grid_obs['date'] - self.release_date
-            self.grid_obs_datesPR = grid_obs['datePR'].unique()
+            self.grid_obs_datesPR = []
+            # unique() returns ndarray of numpy.timedelta.
+            # want: list of pd.Timedelta
+            for npdate in grid_obs['datePR'].unique():
+                self.grid_obs_datesPR.append(pd.Timedelta(npdate))
             self.grid_obs_DataFrame = grid_obs
 
     def get_card_observations(self,location):
@@ -597,5 +601,6 @@ class LocInfo(object):
                 # rename the one heading with a space
                 cardinal_obs.rename(columns={"num adults":"obs_count"},inplace=True)
                 cardinal_obs.drop('num viewers',1,inplace=True)
-                self.card_obs_datesPR.append(cardinal_obs['date'].iloc[0])
+                cardinal_obs['datePR'] = cardinal_obs['date'] - self.release_date
+                self.card_obs_datesPR.append(cardinal_obs['datePR'].iloc[0])
                 self.card_obs_DataFrames.append(cardinal_obs)
