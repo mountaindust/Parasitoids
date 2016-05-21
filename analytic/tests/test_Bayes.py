@@ -4,7 +4,6 @@
 
 Author: Christopher Strickland'''
 
-import os.path
 import pytest
 import numpy as np
 import pandas as pd
@@ -13,6 +12,7 @@ from matplotlib.path import Path
 from Data_Import import LocInfo
 from Run import Params
 import Bayes_MCMC as Bayes
+from conftest import data_avail
 
 ###############################################################################
 #                                                                             #
@@ -21,70 +21,12 @@ import Bayes_MCMC as Bayes
 ###############################################################################
 
 @pytest.fixture(scope="module")
-def domain_info():
-    return (5000.0,1000)
-
-@pytest.fixture(scope="module")
 def locinfo(domain_info):
    # kalbar info
    loc_name = 'kalbar'
    center = (-27.945752,152.58474)
    return LocInfo(loc_name,center,domain_info)
 
-# path to sample pop model output
-sample_data = 'output/from_nemo/kalbar_pop5000_1000'
-
-@pytest.fixture(scope="module")
-def modelsol(domain_info):
-    # return a sample model solution
-    if not (os.path.isfile(sample_data+'.npz') and 
-            os.path.isfile(sample_data+'.json')):
-        return None
-    else:
-        # load parameters
-        params = Params()
-        params.file_read_chg(sample_data)
-
-        dom_len = params.domain_info[1]*2 + 1
-
-        # load data
-        modelsol = []
-        with np.load(sample_data+'.npz') as npz_obj:
-            days = npz_obj['days']
-            # some code here to make loading robust to both COO and CSR.
-            CSR = False
-            for day in days:
-                V = npz_obj[str(day)+'_data']
-                if CSR:
-                    indices = npz_obj[str(day)+'_ind']
-                    indptr = npz_obj[str(day)+'_indptr']
-                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
-                                                        shape=(dom_len,dom_len)))
-                else:
-                    try:
-                        I = npz_obj[str(day)+'_row']
-                        J = npz_obj[str(day)+'_col']
-                        modelsol.append(sparse.coo_matrix((V,(I,J)),
-                                                        shape=(dom_len,dom_len)))
-                    except KeyError:
-                        CSR = True
-                        indices = npz_obj[str(day)+'_ind']
-                        indptr = npz_obj[str(day)+'_indptr']
-                        modelsol.append(sparse.csr_matrix((V,indices,indptr),
-                                                        shape=(dom_len,dom_len)))
-        # check that modelsol dimensions match expected dimensions
-        assert modelsol[0].shape[0] == 2*domain_info[1]+1, 'Unexpected dimensions.'
-        return modelsol
-   
-
-
-############                    Decorators                ############
-
-data_avail = pytest.mark.skipif(not (os.path.isfile(sample_data+'.npz') and 
-                                     os.path.isfile(sample_data+'.json')),
-                                reason = 'Could not find file {}.'.format(
-                                    sample_data))
-   
    
 ###############################################################################
 #                                                                             #
