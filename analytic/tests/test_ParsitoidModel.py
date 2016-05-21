@@ -52,18 +52,6 @@ def flight_consts():
     n_periods = 6
     return (lam,mu_r,n_periods)
 
-@pytest.fixture(scope="module")   
-def domain_info():
-    # Return infomation about the domain size and refinement
-    
-    # distance from release point to a side of the domain in meters
-    rad_dist = 8000.0
-    # number of cells from the center to side of domain
-    rad_res = 2000
-    
-    # (each cell is thus rad_dist/rad_res meters squared in size)
-    return (rad_dist,rad_res)
-
 @pytest.fixture(scope="module")
 def site_name():
     return 'data/carnarvonearl'
