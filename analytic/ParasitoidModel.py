@@ -529,7 +529,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
 
     # first, remove the really small data values from the array
     #   In some large pmf arrays, this can significantly reduce the size
-    pmf_coo = r_small_vals(sparse.coo_matrix(pmf))
+    pmf_coo = r_small_vals(sparse.coo_matrix(pmf),prob_model=True)
     I = pmf_coo.row
     J = pmf_coo.col
     V = pmf_coo.data

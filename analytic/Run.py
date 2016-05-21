@@ -114,7 +114,7 @@ class Params():
             self.coord = (-24.851614,113.731267)
             ### release information
             # release duration (days)
-            self.r_dur = 12
+            self.r_dur = 5
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
@@ -441,7 +441,7 @@ def main(params):
                 if n == 0:
                     pmf_list.append(PM.prob_mass(
                                 day,wind_data,*params.get_model_params(),
-                                params.r_start))
+                                start_time=params.r_start))
                 else:
                     pmf_list.append(PM.prob_mass(
                                 day,wind_data,*params.get_model_params()))
