@@ -21,18 +21,21 @@ import Bayes_MCMC as Bayes
 ###############################################################################
 
 @pytest.fixture(scope="module")
-def locinfo():
+def domain_info():
+    return (5000.0,1000)
+
+@pytest.fixture(scope="module")
+def locinfo(domain_info):
    # kalbar info
    loc_name = 'kalbar'
    center = (-27.945752,152.58474)
-   domain_info = (5000.0,1000)
    return LocInfo(loc_name,center,domain_info)
 
 # path to sample pop model output
-sample_data = 'output/from_nemo/kalbar_pop0420-1939'
+sample_data = 'output/from_nemo/kalbar_pop5000_1000'
 
-@pytest.fixture()
-def modelsol():
+@pytest.fixture(scope="module")
+def modelsol(domain_info):
     # return a sample model solution
     if not (os.path.isfile(sample_data+'.npz') and 
             os.path.isfile(sample_data+'.json')):
@@ -69,6 +72,8 @@ def modelsol():
                         indptr = npz_obj[str(day)+'_indptr']
                         modelsol.append(sparse.csr_matrix((V,indices,indptr),
                                                         shape=(dom_len,dom_len)))
+        # check that modelsol dimensions match expected dimensions
+        assert modelsol[0].shape[0] == 2*domain_info[1]+1, 'Unexpected dimensions.'
         return modelsol
    
 
@@ -182,6 +187,7 @@ def test_LocInfo(locinfo):
     #   them there.
 
 
+
 @data_avail
 def test_model_emergence(locinfo,modelsol):
     '''Test the translation of population model results to emergence information,
@@ -238,3 +244,28 @@ def test_model_emergence(locinfo,modelsol):
         # release_collection should be relative numbers
         assert locinfo.release_collection[ii].max() == 1
         assert locinfo.release_collection[ii].min() >= 0
+
+
+
+@data_avail
+def test_model_sampling(locinfo,modelsol,domain_info):
+    '''Test the translation of population model results to the PyMC friendly
+    data structures in LocInfo'''
+
+    grid_counts = Bayes.popdensity_grid(modelsol,locinfo)
+    card_counts = Bayes.popdensity_card(modelsol,locinfo,domain_info)
+
+    # grid_counts should be comparable to locinfo.grid_obs and locinfo.grid_samples
+    assert np.all(grid_counts.shape == locinfo.grid_obs.shape == 
+                  locinfo.grid_samples.shape)
+    # they should be non-negative, and something should be > 0
+    assert grid_counts.max() > 0
+    assert grid_counts.min() >= 0
+
+    # each entry in card_counts should match each cooresponding entry in
+    #   locinfo.card_obs
+    for nobs,obs in enumerate(locinfo.card_obs):
+        assert np.all(obs.shape == card_counts[nobs].shape)
+        # Simulation should be >= 0, with a max > 0
+        card_counts[nobs].max() > 0
+        card_counts[nobs].min() >= 0
