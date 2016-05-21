@@ -109,7 +109,7 @@ def back_solve(prev_spread,cursol_hat,dom_shape):
     return bcksol[::-1]
             
 
-def r_small_vals(A,negval=1e-8):
+def r_small_vals(A,prob_model=False,negval=1e-8):
     '''Remove negligible values from the given coo sparse matrix. 
     This process significantly decreases the size of a solution, 
     saving storage and decreasing the time it takes to write to disk.
@@ -130,8 +130,9 @@ def r_small_vals(A,negval=1e-8):
         else:
             mask[n] = True
     A_red = sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
-    # to get a pmf, add back the lost probability evenly
-    A_red.data += (1-A_red.data.sum())/A_red.data.size
+    # IF PROBABILITY MODEL: to get a pmf, add back the lost probability evenly
+    if prob_model:
+        A_red.data += (1-A_red.data.sum())/A_red.data.size
     return A_red
     
     
@@ -182,7 +183,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             gpu_solver.fftconv2(pmf_list[n+1].tocsr(),n==0)
             print('Finding ifft for day {0}...'.format(n+2))
             modelsol.append(r_small_vals(
-                gpu_solver.get_cursol([dom_len,dom_len])))
+                gpu_solver.get_cursol([dom_len,dom_len]),prob_model=True))
     else:
         print('Finding fft of first day...')
         cursol_hat = fft2(modelsol[0],max_shape)
@@ -194,7 +195,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             # get real solution
             print('Finding ifft for day {0} and reducing...'.format(n+2))
             A,bndry_flag = ifft2(cursol_hat,[dom_len,dom_len])
-            modelsol.append(r_small_vals(A))
+            modelsol.append(r_small_vals(A),prob_model=True)
             # if the boundary has been reached, re-fft to enforce zero-bndry
             if bndry_flag:
                 cursol_hat = fft2(A,max_shape)
@@ -285,10 +286,13 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
             
     else: # no CUDA.
         print('Finding spread during release days...')
+        # if there is only one release day, fft it.
+        if r_dur == 1:
+            cursol_hat = fft2(r_spread[0],max_shape)
         # successive release day population spread
         for day in range(1,r_dur):
             cursol_hat = fft2(r_spread[day],max_shape)
-            curmodelsol[day] = r_spread[day]
+            curmodelsol[day] = r_spread[day].tocoo()
             # back solve to get previous solutions
             curmodelsol[:day] = back_solve(r_spread[:day],
                                             cursol_hat,[dom_len,dom_len])

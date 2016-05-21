@@ -136,3 +136,4 @@ $RECYCLE.BIN/
 .vs/
 *.pyproj
 *.sln
+*.user

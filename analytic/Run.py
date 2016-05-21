@@ -54,7 +54,7 @@ class Params():
         self.my_datasets()
         
         # domain info, (dist (m), cells) from release point to side of domain 
-        self.domain_info = (8000.0,1600) # (float, int!) (this is 5 m**2)
+        self.domain_info = (5000.0,1000) # (float, int!) (this is 5 m**2)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
@@ -126,11 +126,11 @@ class Params():
             self.coord = (-27.945752,152.58474)
             ### release information
             # release duration (days)
-            self.r_dur = 2
+            self.r_dur = 1
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
-            self.r_start = 0.354 #8:30am
+            self.r_start = 0.0 #00:00 0.354 #8:30am
             # total number of wasps 
             self.r_number = 130000
             
@@ -428,7 +428,7 @@ def main(params):
                 if n == 0:
                     pmf_list.append(PM.prob_mass(
                                 day,wind_data,*params.get_model_params(),
-                                params.r_start))
+                                start_time=params.r_start))
                 else:
                     pmf_list.append(PM.prob_mass(
                                 day,wind_data,*params.get_model_params()))
