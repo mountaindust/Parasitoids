@@ -316,7 +316,7 @@ def main():
                                     min(locinfo.field_sizes.values()),value=16)  
     # Each field has its own binomial probability.
     N = len(locinfo.sent_ids)
-    field_obs_probs = np.empty(N, dtype=object)
+    sent_obs_probs = np.empty(N, dtype=object)
     field_obs_vars = np.empty(N, dtype=object)
     field_obs_means = np.empty(N, dtype=object)
     for n,key in enumerate(locinfo.sent_ids):
@@ -525,6 +525,16 @@ def main():
     for ii in range(N_card_collections):
         card_collections.append(pm.Poisson("card_obs_{}".format(ii),
             card_poi_rates[ii], value=locinfo.card_obs[ii], observed=True))
+
+    #####       Setup model object and pass to MCMC     #####
+
+    modelobj = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,sig_x,sig_y,corr,
+                         sig_x_l,sig_y_l,corr_l,mu_r,
+        card_obs_prob,grid_obs_prob,xi,em_obs_prob,
+        A_collected,field_obs_means,field_obs_vars,sent_obs_probs,
+        params_obj,pop_model,
+        card_poi_rates,grid_poi_rates,rel_poi_rates,sent_poi_rates,
+        card_collections,grid_obs,rel_collections,sent_collections])
         
 
     

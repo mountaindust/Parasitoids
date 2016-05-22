@@ -257,6 +257,9 @@ def get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
     if globalvars.cuda and not NO_CUDA:
         # go to GPU.
         print('Finding spread during release days on GPU...')
+        # if there is only one release day, fft it.
+        if r_dur == 1:
+            gpu_solver = cuda_lib.CudaSolve(r_spread[0],max_shape)
         # successive release day population spread
         for day in range(1,r_dur):
             gpu_solver = cuda_lib.CudaSolve(r_spread[day],max_shape)
