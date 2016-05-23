@@ -2,6 +2,9 @@
 
 import os.path
 import pytest
+import numpy as np
+from scipy import sparse
+from Run import Params
 
 def pytest_addoption(parser):
     parser.addoption('--runslow', action='store_true', help='run slow tests')
@@ -9,7 +12,7 @@ def pytest_addoption(parser):
 ############                    Decorators                ############
 
 # path to sample pop model output
-sample_data = 'output/from_nemo/kalbar_pop5000_1000'
+sample_data = 'output/from_nemo/kalbar_pop0522-0047'
 
 data_avail = pytest.mark.skipif(not (os.path.isfile(sample_data+'.npz') and 
                                      os.path.isfile(sample_data+'.json')),
