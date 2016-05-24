@@ -34,6 +34,14 @@ def domain_info():
     return (rad_dist,rad_res)
     
 @pytest.fixture(scope="session")
+def params():
+    # load parameters
+    params = Params()
+    params.file_read_chg(sample_data)
+    
+    return params
+    
+@pytest.fixture(scope="session")
 def modelsol(domain_info):
     
     # return a sample model solution
@@ -41,11 +49,7 @@ def modelsol(domain_info):
             os.path.isfile(sample_data+'.json')):
         return None
     else:
-        # load parameters
-        params = Params()
-        params.file_read_chg(sample_data)
-
-        dom_len = params.domain_info[1]*2 + 1
+        dom_len = domain_info[1]*2 + 1
 
         # load data
         modelsol = []
