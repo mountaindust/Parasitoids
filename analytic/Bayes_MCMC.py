@@ -330,35 +330,13 @@ def main():
     
     
     #### Collect variables ####
-    @pm.deterministic
-    def params_obj(params=params,g_aw=g_aw,g_bw=g_bw,f_a1=f_a1,f_b1=f_b1,
-        f_a2=f_a2,f_b2=f_b2,sig_x=sig_x,sig_y=sig_y,corr=corr,
-        sig_x_l=sig_x_l,sig_y_l=sig_y_l,corr_l=corr_l,lam=lam,mu_r=mu_r):
-        '''Return altered parameter object to be passed in to simulation'''
-        
-        # g wind function parameters
-        params.g_params = (g_aw,g_bw)
-        # f time of day function parameters
-        params.f_params = (f_a1,f_b1,f_a2,f_b2)
-        # Diffusion coefficients
-        params.Dparams = (sig_x,sig_y,corr)
-        params.Dlparams = (sig_x_l,sig_y_l,corr_l)
-        # Probability of any flight during the day under ideal circumstances
-        params.lam = lam
-        
-        # TRY BOTH - VARYING mu_r OR n_periods
-        # scaling flight advection to wind advection
-        params.mu_r = mu_r
-        # number of time periods (based on interp_num) in one flight
-        #params.n_periods = n_periods # if interp_num = 30, this is # of minutes
-        
-        return params
-        
-        
+    params_ary = np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,
+                           sig_x_l,sig_y_l,corr_l,lam,mu_r],dtype=object)
+         
     
     #### Run model ####
     @pm.deterministic
-    def pop_model(params=params_obj,locinfo=locinfo,wind_data=wind_data,days=days):
+    def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,wind_data=wind_data,days=days):
         '''This function acts as an interface between PyMC and the model.
         Not only does it run the model, but it provides an emergence potential 
         based on the population model result projected forward from feasible
@@ -366,6 +344,24 @@ def main():
         popdensity_to_emergence. Returned values from this function should be
         nearly ready to compare to data.
         '''
+        ### Alter params with stochastic variables ###
+
+        # g wind function parameters
+        params.g_params = tuple(params_ary[0:2])
+        # f time of day function parameters
+        params.f_params = tuple(params_ary[2:6])
+        # Diffusion coefficients
+        params.Dparams = tuple(params_ary[6:9])
+        params.Dlparams = tuple(params_ary[9:12])
+        # Probability of any flight during the day under ideal circumstances
+        params.lam = params_ary[12]
+        
+        # TRY BOTH - VARYING mu_r OR n_periods
+        # scaling flight advection to wind advection
+        params.mu_r = params_ary[13]
+        # number of time periods (based on interp_num) in one flight
+        #params.n_periods = n_periods # if interp_num = 30, this is # of minutes
+
         
         ### PHASE ONE ###
         # First, get spread probability for each day as a coo sparse matrix
@@ -532,7 +528,7 @@ def main():
                          sig_x_l,sig_y_l,corr_l,mu_r,
         card_obs_prob,grid_obs_prob,xi,em_obs_prob,
         A_collected,field_obs_means,field_obs_vars,sent_obs_probs,
-        params_obj,pop_model,
+        params_ary,pop_model,
         card_poi_rates,grid_poi_rates,rel_poi_rates,sent_poi_rates,
         card_collections,grid_obs,rel_collections,sent_collections])
         
