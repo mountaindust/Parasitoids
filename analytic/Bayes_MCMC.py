@@ -13,6 +13,7 @@ __version__ = "0.3"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, time
+import os.path
 from io import StringIO
 from multiprocessing import Pool
 import numpy as np
@@ -522,7 +523,7 @@ def main():
         card_collections.append(pm.Poisson("card_obs_{}".format(ii),
             card_poi_rates[ii], value=locinfo.card_obs[ii], observed=True))
 
-    #####       Setup model object and pass to MCMC     #####
+    #####       Setup model object      #####
 
     modelobj = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,sig_x,sig_y,corr,
                          sig_x_l,sig_y_l,corr_l,mu_r,
@@ -531,7 +532,88 @@ def main():
         params_ary,pop_model,
         card_poi_rates,grid_poi_rates,rel_poi_rates,sent_poi_rates,
         card_collections,grid_obs,rel_collections,sent_collections])
+
+    #####       Start Interactive MCMC      #####
+    print('--------------- MCMC MAIN MENU ---------------')
+    print(" 'new': Start a new MCMC chain from the beginning.")
+    print("'cont': Continue a previous MCMC chain from an hdf5 file.")
+    print("'plot': Plot traces from an hdf5 file.")
+    print("'quit': Quit.")
+    cmd = input('Enter: ')
+    cmd = cmd.strip().lower()
+    if cmd == 'new':
+        print('\n\n')
+        print('--------------- New MCMC Chain ---------------')
+        while True:
+            val = input("Enter number of realizations or 'quit' to quit:")
+            val = val.strip()
+            if val == 'q' or val == 'quit':
+                return
+            else:
+                try:
+                    iter = int(val)
+                    val2 = input("Enter number of realizations to discard:")
+                    val2 = val2.strip()
+                    if val2 == 'q' or val2 == 'quit':
+                        return
+                    else:
+                        burn = int(val2)
+                    fname = input("Enter filename to save or 'back' to cancel:")
+                    fname = fname.strip()
+                    if fname == 'q' or fname == 'quit':
+                        return
+                    elif fname == 'b' or fname == 'back':
+                        continue
+                    else:
+                        fname = fname+'.h5'
+                        break # BREAK LOOP AND RUN MCMC WITH GIVEN VALUES
+                except ValueError:
+                    print('Unrecognized input.')
+                    continue
+        ##### RUN FIRST MCMC HERE #####
+        mcmc = pm.MCMC(modelobj,db='hdf5',dbname=fname,
+                        dbmode='a',dbcomplevel=0)
+        try:
+            mcmc.sample(iter,burn)
+            # sampling finished. commit to database and continue
+            mcmc.save_state()
+            mcmc.commit()
+        except:
+            print('Exception: database closing...')
+            mcmc.db.close()
+            raise
+    elif cmd == 'cont':
+        # Load db and continue
+        print('\n')
+        while True:
+            fname = input("Enter path to database to load, or 'q' to quit:")
+            fname = fname.strip()
+            if fname.lower() == 'q' or fname.lower() == 'quit':
+                return
+            else:
+                if fname[-3:] != '.h5':
+                    fname += '.h5'
+                if os.path.isfile(fname):
+                    db = pm.database.hdf5.load(fname)
+                    mcmc = pm.MCMC(modelobj,db=db)
+                    break # database loaded
+                else:
+                    print('File not found.')
+                    #continue
+    elif cmd == 'plot':
+        # Get filename and pass to plotting routine.
+        pass
+        # return
+    elif cmd == 'quit' or cmd == 'q':
+        return
+    else:
+        print('Command not recognized.')
+        print('Quitting....')
+        return
         
+    ##### MCMC Loop #####
+    # This should be reached only by cmd == 'new' or 'cont' with a database
+
 
     
 if __name__ == "__main__":
