@@ -109,7 +109,8 @@ for n,key in enumerate(locinfo.sent_ids):
     #auto-create deterministic variables
     field_obs_means[n] = A_collected/locinfo.field_sizes[key]
     #Lambda to get deterministic variables
-    field_obs_vars[n] = pm.Lambda("var_{}".format(key),lambda m=mean: min(m,0.1))
+    field_obs_vars[n] = pm.Lambda("var_{}".format(key),
+                                  lambda m=field_obs_means[n]: min(m,0.1))
     sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
         field_obs_means[n]*(1-field_obs_means[n]-field_obs_vars[n])/field_obs_vars[n],
         (field_obs_means[n]-field_obs_vars[n])*(1-field_obs_means[n])/field_obs_vars[n])
