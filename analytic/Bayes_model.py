@@ -103,6 +103,7 @@ A_collected = pm.TruncatedNormal("A_collected",25,50,0,
 # Each field has its own binomial probability.
 N = len(locinfo.sent_ids)
 sent_obs_probs = np.empty(N, dtype=object)
+sent_obs_alpha = np.empty(N, dtype=object)
 field_obs_vars = np.empty(N, dtype=object)
 field_obs_means = np.empty(N, dtype=object)
 for n,key in enumerate(locinfo.sent_ids):
