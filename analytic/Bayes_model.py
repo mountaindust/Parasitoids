@@ -22,8 +22,8 @@ from Bayes_funcs import *
 __all__ = ['lam','f_a1','f_a2','f_b1','f_b2','g_aw','g_bw',
            'sig_x','sig_y','corr','sig_x_l','sig_y_l','corr_l','mu_r',
            'card_obs_prob','grid_obs_prob','xi','em_obs_prob',
-           'A_collected','field_obs_means','field_obs_vars','sent_obs_probs',
-           'params_ary','pop_model',
+           'A_collected','field_obs_means','field_obs_vars','sent_obs_alpha',
+           'sent_obs_probs','params_ary','pop_model',
            'card_poi_rates','grid_poi_rates','rel_poi_rates','sent_poi_rates',
            'card_collections','grid_obs','rel_collections','sent_collections']
 
@@ -111,9 +111,11 @@ for n,key in enumerate(locinfo.sent_ids):
     #Lambda to get deterministic variables
     field_obs_vars[n] = pm.Lambda("var_{}".format(key),
                                   lambda m=field_obs_means[n]: min(m,0.1))
-    sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
-        field_obs_means[n]*(1-field_obs_means[n]-field_obs_vars[n])/field_obs_vars[n],
-        (field_obs_means[n]-field_obs_vars[n])*(1-field_obs_means[n])/field_obs_vars[n])
+    # Calculate Beta parameter alpha
+    sent_obs_alpha[n] = ((1-field_obs_means[n])/field_obs_vars[n] - 
+                         1/field_obs_means[n])*field_obs_means[n]**2
+    sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),sent_obs_alpha[n],
+        sent_obs_alpha[n]*(1/field_obs_means[n] - 1))
     
     
 #### Collect variables ####
