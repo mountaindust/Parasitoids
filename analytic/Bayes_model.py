@@ -111,7 +111,7 @@ for n,key in enumerate(locinfo.sent_ids):
     field_obs_means[n] = A_collected/locinfo.field_sizes[key]
     #Lambda to get deterministic variables
     field_obs_vars[n] = pm.Lambda("var_{}".format(key),
-                                  lambda m=field_obs_means[n]: min(m,0.1))
+                        lambda m=field_obs_means[n]: min(0.99*m*(1-m),0.1))
     # Calculate Beta parameter alpha
     sent_obs_alpha[n] = ((1-field_obs_means[n])/field_obs_vars[n] - 
                          1/field_obs_means[n])*field_obs_means[n]**2
