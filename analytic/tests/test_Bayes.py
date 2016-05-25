@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 
-'''Test module for Bayes_MCMC
+'''Test module for Data_Import and Bayes_funcs
 
-Author: Christopher Strickland'''
+Author: Christopher Strickland
+Email: cstrickland@samsi.info
+'''
 
 import pytest
 import numpy as np
@@ -11,7 +13,7 @@ from scipy import sparse
 from matplotlib.path import Path
 from Data_Import import LocInfo
 from Run import Params
-import Bayes_MCMC as Bayes
+import Bayes_funcs as Bayes
 from conftest import data_avail
 
 ###############################################################################
