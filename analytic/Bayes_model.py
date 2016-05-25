@@ -172,7 +172,7 @@ def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
         sentinel_emerg = []
         for nframe,dframe in enumerate(locinfo.sent_DataFrames):
             obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-            sentinel_emerg.append(np.zeros((len(locinfo.sent_ids[nframe]),
+            sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
                                     len(obs_datesPR))))
         return (release_emerg,sentinel_emerg)
     finally:

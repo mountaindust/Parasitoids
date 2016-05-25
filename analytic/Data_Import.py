@@ -25,7 +25,7 @@ class LocInfo(object):
         release_date: Timestamp
         collection_datesPR: list of TimeDeltas
         sent_DataFrames: list of sample days, (id,datePR,E_total,All_total)
-        sent_ids: list of field ID strings in same order as DataFrames
+        sent_ids: list of field ID strings. Assume list is const over collections
 
         ### Release field emergence data ###
         releasefield_id: string, field ID
@@ -102,11 +102,11 @@ class LocInfo(object):
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
         #####
-        ### Sort and get ordered list(s) of sentinel field ids
-        self.sent_ids = []
+        ### Sort and get ordered list of sentinel field ids
+        ### Assume all sentinel fields were used in each collection
         for dframe in self.sent_DataFrames:
             dframe.sort_values(['datePR','id'],inplace=True)
-            self.sent_ids.append(dframe['id'].unique())
+        self.sent_ids = list(self.sent_DataFrames[0]['id'].unique())
 
         ##### Import and parse release field emergence data #####
         #   Again, highly dependent on what your dataset looks like. See method
@@ -218,8 +218,8 @@ class LocInfo(object):
             #self.release_emerg_total.append(All_array)
         for ndframe,dframe in enumerate(self.sent_DataFrames):
             obs_datesPR = dframe['datePR'].unique()
-            E_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
-            #All_array = np.zeros((len(self.sent_ids[ndframe]),len(obs_datesPR)))
+            E_array = np.zeros((len(self.sent_ids),len(obs_datesPR)))
+            #All_array = np.zeros((len(self.sent_ids),len(obs_datesPR)))
             for ndate,date in enumerate(obs_datesPR):
                 E_array[:,ndate] = dframe[dframe['datePR'] == date]['E_total'].values
                 #All_array[:,ndate] = dframe[dframe['datePR'] == date]['All_total'].values

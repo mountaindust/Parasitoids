@@ -80,7 +80,7 @@ def test_LocInfo(locinfo):
     assert np.all(locinfo.sent_DataFrames[0]['E_total'].values <=
                   locinfo.sent_DataFrames[0]['All_total'].values)
     # test that we have the field cell info for all the sentinel field data
-    for key in locinfo.sent_ids[0]:
+    for key in locinfo.sent_ids:
         assert key in locinfo.field_cells.keys()
     # Test emergence post release dates
     minTimedelta = locinfo.collection_datesPR[0]
@@ -165,7 +165,7 @@ def test_model_emergence(locinfo,modelsol):
 
         n_fields, n_obs = sentinel_emerg[ii].shape
         # test shape against data info
-        assert n_fields == len(locinfo.sent_ids[ii])
+        assert n_fields == len(locinfo.sent_ids)
         assert n_obs == len(locinfo.sent_DataFrames[ii]['datePR'].unique())
         # test shape against locinfo ndarray
         assert n_fields == sentinel_emerg[ii].shape[0]
@@ -179,7 +179,7 @@ def test_model_emergence(locinfo,modelsol):
                     [['row','column']].values[n,:]) == cell
 
         # same for sentinel fields
-        for n,field in enumerate(locinfo.sent_ids[ii]):
+        for n,field in enumerate(locinfo.sent_ids):
             for day in locinfo.sent_DataFrames[ii]['datePR'].unique():
                 assert locinfo.sent_DataFrames[ii]\
                     [locinfo.sent_DataFrames[ii]['datePR']==day]\

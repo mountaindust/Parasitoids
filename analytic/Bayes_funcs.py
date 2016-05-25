@@ -99,13 +99,13 @@ def popdensity_to_emergence(modelsol,locinfo):
         # emerg_proj holds each sentinel field in its rows and a different 
         #   emergence day in its columns.
         # Feasible emergence days start at collection and go until observation stopped
-        emerg_proj = np.zeros((len(locinfo.sent_ids[nframe]), 
+        emerg_proj = np.zeros((len(locinfo.sent_ids), 
             max_incubation_time))
             
         # go through feasible oviposition days
         for nday,day in enumerate(range(start_day,collection_day)):
             # for each day, aggregate the population in each sentinel field
-            for n,field_id in enumerate(locinfo.sent_ids[nframe]):
+            for n,field_id in enumerate(locinfo.sent_ids):
                 ###     Sum the field cells, project forward and store       ###
                 ### This function can be more complicated if we want to try  ###
                 ###   and be more precise. It's a mapping from feasible      ###
@@ -118,7 +118,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         # now consolidate these days into just the days data was collected.
         # first, get unique dates
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-        modelsol_field_emerg = np.zeros((len(locinfo.sent_ids[nframe]),
+        modelsol_field_emerg = np.zeros((len(locinfo.sent_ids),
                                         len(obs_datesPR)))
         col_indices = obs_datesPR - collection_day
         modelsol_field_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
