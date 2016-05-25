@@ -17,6 +17,7 @@ import os.path
 import numpy as np
 import pymc as pm
 import Bayes_model
+import IPython
 
 ###############################################################################
 #                                                                             #
@@ -30,7 +31,7 @@ def main():
     print('--------------- MCMC MAIN MENU ---------------')
     print(" 'new': Start a new MCMC chain from the beginning.")
     print("'cont': Continue a previous MCMC chain from an hdf5 file.")
-    print("'plot': Plot traces from an hdf5 file.")
+    #print("'plot': Plot traces/distribution from an hdf5 file.")
     print("'quit': Quit.")
     cmd = input('Enter: ')
     cmd = cmd.strip().lower()
@@ -44,7 +45,7 @@ def main():
                 return
             else:
                 try:
-                    iter = int(val)
+                    nsamples = int(val)
                     val2 = input("Enter number of realizations to discard:")
                     val2 = val2.strip()
                     if val2 == 'q' or val2 == 'quit':
@@ -67,7 +68,7 @@ def main():
         mcmc = pm.MCMC(Bayes_model,db='hdf5',dbname=fname,
                         dbmode='a',dbcomplevel=0)
         try:
-            mcmc.sample(iter,burn)
+            mcmc.sample(nsamples,burn)
             # sampling finished. commit to database and continue
             mcmc.save_state()
             mcmc.commit()
@@ -109,8 +110,48 @@ def main():
     ##### MCMC Loop #####
     # This should be reached only by cmd == 'new' or 'cont' with a database.
     # It resumes sampling of a previously sampled chain.
-
-
+    print('\n')
+    while True:
+        print('--------------- MCMC ---------------')
+        print("'inspect': launch IPython to inspect state")
+        print("    'run': conduct further sampling")
+        print("   'quit': Quit")
+        cmd = input('Enter: ')
+        cmd = cmd.strip().lower()
+        if cmd == 'inspect':
+            try:
+                IPython.embed()
+            except:
+                print('Exception: database closing...')
+                mcmc.db.close()
+                raise
+        elif cmd == 'run':
+            val = input("Enter number of realizations or 'back':")
+            val = val.strip()
+            if val == 'back' or val == 'b':
+                continue
+            else:
+                try:
+                    nsamples = int(val)
+                except ValueError:
+                    print('Unrecognized input.')
+                    continue
+            # Run chain
+            try:
+                mcmc.sample(nsamples)
+                # sampling finished. commit to database and continue
+                mcmc.save_state()
+                mcmc.commit()
+            except:
+                print('Exception: database closing...')
+                mcmc.db.close()
+                raise
+        elif cmd == 'quit' or cmd == 'q':
+            mcmc.db.close()
+            print('Database closed.')
+            break
+        else:
+            print('Command not recognized.')
     
 if __name__ == "__main__":
     main(sys.argv[1:])
