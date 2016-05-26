@@ -22,8 +22,7 @@ from Bayes_funcs import *
 __all__ = ['lam','f_a1','f_a2','f_b1','f_b2','g_aw','g_bw',
            'sig_x','sig_y','corr','sig_x_l','sig_y_l','corr_l','mu_r',
            'card_obs_prob','grid_obs_prob','xi','em_obs_prob',
-           'A_collected','field_obs_means','field_obs_vars','sent_obs_alpha',
-           'sent_obs_probs','params_ary','pop_model',
+           'A_collected','sent_obs_probs','params_ary','pop_model',
            'card_poi_rates','grid_poi_rates','rel_poi_rates','sent_poi_rates',
            'card_collections','grid_obs','rel_collections','sent_collections']
 
@@ -98,26 +97,16 @@ card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
 #### Data collection model background for sentinel fields ####
 # Need to fix linear units for area. Let's use cells.
 # Effective collection area (constant between fields) is very uncertain
-A_collected = pm.TruncatedNormal("A_collected",25,50,0,
+A_collected = pm.TruncatedNormal("A_collected",25,1/50,0,
                                 min(locinfo.field_sizes.values()),value=16)  
 # Each field has its own binomial probability.
+## Probabilities are likely to be small, and pm.Beta cannot handle small
+##  parameter values. So we will use TruncatedNormal again.
 N = len(locinfo.sent_ids)
 sent_obs_probs = np.empty(N, dtype=object)
-sent_obs_alpha = np.empty(N, dtype=object)
-field_obs_vars = np.empty(N, dtype=object)
-field_obs_means = np.empty(N, dtype=object)
 for n,key in enumerate(locinfo.sent_ids):
-    #auto-create deterministic variables
-    field_obs_means[n] = A_collected/locinfo.field_sizes[key]
-    #Lambda to get deterministic variables
-    field_obs_vars[n] = pm.Lambda("var_{}".format(key),
-                        lambda m=field_obs_means[n]: min(0.99*m*(1-m),0.1))
-    # Calculate Beta parameter alpha
-    sent_obs_alpha[n] = ((1-field_obs_means[n])/field_obs_vars[n] - 
-                         1/field_obs_means[n])*field_obs_means[n]**2
-    sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),sent_obs_alpha[n],
-        sent_obs_alpha[n]*(1/field_obs_means[n] - 1))
-    
+    sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
+        A_collected/locinfo.field_sizes[key],0.05,0,1)
     
 #### Collect variables ####
 params_ary = np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,
@@ -125,7 +114,7 @@ params_ary = np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,
          
     
 #### Run model ####
-@pm.deterministic
+@pm.deterministic(plot=False,trace=False)
 def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
               wind_data=wind_data,days=days):
     '''This function acts as an interface between PyMC and the model.
@@ -158,7 +147,6 @@ def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
     # First, get spread probability for each day as a coo sparse matrix
     pmf_list = []
     max_shape = np.array([0,0])
-    print("Calculating each day's spread in parallel...")
     pm_args = [(days[0],wind_data,*params.get_model_params(),
             params.r_start)]
     pm_args.extend([(day,wind_data,*params.get_model_params()) 
@@ -235,7 +223,7 @@ def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
         
         
 ### Parse the results of pop_model into separate deterministic variables ###
-@pm.deterministic
+@pm.deterministic(plot=False)
 def sent_poi_rates(locinfo=locinfo,xi=xi,betas=sent_obs_probs,
                     emerg_model=pop_model[1]):
     '''Return Poisson probabilities for sentinal field emergence
@@ -249,7 +237,7 @@ def sent_poi_rates(locinfo=locinfo,xi=xi,betas=sent_obs_probs,
         poi_rates.append(xi*emerg_model[ii]*tile_betas)
     return poi_rates
         
-@pm.deterministic
+@pm.deterministic(plot=False)
 def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,
                     emerg_model=pop_model[0]):
     '''Return Poisson probabilities for release field grid emergence
@@ -264,14 +252,14 @@ def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,
         poi_rates.append(xi*emerg_model[ii]*tile_betas)
     return poi_rates
             
-@pm.deterministic
+@pm.deterministic(plot=False)
 def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
                     obs_model=pop_model[2]):
     '''Return Poisson probabilities for grid sampling
     obs_model is an ndarray, sampling effort is specified in locinfo.'''
     return beta*locinfo.grid_samples*obs_model
 
-@pm.deterministic
+@pm.deterministic(plot=False)
 def card_poi_rates(beta=card_obs_prob,obs_model=pop_model[3]):
     '''Return Poisson probabilities for cardinal direction sampling
     obs_model is a list of ndarrays, sampling effort is assumed constant'''
