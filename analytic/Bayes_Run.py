@@ -60,6 +60,8 @@ class Capturing(list):
 
 def main():
 
+    print('Setting up parameters and priors...')
+
     params = Params()
     # Set up location here with command line arguments in a list.
     params.cmd_line_chg(['--kalbar'])
@@ -67,7 +69,6 @@ def main():
     # Set parameters specific to Bayesian runs
     params.PLOT = False
     params.OUTPUT = False
-    params.ndays = -1 # locinfo.get_landscape_sample_datesPR()[-1]?
 
     # This sends a message to CalcSol on whether or not to use CUDA
     if params.CUDA:
@@ -76,6 +77,7 @@ def main():
         globalvars.cuda = False
     # get wind data and day labels
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
+    params.ndays = len(days)
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
     
@@ -123,6 +125,8 @@ def main():
     #### Collect variables ####
     params_ary = np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,
                             sig_x_l,sig_y_l,corr_l,lam,mu_r],dtype=object)
+
+    print('Getting initial model values...')
 
     #### Run model ####
     @pm.deterministic(plot=False,trace=False)
@@ -239,7 +243,7 @@ def main():
         ##    Each row corresponds to a cardinal direction 
         return (release_emerg,sentinel_emerg,grid_counts,card_counts)
         
-        
+    print('Parsing model output and connecting to Bayesian model...')    
         
     ### Parse the results of pop_model into separate deterministic variables ###
     @pm.deterministic(plot=False)
@@ -297,28 +301,54 @@ def main():
     # Create list of collection variables
     sent_collections = []
     for ii in range(N_sent_collections):
-        sent_collections.append(pm.Poisson("sent_em_obs_{}".format(ii),
-            sent_poi_rates[ii], value=locinfo.sentinel_emerg[ii], observed=True))
+        # Apparently, pymc does not play well with 2D array parameters
+        sent_collections.append(np.empty(sent_poi_rates[ii].value.shape,
+                                         dtype=object))
+        for n in range(sent_collections[ii].shape[0]):
+            for m in range(sent_collections[ii].shape[1]):
+                sent_collections[ii][n,m] = pm.Poisson(
+                    "sent_em_obs_{}_{}_{}".format(ii,n,m),
+                    sent_poi_rates[ii][n,m], 
+                    value=locinfo.sentinel_emerg[ii][n,m], 
+                    observed=True, plot=False)
             
     ### Connect release-field emergence data to model ###
     N_release_collections = len(locinfo.release_DataFrames)
     # Create list of collection variables
     rel_collections = []
     for ii in range(N_release_collections):
-        rel_collections.append(pm.Poisson("rel_em_obs_{}".format(ii),
-            rel_poi_rates[ii], value=locinfo.release_emerg[ii], observed=True))
+        rel_collections.append(np.empty(rel_poi_rates[ii].value.shape,
+                                        dtype=object))
+        for n in range(rel_collections[ii].shape[0]):
+            for m in range(rel_collections[ii].shape[1]):
+                rel_collections[ii][n,m] = pm.Poisson(
+                    "rel_em_obs_{}_{}_{}".format(ii,n,m),
+                    rel_poi_rates[ii][n,m], 
+                    value=locinfo.release_emerg[ii][n,m], 
+                    observed=True, plot=False)
 
     ### Connect grid sampling data to model ###
-    grid_obs = pm.Poisson("grid_obs",grid_poi_rates,value=locinfo.grid_obs,
-                            observed=True)
+    grid_obs = np.empty(grid_poi_rates.value.shape,dtype=object)
+    for n in range(grid_obs.shape[0]):
+        for m in range(grid_obs.shape[1]):
+            grid_obs[n,m] = pm.Poisson("grid_obs_{}_{}".format(n,m),
+                grid_poi_rates[n,m], value=locinfo.grid_obs[n,m],
+                observed=True, plot=False)
 
     ### Connect cardinal direction data to model ###
     N_card_collections = len(locinfo.card_obs_DataFrames)
     # Create list of sampling variables
     card_collections = []
     for ii in range(N_card_collections):
-        card_collections.append(pm.Poisson("card_obs_{}".format(ii),
-            card_poi_rates[ii], value=locinfo.card_obs[ii], observed=True))
+        card_collections.append(np.empty(card_poi_rates[ii].value.shape,
+                                         dtype=object))
+        for n in range(card_collections[ii].shape[0]):
+            for m in range(card_collections[ii].shape[1]):
+                card_collections[ii][n,m] = pm.Poisson(
+                    "card_obs_{}_{}_{}".format(ii,n,m),
+                    card_poi_rates[ii][n,m], 
+                    value=locinfo.card_obs[ii][n,m], 
+                    observed=True, plot=False)
 
     ### Collect model ###
     Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,

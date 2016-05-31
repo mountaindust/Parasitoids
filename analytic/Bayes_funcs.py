@@ -18,9 +18,9 @@ def popdensity_to_emergence(modelsol,locinfo):
     #   on the day of collection, but emergence is.
     
     ### Oviposition to emergence time ###
-    # For now, assume this is a constant
-    incubation_time = 15 # days (Average of 16 & 14)
-    max_incubation_time = 15
+    # We will assume this is 14 to 20 days, uniformly distributed.
+    incubation_time = np.ones(7)/7 #14-20 inclusive
+    max_incubation_time = 20
     
     ### Project release field grid ###
     release_emerg = []
@@ -50,18 +50,20 @@ def popdensity_to_emergence(modelsol,locinfo):
             max_incubation_time))
         
         # go through feasible oviposition days
-        for nday,day in enumerate(range(start_day,collection_day)):
+        for day in range(start_day,collection_day):
             n = 0 # row/col count
             # in each one, go through grid points projecting emergence date
             #   potentials per adult wasp per cell.
             for r,c in locinfo.emerg_grids[nframe]:
                 ###                Project forward and store                 ###
-                ### This function can be more complicated if we want to try  ###
-                ###   and be more precise. It's a mapping from feasible      ###
+                ### This function is a mapping from feasible                 ###
                 ###   oviposition dates to array of feasible emergence dates ###
-                # nday represents index of feasible emergence days, [collect,+max)
                 # day represents feasible oviposition days, [start,collect)
-                emerg_proj[n,nday] = modelsol[day][r,c]
+                e_distrib = modelsol[day][r,c]*incubation_time
+                max_post_col = day+max_incubation_time-collection_day+1
+                min_post_col = max(0,max_post_col-incubation_time.size)
+                span_len = max_post_col-min_post_col
+                emerg_proj[n,min_post_col:max_post_col] += e_distrib[-span_len:]
                 ################################################################
                 n += 1
                 
@@ -103,7 +105,7 @@ def popdensity_to_emergence(modelsol,locinfo):
             max_incubation_time))
             
         # go through feasible oviposition days
-        for nday,day in enumerate(range(start_day,collection_day)):
+        for day in range(start_day,collection_day):
             # for each day, aggregate the population in each sentinel field
             for n,field_id in enumerate(locinfo.sent_ids):
                 ###     Sum the field cells, project forward and store       ###
@@ -112,7 +114,11 @@ def popdensity_to_emergence(modelsol,locinfo):
                 ###   oviposition dates to array of feasible emergence dates ###
                 field_total = modelsol[day][locinfo.field_cells[field_id][:,0],
                                     locinfo.field_cells[field_id][:,1]].sum()
-                emerg_proj[n,nday] = field_total
+                e_distrib = field_total*incubation_time
+                max_post_col = day+max_incubation_time-collection_day+1
+                min_post_col = max(0,max_post_col-incubation_time.size)
+                span_len = max_post_col-min_post_col
+                emerg_proj[n,min_post_col:max_post_col] += e_distrib[-span_len:]
                 ################################################################
         
         # now consolidate these days into just the days data was collected.
