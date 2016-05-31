@@ -27,8 +27,6 @@ import ParasitoidModel as PM
 from Bayes_funcs import *
 import IPython
 
-
-
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
     to capture the stdout of the enclosing functions. If used multiple times,
@@ -244,36 +242,32 @@ def main():
         return (release_emerg,sentinel_emerg,grid_counts,card_counts)
         
     print('Parsing model output and connecting to Bayesian model...')    
-        
+    
     ### Parse the results of pop_model into separate deterministic variables ###
-    @pm.deterministic(plot=False)
-    def sent_poi_rates(locinfo=locinfo,xi=xi,betas=sent_obs_probs,
-                        emerg_model=pop_model[1]):
-        '''Return Poisson probabilities for sentinal field emergence
+    '''Get Poisson probabilities for sentinal field emergence. Parameters:
         xi is constant, emerg is a list of ndarrays, betas is a 1D array of
         field probabilities'''
-        Ncollections = len(locinfo.sent_DataFrames)
-        poi_rates = []
-        for ii in range(Ncollections):
-            ndays = len(locinfo.sent_DataFrames[ii]['datePR'].unique())
-            tile_betas = np.tile(betas,(ndays,1)).T
-            poi_rates.append(xi*emerg_model[ii]*tile_betas)
-        return poi_rates
-        
-    @pm.deterministic(plot=False)
-    def rel_poi_rates(locinfo=locinfo,xi=xi,beta=em_obs_prob,
-                        emerg_model=pop_model[0]):
-        '''Return Poisson probabilities for release field grid emergence
+    Ncollections = len(locinfo.sent_DataFrames)
+    sent_poi_rates = []
+    for ii in range(Ncollections):
+        s_ndays = len(locinfo.sent_DataFrames[ii]['datePR'].unique())
+        sent_poi_rates.append(pm.Lambda('sent_poi_rate_{}'.format(ii),
+            lambda xi=xi, ndays=s_ndays, betas=sent_obs_probs, 
+            emerg_model=pop_model[1][ii]:
+            xi*emerg_model*np.tile(betas,(ndays,1)).T))
+    
+    '''Return Poisson probabilities for release field grid emergence. Parameters:
         xi is constant, emerg is a list of ndarrays. collection effort is
         specified in locinfo.'''
-        Ncollections = len(locinfo.release_DataFrames)
-        poi_rates = []
-        for ii in range(Ncollections):
-            r_effort = locinfo.release_collection[ii] #fraction of max collection
-            ndays = len(locinfo.release_DataFrames[ii]['datePR'].unique())
-            tile_betas = np.tile(r_effort*beta,(ndays,1)).T
-            poi_rates.append(xi*emerg_model[ii]*tile_betas)
-        return poi_rates
+    Ncollections = len(locinfo.release_DataFrames)
+    rel_poi_rates = []
+    for ii in range(Ncollections):
+        r_effort = locinfo.release_collection[ii] #fraction of max collection
+        r_ndays = len(locinfo.release_DataFrames[ii]['datePR'].unique())
+        rel_poi_rates.append(pm.Lambda('rel_poi_rate_{}'.format(ii),
+            lambda xi=xi, ndays=r_ndays, r_effort=r_effort, beta=em_obs_prob, 
+            emerg_model=pop_model[0][ii]:
+            xi*emerg_model*np.tile(r_effort*beta,(ndays,1)).T))
             
     @pm.deterministic(plot=False)
     def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
@@ -282,15 +276,12 @@ def main():
         obs_model is an ndarray, sampling effort is specified in locinfo.'''
         return beta*locinfo.grid_samples*obs_model
 
-    @pm.deterministic(plot=False)
-    def card_poi_rates(beta=card_obs_prob,obs_model=pop_model[3]):
-        '''Return Poisson probabilities for cardinal direction sampling
+    '''Return Poisson probabilities for cardinal direction sampling
         obs_model is a list of ndarrays, sampling effort is assumed constant'''
-        poi_rates = []
-        for obs in obs_model:
-            poi_rates.append(beta*obs)
-        return poi_rates
-
+    card_poi_rates = []
+    for obs in pop_model[3]:
+        card_poi_rates.append(pm.Lambda('card_poi_rate_{}'.format(ii),
+            lambda beta=card_obs_prob, obs=obs: beta*obs))
     
     # Given the expected wasp densities from pop_model, actual wasp densities
     #   are modeled as a thinned Poisson random variable about that mean.

@@ -188,7 +188,7 @@ def popdensity_card(modelsol,locinfo,domain_info):
         dist = 5
         for step in range(obslen):
             dist += locinfo.step_size[nday]
-            cell_delta = dist//res
+            cell_delta = int(dist//res)
             # north
             day_count[0,step] = modelsol[date.days-1][domain_info[1]-cell_delta,
                                                       domain_info[1]]
