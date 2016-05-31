@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib as mpl
 import matplotlib.animation as animation
+import matplotlib.patches as patches
 try:
     from PIL import Image
     NO_PILLOW = False
@@ -174,7 +175,7 @@ def get_satellite(key,service,center,dist):
     
     
     
-def plot_all(modelsol,params):
+def plot_all(modelsol,params,locinfo=None):
     '''Function for plotting the model solution
     
     Args:
@@ -222,6 +223,10 @@ def plot_all(modelsol,params):
         else:
             plt.imshow(sat_img,zorder=0,extent=plot_limits)
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
+        if locinfo is not None:
+            for poly in locinfo.field_polys.values():
+                ax.add_patch(patches.PathPatch(poly,facecolor='none',
+                             edgecolor='r',lw=2,zorder=2))
         
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
@@ -242,7 +247,7 @@ def plot_all(modelsol,params):
 
             
             
-def plot(sol,day,params,saveonly=None):
+def plot(sol,day,params,saveonly=None,locinfo=None):
     '''Plot a solution for a single day
     
     Args:
@@ -310,21 +315,31 @@ def plot(sol,day,params,saveonly=None):
     sat_img = get_satellite(params.maps_key,params.maps_service,
         params.coord,xmesh[-1])
     if sat_img is None:
-        if bw is None:
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
-        else:
+        if bw is None: #color
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)             
+        else: #black and white
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
                         vmax=sprd_max,alpha=1)
     else:
-        if bw is None:
+        if bw is None: #color
             plt.imshow(sat_img,zorder=0,extent=plot_limits)
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,zorder=1)
-        else:
+        else: #black and white
             sat_img = sat_img.convert('L') #B/W satellite image w/ dither
             plt.imshow(sat_img,zorder=0,cmap=plt.get_cmap('gray'),
                         extent=plot_limits)
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
                         vmax=sprd_max,zorder=1,alpha=0.65)
+    # sentinel field locations
+    if locinfo is not None:
+        if bw is None: #color
+            for poly in locinfo.field_polys.values():
+                ax.add_patch(patches.PathPatch(poly,facecolor='none',
+                             edgecolor='r',lw=2,zorder=2))
+        else: #black and white
+            for poly in locinfo.field_polys.values():
+                ax.add_patch(patches.PathPatch(poly,facecolor='none',
+                             edgecolor='k',lw=2,zorder=2))      
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
@@ -347,7 +362,7 @@ def plot(sol,day,params,saveonly=None):
         
         
         
-def create_mp4(modelsol,params,filename):
+def create_mp4(modelsol,params,filename,locinfo=None):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
     
@@ -413,6 +428,10 @@ def create_mp4(modelsol,params,filename):
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
+        if locinfo is not None:
+            for poly in locinfo.field_polys.values():
+                ax.add_patch(patches.PathPatch(poly,facecolor='none',
+                             edgecolor='r',lw=2,zorder=2))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.maps_service,
                 params.coord,xmesh[-1])
@@ -498,6 +517,7 @@ def main(argv):
                     modelsol.append(sparse.csr_matrix((V,indices,indptr),
                                                     shape=(dom_len,dom_len)))
 
+    LOCINFO_LOADED = False
     print('----------------Model result visualizations----------------')
     while True:
         val = input('Enter a day number to plot, '+
@@ -505,6 +525,7 @@ def main(argv):
                 '"save" or "s" and then a number will save that day to file.\n'+
                 '? will provide a list of plottable day numbers.\n'+
                 '"vid" will output a video (requires FFmpeg or menconder).\n'+
+                '"fields" will load data for plotting sentinel field outlines.\n'+
                 'Or enter q to quit:')
         val = val.strip()
         if val == '':
@@ -515,9 +536,24 @@ def main(argv):
             break
         elif val.lower() == 'a' or val.lower() == 'all':
             # plot_all wants a list of values. pass a view into ordered dict
-            plot_all(modelsol,params)
+            if LOCINFO_LOADED:
+                plot_all(modelsol,params,locinfo=locinfo)
+            else:
+                plot_all(modelsol,params)
         elif val.lower() == 'vid':
-            create_mp4(modelsol,params,filename)
+            if LOCINFO_LOADED:
+                create_mp4(modelsol,params,filename,locinfo=locinfo)
+            else:
+                create_mp4(modelsol,params,filename)
+        elif val.lower() == 'fields':
+            try:
+                from Data_Import import LocInfo
+                locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
+                LOCINFO_LOADED = True
+                print('Sentinel field locations loaded.\n')
+            except:
+                print('Could not load sentinel field data.')
+                print(sys.exc_info()[0])
         elif val[0] == 's':
             try:
                 if val[:4] == 'save':
@@ -526,10 +562,16 @@ def main(argv):
                     val = int(val[1:].strip())
             except ValueError:
                 print('Could not convert {} to an integer.'.format(val))
-            plot(modelsol[val-1],val,params,saveonly=filename)
+            if LOCINFO_LOADED:
+                plot(modelsol[val-1],val,params,saveonly=filename,locinfo=locinfo)
+            else:
+                plot(modelsol[val-1],val,params,saveonly=filename)
         else:
             try:
-                plot(modelsol[int(val)-1],val,params)
+                if LOCINFO_LOADED:
+                    plot(modelsol[int(val)-1],val,params,locinfo=locinfo)
+                else:
+                    plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
     
