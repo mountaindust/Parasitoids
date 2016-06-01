@@ -174,7 +174,10 @@ def main():
         pool = Pool()
         try:
             pmf_list = pool.starmap(PM.prob_mass,pm_args)
+            pool.close()
         except PM.BndsError as e:
+            print('PM.BndsError caught.')
+            pool.terminate()
             # return output full of zeros, but of correct type/size
             release_emerg = []
             for nframe,dframe in enumerate(locinfo.release_DataFrames):
@@ -192,8 +195,12 @@ def main():
             for ndate,date in enumerate(locinfo.card_obs_datesPR):
                 card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
             return (release_emerg,sentinel_emerg,grid_counts,card_counts)
+        except:
+            print('Unrecognized exception!!')
+            pool.terminate()
+            print('Terminate signal sent.')
+            raise
         finally:
-            pool.close()
             pool.join()
         ######################
         for pmf in pmf_list:

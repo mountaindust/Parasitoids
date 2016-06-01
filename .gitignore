@@ -7,6 +7,9 @@ output/
 snippets/
 config.txt
 
+# MCMC database
+*.h5
+
 # Raw data
 *.ods
 
