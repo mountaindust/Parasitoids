@@ -12,7 +12,7 @@ __status__ = "Development"
 __version__ = "0.3"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
-import sys, time
+import sys, time, warnings
 from io import StringIO
 import os.path
 import numpy as np
@@ -26,6 +26,8 @@ from CalcSol import get_populations
 import ParasitoidModel as PM
 from Bayes_funcs import *
 import IPython
+
+warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
@@ -82,7 +84,7 @@ def main():
     
     
     #### Model priors ####
-    lam = pm.Beta("lambda",5,1,value=0.95)
+    lam = pm.Beta("lam",5,1,value=0.95)
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,12,value=6)
     f_a2 = pm.TruncatedNormal("a_2",18,1,12,24,value=18)
     f_b1 = pm.Gamma("b_1",3,1,value=3) #alpha,beta parameterization
@@ -92,9 +94,9 @@ def main():
     sig_x = pm.Gamma("sig_x",42.2,2,value=21.1)
     sig_y = pm.Gamma("sig_y",10.6,1,value=10.6)
     corr = pm.Uniform("rho",-1,1,value=0)
-    sig_x_l = pm.Gamma("sig_x",42.2,2,value=21.1)
-    sig_y_l = pm.Gamma("sig_y",10.6,1,value=10.6)
-    corr_l = pm.Uniform("rho",-1,1,value=0)
+    sig_x_l = pm.Gamma("sig_xl",42.2,2,value=21.1)
+    sig_y_l = pm.Gamma("sig_yl",10.6,1,value=10.6)
+    corr_l = pm.Uniform("rho_l",-1,1,value=0)
     mu_r = pm.Normal("mu_r",1.5,1/0.75**2,value=1.5)
     #n_periods = pm.Poisson("t_dur",10)
     #r = prev. time exponent
@@ -119,10 +121,12 @@ def main():
     for n,key in enumerate(locinfo.sent_ids):
         sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
             A_collected/locinfo.field_sizes[key],0.05,0,1)
+    sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
-    params_ary = np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,sig_x,sig_y,corr,
-                            sig_x_l,sig_y_l,corr_l,lam,mu_r],dtype=object)
+    params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
+                                        sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
+                                        lam,mu_r],dtype=object))
 
     print('Getting initial model values...')
 
@@ -137,6 +141,7 @@ def main():
         popdensity_to_emergence. Returned values from this function should be
         nearly ready to compare to data.
         '''
+        print('Updating model...',end='')
         ### Alter params with stochastic variables ###
 
         # g wind function parameters
@@ -238,7 +243,8 @@ def main():
         ## For the list card_counts:
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
-        ##    Each row corresponds to a cardinal direction 
+        ##    Each row corresponds to a cardinal direction
+        print('Done.')
         return (release_emerg,sentinel_emerg,grid_counts,card_counts)
         
     print('Parsing model output and connecting to Bayesian model...')    
@@ -255,6 +261,7 @@ def main():
             lambda xi=xi, ndays=s_ndays, betas=sent_obs_probs, 
             emerg_model=pop_model[1][ii]:
             xi*emerg_model*np.tile(betas,(ndays,1)).T))
+    sent_poi_rates = pm.Container(sent_poi_rates)
     
     '''Return Poisson probabilities for release field grid emergence. Parameters:
         xi is constant, emerg is a list of ndarrays. collection effort is
@@ -268,6 +275,7 @@ def main():
             lambda xi=xi, ndays=r_ndays, r_effort=r_effort, beta=em_obs_prob, 
             emerg_model=pop_model[0][ii]:
             xi*emerg_model*np.tile(r_effort*beta,(ndays,1)).T))
+    rel_poi_rates = pm.Container(rel_poi_rates)
             
     @pm.deterministic(plot=False)
     def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
@@ -279,9 +287,10 @@ def main():
     '''Return Poisson probabilities for cardinal direction sampling
         obs_model is a list of ndarrays, sampling effort is assumed constant'''
     card_poi_rates = []
-    for obs in pop_model[3]:
+    for ii,obs in enumerate(pop_model[3]):
         card_poi_rates.append(pm.Lambda('card_poi_rate_{}'.format(ii),
             lambda beta=card_obs_prob, obs=obs: beta*obs))
+    card_poi_rates = pm.Container(card_poi_rates)
     
     # Given the expected wasp densities from pop_model, actual wasp densities
     #   are modeled as a thinned Poisson random variable about that mean.
@@ -302,6 +311,7 @@ def main():
                     sent_poi_rates[ii][n,m], 
                     value=locinfo.sentinel_emerg[ii][n,m], 
                     observed=True, plot=False)
+    sent_collections = pm.Container(sent_collections)
             
     ### Connect release-field emergence data to model ###
     N_release_collections = len(locinfo.release_DataFrames)
@@ -317,6 +327,7 @@ def main():
                     rel_poi_rates[ii][n,m], 
                     value=locinfo.release_emerg[ii][n,m], 
                     observed=True, plot=False)
+    rel_collections = pm.Container(rel_collections)
 
     ### Connect grid sampling data to model ###
     grid_obs = np.empty(grid_poi_rates.value.shape,dtype=object)
@@ -325,6 +336,7 @@ def main():
             grid_obs[n,m] = pm.Poisson("grid_obs_{}_{}".format(n,m),
                 grid_poi_rates[n,m], value=locinfo.grid_obs[n,m],
                 observed=True, plot=False)
+    grid_obs = pm.Container(grid_obs)
 
     ### Connect cardinal direction data to model ###
     N_card_collections = len(locinfo.card_obs_DataFrames)
@@ -340,6 +352,7 @@ def main():
                     card_poi_rates[ii][n,m], 
                     value=locinfo.card_obs[ii][n,m], 
                     observed=True, plot=False)
+    card_collections = pm.Container(card_collections)
 
     ### Collect model ###
     Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
@@ -393,8 +406,13 @@ def main():
         mcmc = pm.MCMC(Bayes_model,db='hdf5',dbname=fname,
                         dbmode='a',dbcomplevel=0)
         try:
-            mcmc.sample(nsamples,burn)
+            tic = time.time()
+            print('Sampling...')
+            mcmc.sample(nsamples,burn,save_interval=100)
             # sampling finished. commit to database and continue
+            print('Sampling finished.')
+            print('Time elapsed: {}'.format(tic-time.time()))
+            print('Saving...')
             mcmc.save_state()
             mcmc.commit()
         except:
@@ -463,8 +481,12 @@ def main():
                     continue
             # Run chain
             try:
-                mcmc.sample(nsamples)
+                tic = time.time()
+                mcmc.sample(nsamples,save_interval=100)
                 # sampling finished. commit to database and continue
+                print('Sampling finished.')
+                print('Time elapsed: {}'.format(tic-time.time()))
+                print('Saving...')
                 mcmc.save_state()
                 mcmc.commit()
             except:
