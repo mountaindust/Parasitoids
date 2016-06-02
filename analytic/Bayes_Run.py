@@ -143,6 +143,7 @@ def main():
         popdensity_to_emergence. Returned values from this function should be
         nearly ready to compare to data.
         '''
+        modeltic = time.time()
         print('Updating model...',end='')
         sys.stdout.flush()
         ### Alter params with stochastic variables ###
@@ -250,7 +251,7 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('Done.')
+        print('Done. ({:.1f} sec.)'.format(time.time() - modeltic))
         sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
@@ -267,7 +268,7 @@ def main():
         sent_poi_rates.append(pm.Lambda('sent_poi_rate_{}'.format(ii),
             lambda xi=xi, ndays=s_ndays, betas=sent_obs_probs, 
             emerg_model=pop_model[1][ii]:
-            xi*emerg_model*np.tile(betas,(ndays,1)).T))
+            xi*emerg_model*np.tile(betas,(ndays,1)).T,trace=False))
     sent_poi_rates = pm.Container(sent_poi_rates)
     
     '''Return Poisson probabilities for release field grid emergence. Parameters:
@@ -281,10 +282,10 @@ def main():
         rel_poi_rates.append(pm.Lambda('rel_poi_rate_{}'.format(ii),
             lambda xi=xi, ndays=r_ndays, r_effort=r_effort, beta=em_obs_prob, 
             emerg_model=pop_model[0][ii]:
-            xi*emerg_model*np.tile(r_effort*beta,(ndays,1)).T))
+            xi*emerg_model*np.tile(r_effort*beta,(ndays,1)).T,trace=False))
     rel_poi_rates = pm.Container(rel_poi_rates)
             
-    @pm.deterministic(plot=False)
+    @pm.deterministic(plot=False,trace=False)
     def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
                         obs_model=pop_model[2]):
         '''Return Poisson probabilities for grid sampling
@@ -319,7 +320,7 @@ def main():
                     "sent_em_obs_{}_{}_{}".format(ii,n,m),
                     sent_poi_rates[ii][n,m], 
                     value=locinfo.sentinel_emerg[ii][n,m], 
-                    observed=True, plot=False)
+                    observed=True)
     sent_collections = pm.Container(sent_collections)
             
     ### Connect release-field emergence data to model ###
@@ -335,7 +336,7 @@ def main():
                     "rel_em_obs_{}_{}_{}".format(ii,n,m),
                     rel_poi_rates[ii][n,m], 
                     value=locinfo.release_emerg[ii][n,m], 
-                    observed=True, plot=False)
+                    observed=True)
     rel_collections = pm.Container(rel_collections)
 
     ### Connect grid sampling data to model ###
@@ -344,7 +345,7 @@ def main():
         for m in range(grid_obs.shape[1]):
             grid_obs[n,m] = pm.Poisson("grid_obs_{}_{}".format(n,m),
                 grid_poi_rates[n,m], value=locinfo.grid_obs[n,m],
-                observed=True, plot=False)
+                observed=True)
     grid_obs = pm.Container(grid_obs)
 
     ### Connect cardinal direction data to model ###
