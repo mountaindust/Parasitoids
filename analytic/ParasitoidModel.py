@@ -321,7 +321,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
     Returns:
         cdf_mat: 2D array of cdf values, one for each cell"""
     
-    cdf_eps = 0.0001    # integrate until the area of the square is within
+    cdf_eps = 0.001    # integrate until the area of the square is within
                         #   cdf_eps of 1.0
     
     r = cell_length/2 # in meters. will want to integrate +/- this amount

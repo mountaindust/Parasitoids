@@ -54,7 +54,7 @@ class Params():
         self.my_datasets()
         
         # domain info, (dist (m), cells) from release point to side of domain 
-        self.domain_info = (5000.0,1000) # (float, int!) (this is 5 m**2)
+        self.domain_info = (5000.0,500) # (float, int!) (this is 10 m**2)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
@@ -77,9 +77,9 @@ class Params():
         # Probability of any flight during the day under ideal circumstances
         self.lam = 1.
         # scaling flight advection to wind advection
-        self.mu_r = 1.
+        self.mu_r = 1.0
         # number of time periods (based on interp_num) in one flight
-        self.n_periods = 10 # if interp_num = 30, this is # of minutes per flight
+        self.n_periods = 30 # if interp_num = 30, this is # of minutes per flight
         
         ### satellite imagry
         # Bing/Google maps key for satellite imagery
