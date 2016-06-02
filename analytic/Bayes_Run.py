@@ -78,6 +78,9 @@ def main():
     # get wind data and day labels
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     params.ndays = len(days)
+    
+    # reduce domain
+    params.domain_info = (4000.0,320) #12.5 m**2
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
     
