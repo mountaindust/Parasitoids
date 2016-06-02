@@ -91,11 +91,11 @@ def main():
     f_b2 = pm.Gamma("b_2",3,1,value=3)
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
-    sig_x = pm.Gamma("sig_x",42.2,1,value=42.2)
-    sig_y = pm.Gamma("sig_y",5.3,0.5,value=10.6)
+    sig_x = pm.Gamma("sig_x",64.8,1,value=64.8)
+    sig_y = pm.Gamma("sig_y",16.2,0.5,value=32.4)
     corr = pm.Uniform("rho",-1,1,value=0)
-    sig_x_l = pm.Gamma("sig_xl",42.2,2,value=21.1)
-    sig_y_l = pm.Gamma("sig_yl",10.6,1,value=10.6)
+    sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4) #local spread parameters
+    sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
     corr_l = pm.Uniform("rho_l",-1,1,value=0)
     #mu_r = pm.Normal("mu_r",1.,1,value=1.)
     n_periods = pm.Poisson("t_dur",30,value=30)
@@ -130,12 +130,18 @@ def main():
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
                                         lam,n_periods],dtype=object))
 
+    if params.dataset == 'kalbar':
+        # factor for kalbar initial spread
+        sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.3)
+    else:
+        sprd_factor = None
+
     print('Getting initial model values:')
 
     #### Run model ####
     @pm.deterministic(plot=False,trace=False)
     def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
-                  wind_data=wind_data,days=days):
+                  wind_data=wind_data,days=days,sprd_factor=sprd_factor):
         '''This function acts as an interface between PyMC and the model.
         Not only does it run the model, but it provides an emergence potential 
         based on the population model result projected forward from feasible
@@ -167,17 +173,52 @@ def main():
         
         ### PHASE ONE ###
         # First, get spread probability for each day as a coo sparse matrix
-        pmf_list = []
         max_shape = np.array([0,0])
         pm_args = [(days[0],wind_data,*params.get_model_params(),
                 params.r_start)]
         pm_args.extend([(day,wind_data,*params.get_model_params()) 
                 for day in days[1:params.ndays]])
-    
+        
+        ##### Kalbar wind started recording a day late. Spread the population
+        #####   locally before running full model.
+        if params.dataset == 'kalbar':
+            res = params.domain_info[0]/params.domain_info[1]
+            mean_drift = np.array([-25.,15.])
+            xdrift_int = int(mean_drift[0]//res)
+            xdrift_r = mean_drift[0] % res
+            ydrift_int = int(mean_drift[1]//res)
+            ydrift_r = mean_drift[1] % res
+            longsprd = PM.get_mvn_cdf_values(res,np.array([xdrift_r,ydrift_r]),
+                        PM.Dmat(params_ary[6],params_ary[7],params_ary[8]))
+            shrtsprd = PM.get_mvn_cdf_values(res,np.array([0.,0.]),
+                        PM.Dmat(params_ary[9],params_ary[10],params_ary[11]))
+            
+            mlen = int(max(longsprd.shape[0],shrtsprd.shape[0]) + 
+                       max(abs(xdrift_int),abs(ydrift_int))*2)
+            sprd = np.zeros((mlen,mlen))
+            lbds = [int(mlen//2-longsprd.shape[0]//2),
+                    int(mlen//2+longsprd.shape[0]//2+1)]
+            sprd[lbds[0]-ydrift_int:lbds[1]-ydrift_int,
+                 lbds[0]+xdrift_int:lbds[1]+xdrift_int] = longsprd*sprd_factor
+            sbds = [int(mlen//2-shrtsprd.shape[0]//2),
+                    int(mlen//2+shrtsprd.shape[0]//2+1)]
+            sprd[sbds[0]:sbds[1],sbds[0]:sbds[1]] += shrtsprd*(1-sprd_factor)
+            '''
+            pmf_list = [sparse.coo_matrix(PM.get_mvn_cdf_values(
+                        params.domain_info[0]/params.domain_info[1],
+                        np.array([0.,0.]),
+                        PM.Dmat(sprd_factor*params_ary[9],
+                                sprd_factor*params_ary[10],params_ary[11])))]
+            '''
+            sprd[int(sprd.shape[0]//2),int(sprd.shape[0]//2)] += max(0,1-sprd.sum())
+            pmf_list = [sparse.coo_matrix(sprd)]
+        else:
+            pmf_list = []
+
         ###################### Get pmf_list from multiprocessing
         with Pool() as pool:
             try:
-                pmf_list = pool.starmap(PM.prob_mass,pm_args)
+                pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
             except PM.BndsError as e:
                 print('PM.BndsError caught.')
                 # return output full of zeros, but of correct type/size
@@ -223,8 +264,19 @@ def main():
         # Pass the probability list, pmf_list, and other info to convolution solver.
         #   This will return the finished population model.
         with Capturing() as output:
-            modelsol = get_populations(r_spread,pmf_list,days,params.ndays,dom_len,
-                        max_shape,params.r_dur,params.r_number,params.r_mthd())
+            if params.dataset == 'kalbar':
+                # extend day count by one
+                days_ext = [days[0]-1]
+                days_ext.extend(days)
+                modelsol = get_populations(r_spread,pmf_list,days_ext,params.ndays+1,
+                                           dom_len,max_shape,params.r_dur,
+                                           params.r_number,params.r_mthd())
+                # remove the first one and start where wind started.
+                modelsol = modelsol[1:]
+            else:
+                modelsol = get_populations(r_spread,pmf_list,days,params.ndays,
+                                           dom_len,max_shape,params.r_dur,
+                                           params.r_number,params.r_mthd())
         
         # modelsol now holds the model results for this run as CSR sparse arrays
         
@@ -367,12 +419,20 @@ def main():
     '''
 
     ### Collect model ###
-    Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
-                            sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
-                            grid_obs_prob,xi,em_obs_prob,
-                            A_collected,sent_obs_probs,params_ary,pop_model,
-                            grid_poi_rates,rel_poi_rates,sent_poi_rates,
-                            grid_obs,rel_collections,sent_collections])
+    if params.dataset == 'kalbar':
+       Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
+                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
+                                sprd_factor,grid_obs_prob,xi,em_obs_prob,
+                                A_collected,sent_obs_probs,params_ary,pop_model,
+                                grid_poi_rates,rel_poi_rates,sent_poi_rates,
+                                grid_obs,rel_collections,sent_collections])
+    else:
+        Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
+                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
+                                grid_obs_prob,xi,em_obs_prob,
+                                A_collected,sent_obs_probs,params_ary,pop_model,
+                                grid_poi_rates,rel_poi_rates,sent_poi_rates,
+                                grid_obs,rel_collections,sent_collections])
 
 
     ######################################################################
@@ -420,7 +480,7 @@ def main():
         try:
             tic = time.time()
             print('Sampling...')
-            mcmc.sample(nsamples,burn,save_interval=100)
+            mcmc.sample(nsamples,burn,save_interval=50)
             # sampling finished. commit to database and continue
             print('Sampling finished.')
             print('Time elapsed: {}'.format(tic-time.time()))
@@ -494,7 +554,7 @@ def main():
             # Run chain
             try:
                 tic = time.time()
-                mcmc.sample(nsamples,save_interval=100)
+                mcmc.sample(nsamples,save_interval=50)
                 # sampling finished. commit to database and continue
                 print('Sampling finished.')
                 print('Time elapsed: {}'.format(tic-time.time()))

@@ -19,7 +19,7 @@ class LocInfo(object):
 
         ### Loaded from release grid info ###
         grid_data: DataFrame (xcoord,ycoord,samples,collection)
-        grid_cells: grid location array, row 0 = row index, row 1 = col index
+        grid_cells: grid location array, col 0 = row index, col 1 = col index
 
         ### Sentinel field emergence data ###
         release_date: Timestamp
@@ -102,10 +102,9 @@ class LocInfo(object):
         #       self.sent_DataFrames
         self.get_sentinel_emergence(location)
         #####
-        ### Sort and get ordered list of sentinel field ids
+        ### Get ordered list of sentinel field ids
         ### Assume all sentinel fields were used in each collection
-        for dframe in self.sent_DataFrames:
-            dframe.sort_values(['datePR','id'],inplace=True)
+        
         self.sent_ids = list(self.sent_DataFrames[0]['id'].unique())
 
         ##### Import and parse release field emergence data #####
@@ -124,9 +123,10 @@ class LocInfo(object):
                 domain_info[1]).astype(int)
             dframe['column'] = ((dframe['xcoord']/res).round(0) +
                 domain_info[1]).astype(int)
-            # Sort the dataframes so that as one loops over the days, the row/col
+            # Re-sort the dataframes so that as one loops over the days, the row/col
             #   info will occur in the same order.
             dframe.sort_values(['datePR','row','column'],inplace=True)
+            dframe.reset_index(inplace=True,drop=True)
             # Get the grid points that were collected
             oneday = dframe['datePR'] == dframe['datePR'].min()
             self.emerg_grids.append(list(zip(dframe['row'][oneday].values,
@@ -139,9 +139,6 @@ class LocInfo(object):
         #       self.grid_obs_datesPR
         self.get_grid_observations(location)
         #####
-        ### Sort the DataFrame
-        self.grid_obs_DataFrame.sort_values(['datePR','xcoord','ycoord'],
-                                            inplace=True)
         ### Form a data structure that can be compared to popdensity_grid
         self.grid_obs = np.zeros((self.grid_cells.shape[0],
                                   len(self.grid_obs_datesPR)))
@@ -407,6 +404,7 @@ class LocInfo(object):
             All_total: Total number of all emergences in that field on that date
                         (this will later be summed to obtain emergences per
                          field/collection)
+        BE SURE TO SORT EACH DATAFRAME AND RESET THE INDICES BEFORE RETURNING!
         '''
         
         if location == 'kalbar':
@@ -448,7 +446,11 @@ class LocInfo(object):
             # get the dates post-release
             sentinel_fields_data['datePR'] = \
                         sentinel_fields_data['date'] - self.release_date
-                        
+            
+            ### Sort DataFrame
+            sentinel_fields_data.sort_values(['datePR','id'],inplace=True)
+            sentinel_fields_data.reset_index(inplace=True,drop=True)
+                                    
             ### Store DataFrame in list
             self.sent_DataFrames.append(sentinel_fields_data)
             
@@ -537,6 +539,7 @@ class LocInfo(object):
             ycoord: distance north from release point in meters (grid collection point)
             datePR: Num of days the observation occured post-release (dtype=Timedelta)
             obs_count: Total number of wasp observations in that field on that date
+        BE SURE TO SORT EACH DATAFRAME AND RESET THE INDICES BEFORE RETURNING!
         '''
 
         if location == 'kalbar':
@@ -561,6 +564,9 @@ class LocInfo(object):
             grid_obs['xcoord'] -= 200
             # convert date to datePR
             grid_obs['datePR'] = grid_obs['date'] - self.release_date
+            ### Sort the DataFrame
+            grid_obs.sort_values(['datePR','xcoord','ycoord'],inplace=True)
+            grid_obs.reset_index(inplace=True,drop=True)
             self.grid_obs_datesPR = []
             # unique() returns ndarray of numpy.timedelta.
             # want: list of pd.Timedelta
