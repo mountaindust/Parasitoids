@@ -97,8 +97,8 @@ def main():
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",64.8,1,value=64.8) 
-    sig_y = pm.Gamma("sig_y",16.2,0.5,value=32.4) 
+    sig_x = pm.Gamma("sig_x",32.4,1,value=32.4) 
+    sig_y = pm.Gamma("sig_y",16.2,1,value=16.2) 
     corr = pm.Uniform("rho",-1,1,value=0)
     # local spread paramters
     sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
