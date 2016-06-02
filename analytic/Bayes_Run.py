@@ -9,7 +9,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.3"
+__version__ = "0.4"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, time, warnings
@@ -91,21 +91,22 @@ def main():
     f_b2 = pm.Gamma("b_2",3,1,value=3)
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
-    sig_x = pm.Gamma("sig_x",42.2,2,value=21.1)
-    sig_y = pm.Gamma("sig_y",10.6,1,value=10.6)
+    sig_x = pm.Gamma("sig_x",42.2,1,value=42.2)
+    sig_y = pm.Gamma("sig_y",5.3,0.5,value=10.6)
     corr = pm.Uniform("rho",-1,1,value=0)
     sig_x_l = pm.Gamma("sig_xl",42.2,2,value=21.1)
     sig_y_l = pm.Gamma("sig_yl",10.6,1,value=10.6)
     corr_l = pm.Uniform("rho_l",-1,1,value=0)
-    mu_r = pm.Normal("mu_r",1.5,1/0.75**2,value=1.5)
-    #n_periods = pm.Poisson("t_dur",10)
-    #r = prev. time exponent
+    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
+    n_periods = pm.Poisson("t_dur",30,value=30)
+    #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.5) # obs prob of emergence 
                                 # in release field given max leaf collection
     grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
-    card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
+
+    #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
     
     #### Data collection model background for sentinel fields ####
@@ -120,15 +121,16 @@ def main():
     sent_obs_probs = np.empty(N, dtype=object)
     for n,key in enumerate(locinfo.sent_ids):
         sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
-            A_collected/locinfo.field_sizes[key],0.05,0,1)
+            A_collected/locinfo.field_sizes[key],0.05,0,1,
+            value=16/locinfo.field_sizes[key])
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,mu_r],dtype=object))
+                                        lam,n_periods],dtype=object))
 
-    print('Getting initial model values...')
+    print('Getting initial model values:')
 
     #### Run model ####
     @pm.deterministic(plot=False,trace=False)
@@ -142,6 +144,7 @@ def main():
         nearly ready to compare to data.
         '''
         print('Updating model...',end='')
+        sys.stdout.flush()
         ### Alter params with stochastic variables ###
 
         # g wind function parameters
@@ -156,9 +159,9 @@ def main():
         
         # TRY BOTH - VARYING mu_r OR n_periods
         # scaling flight advection to wind advection
-        params.mu_r = params_ary[13]
+        #params.mu_r = params_ary[13]
         # number of time periods (based on interp_num) in one flight
-        #params.n_periods = n_periods # if interp_num = 30, this is # of minutes
+        params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
 
         
         ### PHASE ONE ###
@@ -171,37 +174,33 @@ def main():
                 for day in days[1:params.ndays]])
     
         ###################### Get pmf_list from multiprocessing
-        pool = Pool()
-        try:
-            pmf_list = pool.starmap(PM.prob_mass,pm_args)
-            pool.close()
-        except PM.BndsError as e:
-            print('PM.BndsError caught.')
-            pool.terminate()
-            # return output full of zeros, but of correct type/size
-            release_emerg = []
-            for nframe,dframe in enumerate(locinfo.release_DataFrames):
-                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
-                                        len(obs_datesPR))))
-            sentinel_emerg = []
-            for nframe,dframe in enumerate(locinfo.sent_DataFrames):
-                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
-                                        len(obs_datesPR))))
-            grid_counts = np.zeros((locinfo.grid_cells.shape[0],
-                                    len(locinfo.grid_obs_datesPR)))
-            card_counts = []
-            for ndate,date in enumerate(locinfo.card_obs_datesPR):
-                card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
-            return (release_emerg,sentinel_emerg,grid_counts,card_counts)
-        except:
-            print('Unrecognized exception!!')
-            pool.terminate()
-            print('Terminate signal sent.')
-            raise
-        finally:
-            pool.join()
+        with Pool() as pool:
+            try:
+                pmf_list = pool.starmap(PM.prob_mass,pm_args)
+            except PM.BndsError as e:
+                print('PM.BndsError caught.')
+                # return output full of zeros, but of correct type/size
+                release_emerg = []
+                for nframe,dframe in enumerate(locinfo.release_DataFrames):
+                    obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                    release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
+                                            len(obs_datesPR))))
+                sentinel_emerg = []
+                for nframe,dframe in enumerate(locinfo.sent_DataFrames):
+                    obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                    sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
+                                            len(obs_datesPR))))
+                grid_counts = np.zeros((locinfo.grid_cells.shape[0],
+                                        len(locinfo.grid_obs_datesPR)))
+                '''
+                card_counts = []
+                for nday,date in enumerate(locinfo.card_obs_datesPR):
+                    card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
+                '''
+                return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
+            except:
+                print('Unrecognized exception in pool with PM.prob_mass!!')
+                raise
         ######################
         for pmf in pmf_list:
             for dim in range(2):
@@ -237,7 +236,7 @@ def main():
         grid_counts = popdensity_grid(modelsol,locinfo)
 
         # get the expected wasp populations in cardinal directions
-        card_counts = popdensity_card(modelsol,locinfo,params.domain_info)
+        '''card_counts = popdensity_card(modelsol,locinfo,params.domain_info)'''
         
         ## For the lists release_emerg and sentinel_emerg:
         ##    Each list entry corresponds to a data collection day (one array)
@@ -252,7 +251,8 @@ def main():
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
         print('Done.')
-        return (release_emerg,sentinel_emerg,grid_counts,card_counts)
+        sys.stdout.flush()
+        return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
     print('Parsing model output and connecting to Bayesian model...')    
     
@@ -293,11 +293,13 @@ def main():
 
     '''Return Poisson probabilities for cardinal direction sampling
         obs_model is a list of ndarrays, sampling effort is assumed constant'''
+    '''
     card_poi_rates = []
     for ii,obs in enumerate(pop_model[3]):
         card_poi_rates.append(pm.Lambda('card_poi_rate_{}'.format(ii),
             lambda beta=card_obs_prob, obs=obs: beta*obs))
     card_poi_rates = pm.Container(card_poi_rates)
+    '''
     
     # Given the expected wasp densities from pop_model, actual wasp densities
     #   are modeled as a thinned Poisson random variable about that mean.
@@ -346,6 +348,7 @@ def main():
     grid_obs = pm.Container(grid_obs)
 
     ### Connect cardinal direction data to model ###
+    '''
     N_card_collections = len(locinfo.card_obs_DataFrames)
     # Create list of sampling variables
     card_collections = []
@@ -360,14 +363,15 @@ def main():
                     value=locinfo.card_obs[ii][n,m], 
                     observed=True, plot=False)
     card_collections = pm.Container(card_collections)
+    '''
 
     ### Collect model ###
     Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
-                            sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,mu_r,
-                            card_obs_prob,grid_obs_prob,xi,em_obs_prob,
+                            sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
+                            grid_obs_prob,xi,em_obs_prob,
                             A_collected,sent_obs_probs,params_ary,pop_model,
-                            card_poi_rates,grid_poi_rates,rel_poi_rates,sent_poi_rates,
-                            card_collections,grid_obs,rel_collections,sent_collections])
+                            grid_poi_rates,rel_poi_rates,sent_poi_rates,
+                            grid_obs,rel_collections,sent_collections])
 
 
     ######################################################################
