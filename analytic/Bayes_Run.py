@@ -80,7 +80,9 @@ def main():
     params.ndays = len(days)
     
     # reduce domain
-    params.domain_info = (4000.0,320) #12.5 m**2
+    params.domain_info = (5000.0,200) #25 m sided cells
+    domain_res = params.domain_info[0]/params.domain_info[1]
+    cell_area = domain_res**2
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
     
@@ -94,38 +96,43 @@ def main():
     f_b2 = pm.Gamma("b_2",3,1,value=3)
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
-    sig_x = pm.Gamma("sig_x",64.8,1,value=64.8)
-    sig_y = pm.Gamma("sig_y",16.2,0.5,value=32.4)
+    # flight diffusion parameters. note: mean is average over flight advection
+    sig_x = pm.Gamma("sig_x",64.8,1,value=64.8) 
+    sig_y = pm.Gamma("sig_y",16.2,0.5,value=32.4) 
     corr = pm.Uniform("rho",-1,1,value=0)
-    sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4) #local spread parameters
+    # local spread paramters
+    sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
     corr_l = pm.Uniform("rho_l",-1,1,value=0)
     #mu_r = pm.Normal("mu_r",1.,1,value=1.)
     n_periods = pm.Poisson("t_dur",30,value=30)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.5) # obs prob of emergence 
-                                # in release field given max leaf collection
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.5) # probability of
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.25) # per-wasp prob of  
+            # observing emergence in release field grid given max leaf collection
+            # this is dependent on the size of the cell surrounding the grid point
+            # ...not much to be done about this.
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.25) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
     
     #### Data collection model background for sentinel fields ####
-    # Need to fix linear units for area. Let's use cells.
+    # Need to fix linear units for area. Meters would be best.
     # Effective collection area (constant between fields) is very uncertain
-    A_collected = pm.TruncatedNormal("A_collected",25,1/50,0,
-                                    min(locinfo.field_sizes.values()),value=16)  
+    A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
+                                    min(locinfo.field_sizes.values())*cell_area,
+                                    value=3600)  # in m**2
     # Each field has its own binomial probability.
-    ## Probabilities are likely to be small, and pm.Beta cannot handle small
-    ##  parameter values. So we will use TruncatedNormal again.
+    # Probabilities are likely to be small, and pm.Beta cannot handle small
+    #   parameter values. So we will use TruncatedNormal again.
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
     for n,key in enumerate(locinfo.sent_ids):
         sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
-            A_collected/locinfo.field_sizes[key],0.05,0,1,
-            value=16/locinfo.field_sizes[key])
+            A_collected/(locinfo.field_sizes[key]*cell_area),0.05,0,1,
+            value=3600/(locinfo.field_sizes[key]*cell_area))
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####

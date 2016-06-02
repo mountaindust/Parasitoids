@@ -333,7 +333,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
     low = np.array([-r,-r])
     upp = np.array([r,r])
     val, inform = mvn.mvnun(low,upp,mu,S)
-    assert inform == 0 # integration finished with error < EPS
+    #assert inform == 0 # integration finished with error < EPS
     # cdf_vals is a dict that takes x,y coordinate pairs (cell center locations)
     #   to probability mass values.
     cdf_vals = {(0,0):val}
@@ -349,7 +349,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
-                assert inform == 0 #integration finished with error < EPS
+                #assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
                 
@@ -359,11 +359,11 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
-                assert inform == 0 #integration finished with error < EPS
+                #assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
                 val, inform = mvn.mvnun(low[::-1],upp[::-1],mu,S)
-                assert inform == 0 #integration finished with error < EPS
+                #assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(jj,ii)] = val
                 val_sum += val
         
