@@ -520,10 +520,9 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     total_flight_prob = pmf.sum()
     try:
         assert total_flight_prob <= 1
-    except AssertionError:
-        print('Assertion failed: assert total_flight_prob <= 1')
-        print('total_flight_prob = {}'.format(total_flight_prob))
-        print('cdf_mat.sum() = {}'.format(cdf_mat.sum()))
+    except AssertionError as e:
+        e.args += ('\ntotal_flight_prob = {}\n'.format(total_flight_prob) + \
+            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),)
         raise
     pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
         (1-total_flight_prob)*cdf_mat
@@ -531,11 +530,11 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     total_flight_prob = pmf.sum()
     try:
         assert total_flight_prob <= 1 + 0.01*pmf[rad_res,rad_res]
-    except AssertionError:
-        print('Assertion failed: assert total_flight_prob <= 1 + 0.01*pmf[rad_res,rad_res]')
-        print('total_flight_prob = {}'.format(total_flight_prob))
-        print('pmf[rad_res,rad_res] = {}'.format(pmf[rad_res,rad_res]))
-        print('cdf_mat.sum() = {}'.format(cdf_mat.sum()))
+    except AssertionError as e:
+        e.args += ('\ntotal_flight_prob = {}\n'.format(total_flight_prob) + \
+            'pmf[rad_res,rad_res] = {}\n'.format(pmf[rad_res,rad_res]) + \
+            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),)
+        raise
     pmf[rad_res,rad_res] += 1-total_flight_prob
     
     # shrink the domain down as much as possible and return a sparse array

@@ -250,11 +250,10 @@ def main():
                     card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
                 '''
                 return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
-            except Exception as ex:
+            except Exception as e:
                 print('Unrecognized exception in pool with PM.prob_mass!!')
-                print(ex)
+                print(e)
                 pool.terminate()
-                pool.join()
                 raise
         ######################
         for pmf in pmf_list:
