@@ -492,10 +492,10 @@ def main():
         try:
             tic = time.time()
             print('Sampling...')
-            mcmc.sample(nsamples,burn,save_interval=50)
+            mcmc.sample(nsamples,burn)
             # sampling finished. commit to database and continue
             print('Sampling finished.')
-            print('Time elapsed: {}'.format(tic-time.time()))
+            print('Time elapsed: {}'.format(time.time()-tic))
             print('Saving...')
             #mcmc.save_state()
             mcmc.commit()
@@ -545,14 +545,14 @@ def main():
         print("   'quit': Quit")
         cmd = input('Enter: ')
         cmd = cmd.strip().lower()
-        if cmd == 'inspect':
+        if cmd.lower() == 'inspect':
             try:
                 IPython.embed()
             except:
                 print('Exception: database closing...')
                 mcmc.db.close()
                 raise
-        elif cmd == 'run':
+        elif cmd.lower() == 'run' or cmd.lower() == 'r':
             val = input("Enter number of realizations or 'back':")
             val = val.strip()
             if val == 'back' or val == 'b':
@@ -566,10 +566,10 @@ def main():
             # Run chain
             try:
                 tic = time.time()
-                mcmc.sample(nsamples,save_interval=50)
+                mcmc.sample(nsamples)
                 # sampling finished. commit to database and continue
                 print('Sampling finished.')
-                print('Time elapsed: {}'.format(tic-time.time()))
+                print('Time elapsed: {}'.format(time.time()-tic))
                 print('Saving...')
                 #mcmc.save_state()
                 mcmc.commit()
@@ -577,7 +577,7 @@ def main():
                 print('Exception: database closing...')
                 mcmc.db.close()
                 raise
-        elif cmd == 'quit' or cmd == 'q':
+        elif cmd.lower() == 'quit' or cmd.lower() == 'q':
             mcmc.db.close()
             print('Database closed.')
             break
