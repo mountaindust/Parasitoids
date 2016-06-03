@@ -495,7 +495,7 @@ def main():
             print('Sampling finished.')
             print('Time elapsed: {}'.format(tic-time.time()))
             print('Saving...')
-            mcmc.save_state()
+            #mcmc.save_state()
             mcmc.commit()
         except:
             print('Exception: database closing...')
@@ -569,7 +569,7 @@ def main():
                 print('Sampling finished.')
                 print('Time elapsed: {}'.format(tic-time.time()))
                 print('Saving...')
-                mcmc.save_state()
+                #mcmc.save_state()
                 mcmc.commit()
             except:
                 print('Exception: database closing...')

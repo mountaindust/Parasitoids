@@ -518,11 +518,12 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
     norm_r = int(cdf_mat.shape[0]/2)
     total_flight_prob = pmf.sum()
+    assert total_flight_prob <= 1
     pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
         (1-total_flight_prob)*cdf_mat
     # assure it sums to one by adding any error to the center cell.
     total_flight_prob = pmf.sum()
-    assert total_flight_prob <= 1
+    assert total_flight_prob <= 1 + 0.01*pmf[rad_res,rad_res]
     pmf[rad_res,rad_res] += 1-total_flight_prob
     
     # shrink the domain down as much as possible and return a sparse array
