@@ -317,7 +317,8 @@ class Params():
                 self.min_ndays = int(val)
             elif arg == 'maps_key':
                 self.maps_key = val
-                
+            elif arg == 'maps_service':
+                self.maps_service = val
             elif arg == 'output':
                 if val == 'True':
                     self.OUTPUT = True
