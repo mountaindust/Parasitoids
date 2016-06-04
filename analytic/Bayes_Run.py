@@ -90,10 +90,10 @@ def main():
     
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
-    f_a1 = pm.TruncatedNormal("a_1",6,1,0,12,value=6)
-    f_a2 = pm.TruncatedNormal("a_2",18,1,12,24,value=18)
-    f_b1 = pm.Gamma("b_1",3,1,value=3) #alpha,beta parameterization
-    f_b2 = pm.Gamma("b_2",3,1,value=3)
+    f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
+    f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
+    f_b1 = pm.Gamma("b_1",2,1,value=2)+1 #alpha,beta parameterization
+    f_b2 = pm.Gamma("b_2",2,1,value=2)+1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
     # flight diffusion parameters. note: mean is average over flight advection

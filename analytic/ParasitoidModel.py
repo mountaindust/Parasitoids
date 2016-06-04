@@ -259,8 +259,9 @@ def f_time_prob(n, a1, b1, a2, b2):
     t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
-    likelihood = 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
-                    1.0 / (1. + np.exp(-b2 * (t_tild - a2)))
+    likelihood = np.fmax(1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - 
+                    1.0 / (1. + np.exp(-b2 * (t_tild - a2))),
+                    np.zeros_like(t_tild))
     # Scale the likelihood into a proper probability mass function, and return
     return likelihood/likelihood.sum()
 
@@ -392,7 +393,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     position can then be updated via convolution with this function.
     
     Arguments:
-        - day -- day since release
+        - day -- day as specified in wind data
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
