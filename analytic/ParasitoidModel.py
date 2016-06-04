@@ -537,26 +537,25 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
             'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
         raise
-    if total_flight_prob < 0.99999
-    cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
-    norm_r = int(cdf_mat.shape[0]/2)
-    pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
-        (1-total_flight_prob)*cdf_mat
-    # assure it sums to one by adding any error to the center cell.
-    total_flight_prob = pmf.sum()
-    try:
-        assert pmf.min() >= -1e-8, 'pmf.min() less than zero'
-        assert total_flight_prob <= 1 + 1.00001, 'flight prob > 1'
-    except AssertionError as e:
-        e.args += ('total_flight_prob = {}'.format(total_flight_prob),
-            'pmf.min() = {}'.format(pmf.min()),
-            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),
-            'day={}'.format(day),'hparams={}'.format(hparams),
-            'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
-            'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
-            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
-        raise
-    pmf[rad_res,rad_res] += 1-total_flight_prob
+    if total_flight_prob < 0.99999:
+        cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
+        norm_r = int(cdf_mat.shape[0]/2)
+        pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
+            (1-total_flight_prob)*cdf_mat
+        # assure it sums to one by adding any error to the center cell.
+        total_flight_prob = pmf.sum()
+        try:
+            assert pmf.min() >= -1e-8, 'pmf.min() less than zero'
+            assert total_flight_prob <= 1 + 1.00001, 'flight prob > 1'
+        except AssertionError as e:
+            e.args += ('total_flight_prob = {}'.format(total_flight_prob),
+                'pmf.min() = {}'.format(pmf.min()),
+                'cdf_mat.sum() = {}'.format(cdf_mat.sum()),
+                'day={}'.format(day),'hparams={}'.format(hparams),
+                'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+                'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+                'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
+            raise
     
     # shrink the domain down as much as possible and return a sparse array
 
