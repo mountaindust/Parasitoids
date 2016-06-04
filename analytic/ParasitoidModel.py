@@ -509,7 +509,8 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             row_min < 0 or col_min < 0:
             raise BndsError
         try:
-            assert 0 <= hprob[t_indx] <= 1, 'hprob out of bounds at t_indx {}'.format(t_indx)
+            assert -1e-9 <= hprob[t_indx] <= 1.000000001, \
+                'hprob out of bounds at t_indx {}'.format(t_indx)
         except AssertionError as e:
             e.args += ('hprob[t_indx]={}'.format(hprob[t_indx]),
                        'day={}'.format(day),'hparams={}'.format(hparams),
