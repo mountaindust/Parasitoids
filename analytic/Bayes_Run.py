@@ -9,7 +9,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.4"
+__version__ = "0.5"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, time, warnings
@@ -92,8 +92,14 @@ def main():
     lam = pm.Beta("lam",5,1,value=0.95)
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
-    f_b1 = pm.Gamma("b_1",2,1,value=2)+1 #alpha,beta parameterization
-    f_b2 = pm.Gamma("b_2",2,1,value=2)+1
+    f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
+    @deterministic(trace=True,plot=True)
+    def f_b1(f_b1_p=f_b1_p): 
+        return f_b1_p + 1
+    f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
+    @deterministic(trace=True,plot=True)
+    def f_b2(f_b2_p=f_b2_p):
+        return f_b2_p + 1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
     # flight diffusion parameters. note: mean is average over flight advection
@@ -432,14 +438,14 @@ def main():
 
     ### Collect model ###
     if params.dataset == 'kalbar':
-       Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
+        Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
-        Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1,f_b2,g_aw,g_bw,
+        Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
                                 grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
