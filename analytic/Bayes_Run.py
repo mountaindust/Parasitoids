@@ -93,11 +93,11 @@ def main():
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
     f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
-    @deterministic(trace=True,plot=True)
+    @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
     f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
-    @deterministic(trace=True,plot=True)
+    @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
