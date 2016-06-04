@@ -508,6 +508,15 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
             row_min < 0 or col_min < 0:
             raise BndsError
+        try:
+            assert 0 <= hprob[t_indx] <= 1, 'hprob out of bounds at t_indx {}'.format(t_indx)
+        except AssertionError as e:
+            e.args += ('hprob[t_indx]={}'.format(hprob[t_indx]),
+                       'day={}'.format(day),'hparams={}'.format(hparams),
+                       'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+                       'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+                       'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
+            raise
         pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat)
 
@@ -519,21 +528,32 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     norm_r = int(cdf_mat.shape[0]/2)
     total_flight_prob = pmf.sum()
     try:
-        assert total_flight_prob <= 1
+        assert pmf.min() >= 0, 'pmf.min() less than zero, first block'
+        assert total_flight_prob <= 1.00001, 'flight prob > 1, first block'
     except AssertionError as e:
-        e.args += ('\ntotal_flight_prob = {}\n'.format(total_flight_prob) + \
-            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),)
+        e.args += ('total_flight_prob = {}'.format(total_flight_prob),
+            'pmf.min() = {}'.format(pmf.min()),
+            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),
+            'day={}'.format(day),'hparams={}'.format(hparams),
+            'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+            'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
         raise
     pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
         (1-total_flight_prob)*cdf_mat
     # assure it sums to one by adding any error to the center cell.
     total_flight_prob = pmf.sum()
     try:
-        assert total_flight_prob <= 1 + 0.01*pmf[rad_res,rad_res]
+        assert pmf.min() >= 0, 'pmf.min() less than zero'
+        assert total_flight_prob <= 1 + 1.00001, 'flight prob > 1'
     except AssertionError as e:
-        e.args += ('\ntotal_flight_prob = {}\n'.format(total_flight_prob) + \
-            'pmf[rad_res,rad_res] = {}\n'.format(pmf[rad_res,rad_res]) + \
-            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),)
+        e.args += ('total_flight_prob = {}'.format(total_flight_prob),
+            'pmf.min() = {}'.format(pmf.min()),
+            'cdf_mat.sum() = {}'.format(cdf_mat.sum()),
+            'day={}'.format(day),'hparams={}'.format(hparams),
+            'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+            'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
         raise
     pmf[rad_res,rad_res] += 1-total_flight_prob
     
