@@ -18,6 +18,7 @@ import os.path
 import numpy as np
 from scipy import sparse
 from multiprocessing import Pool
+from multiprocessing import TimeoutError as mTimeoutError
 import pymc as pm
 import globalvars
 from Run import Params
@@ -234,7 +235,12 @@ def main():
         ###################### Get pmf_list from multiprocessing
         with Pool() as pool:
             try:
-                pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
+                # Rarely (but often enough), everything just stops for an 
+                #   unknown reason. All processes go into sleep mode, like they
+                #   are waiting for something... use a timeout to prevent this
+                #   from happening.
+                result = pool.starmap_async(PM.prob_mass,pm_args)
+                pmf_list.extend(result.get(timeout=200))
             except PM.BndsError as e:
                 print('PM.BndsError caught.')
                 # return output full of zeros, but of correct type/size
@@ -256,10 +262,17 @@ def main():
                     card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
                 '''
                 return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
+            except mTimeoutError as e:
+                # ??? - raise an exception and hopefully close the database
+                print('Pool timed out.')
+                print('Values contained in params_ary:')
+                print(params_ary)
+                print('sprd_factor = {}'.format(sprd_factor))
+                pool.terminate()
+                raise
             except Exception as e:
                 print('Unrecognized exception in pool with PM.prob_mass!!')
                 print(e)
-                pool.terminate()
                 raise
         ######################
         for pmf in pmf_list:
@@ -321,7 +334,7 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('Done. ({:.1f} sec.)'.format(time.time() - modeltic))
+        print('Done. ({:03.1f} sec.)'.format(time.time() - modeltic),end='\r')
         sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
