@@ -167,6 +167,7 @@ def main():
         nearly ready to compare to data.
         '''
         modeltic = time.time()
+        print('                                     ',end='\r')
         print('Updating model...',end='')
         sys.stdout.flush()
         ### Alter params with stochastic variables ###
@@ -242,7 +243,7 @@ def main():
                 result = pool.starmap_async(PM.prob_mass,pm_args)
                 pmf_list.extend(result.get(timeout=200))
             except PM.BndsError as e:
-                print('PM.BndsError caught.')
+                print('PM.BndsError caught.',end='\r')
                 # return output full of zeros, but of correct type/size
                 release_emerg = []
                 for nframe,dframe in enumerate(locinfo.release_DataFrames):
