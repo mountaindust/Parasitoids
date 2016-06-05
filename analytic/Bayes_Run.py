@@ -153,7 +153,7 @@ def main():
     else:
         sprd_factor = None
 
-    print('Getting initial model values:')
+    print('Getting initial model values...')
 
     #### Run model ####
     @pm.deterministic(plot=False,trace=False)
@@ -167,8 +167,6 @@ def main():
         nearly ready to compare to data.
         '''
         modeltic = time.time()
-        print('                                     ',end='\r')
-        print('Updating model...',end='')
         sys.stdout.flush()
         ### Alter params with stochastic variables ###
 
@@ -243,7 +241,7 @@ def main():
                 result = pool.starmap_async(PM.prob_mass,pm_args)
                 pmf_list.extend(result.get(timeout=200))
             except PM.BndsError as e:
-                print('PM.BndsError caught.',end='\r')
+                print('PM.BndsError caught.       ',end='\r')
                 # return output full of zeros, but of correct type/size
                 release_emerg = []
                 for nframe,dframe in enumerate(locinfo.release_DataFrames):
@@ -335,7 +333,8 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('Done. ({:03.1f} sec.)'.format(time.time() - modeltic),end='\r')
+        print('Simulation time: {:03.1f} sec.  '.format(time.time() - modeltic),
+              end='\r')
         sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
