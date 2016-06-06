@@ -18,7 +18,6 @@ import os.path
 import numpy as np
 from scipy import sparse
 from multiprocessing import Pool
-from multiprocessing import TimeoutError as mTimeoutError
 import pymc as pm
 import globalvars
 from Run import Params
@@ -167,7 +166,6 @@ def main():
         nearly ready to compare to data.
         '''
         modeltic = time.time()
-        sys.stdout.flush()
         ### Alter params with stochastic variables ###
 
         # g wind function parameters
@@ -232,47 +230,33 @@ def main():
             pmf_list = []
 
         ###################### Get pmf_list from multiprocessing
-        with Pool() as pool:
-            try:
-                # Rarely (but often enough), everything just stops for an 
-                #   unknown reason. All processes go into sleep mode, like they
-                #   are waiting for something... use a timeout to prevent this
-                #   from happening.
-                result = pool.starmap_async(PM.prob_mass,pm_args)
-                pmf_list.extend(result.get(timeout=200))
-            except PM.BndsError as e:
-                print('PM.BndsError caught.       ',end='\r')
-                # return output full of zeros, but of correct type/size
-                release_emerg = []
-                for nframe,dframe in enumerate(locinfo.release_DataFrames):
-                    obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                    release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
-                                            len(obs_datesPR))))
-                sentinel_emerg = []
-                for nframe,dframe in enumerate(locinfo.sent_DataFrames):
-                    obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                    sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
-                                            len(obs_datesPR))))
-                grid_counts = np.zeros((locinfo.grid_cells.shape[0],
-                                        len(locinfo.grid_obs_datesPR)))
-                '''
-                card_counts = []
-                for nday,date in enumerate(locinfo.card_obs_datesPR):
-                    card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
-                '''
-                return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
-            except mTimeoutError as e:
-                # ??? - raise an exception and hopefully close the database
-                print('Pool timed out.')
-                print('Values contained in params_ary:')
-                print(params_ary)
-                print('sprd_factor = {}'.format(sprd_factor))
-                pool.terminate()
-                raise
-            except Exception as e:
-                print('Unrecognized exception in pool with PM.prob_mass!!')
-                print(e)
-                raise
+        try:
+            pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
+        except PM.BndsError as e:
+            print('BndsErr caught..',end='\r')
+            # return output full of zeros, but of correct type/size
+            release_emerg = []
+            for nframe,dframe in enumerate(locinfo.release_DataFrames):
+                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
+                                        len(obs_datesPR))))
+            sentinel_emerg = []
+            for nframe,dframe in enumerate(locinfo.sent_DataFrames):
+                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
+                sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
+                                        len(obs_datesPR))))
+            grid_counts = np.zeros((locinfo.grid_cells.shape[0],
+                                    len(locinfo.grid_obs_datesPR)))
+            '''
+            card_counts = []
+            for nday,date in enumerate(locinfo.card_obs_datesPR):
+                card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
+            '''
+            return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
+        except Exception as e:
+            print('Unrecognized exception in pool with PM.prob_mass!!')
+            print(e)
+            raise
         ######################
         for pmf in pmf_list:
             for dim in range(2):
@@ -333,7 +317,7 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('Simulation time: {:03.1f} sec.  '.format(time.time() - modeltic),
+        print('{:03.1f} sec./model '.format(time.time() - modeltic),
               end='\r')
         sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
@@ -604,5 +588,6 @@ def main():
             print('Command not recognized.')
     
 if __name__ == "__main__":
-    main()
-    #main(sys.argv[1:])
+    with Pool() as pool:
+        main()
+        #main(sys.argv[1:])
