@@ -85,32 +85,47 @@ def main():
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
     
-    
+    prior_eps = {}
     
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
+    prior_eps["lam"] = 0.0001
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
+    prior_eps["a_1"] = 0.001
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
+    prior_eps["a_2"] = 0.001
     f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
+    prior_eps["b_1"] = 0.001
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
     f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
+    prior_eps["b_2"] = 0.001
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
+    prior_eps["a_w"] = 0.0001
     g_bw = pm.Gamma("b_w",5,1,value=5)
+    prior_eps["a_w"] = 0.0001
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",32.4,1,value=32.4) 
-    sig_y = pm.Gamma("sig_y",16.2,1,value=16.2) 
+    sig_x = pm.Gamma("sig_x",32.4,1,value=32.4)
+    prior_eps["sig_x"] = 0.001
+    sig_y = pm.Gamma("sig_y",16.2,1,value=16.2)
+    prior_eps["sig_y"] = 0.001
     corr = pm.Uniform("rho",-1,1,value=0)
+    prior_eps["corr"] = 0.0001
     # local spread paramters
     sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
+    prior_eps["sig_xl"] = 0.001
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
+    prior_eps["sig_yl"] = 0.001
     corr_l = pm.Uniform("rho_l",-1,1,value=0)
-    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
-    n_periods = pm.Poisson("t_dur",30,value=30)
+    prior_eps["corr_l"] = 0.0001
+    #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
+    mu_r = pm.Normal("mu_r",1.,1,value=1.)
+    prior_eps["mu_r"] = 0.0001
+    params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.25) # per-wasp prob of  
@@ -143,7 +158,7 @@ def main():
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,n_periods],dtype=object))
+                                        lam,mu_r],dtype=object))
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
@@ -177,11 +192,8 @@ def main():
         # Probability of any flight during the day under ideal circumstances
         params.lam = params_ary[12]
         
-        # TRY BOTH - VARYING mu_r OR n_periods
         # scaling flight advection to wind advection
-        #params.mu_r = params_ary[13]
-        # number of time periods (based on interp_num) in one flight
-        params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
+        params.mu_r = params_ary[13]
 
         
         ### PHASE ONE ###
@@ -385,7 +397,7 @@ def main():
                 sent_collections[ii][n,m] = pm.Poisson(
                     "sent_em_obs_{}_{}_{}".format(ii,n,m),
                     sent_poi_rates[ii][n,m], 
-                    value=locinfo.sentinel_emerg[ii][n,m], 
+                    value=float(locinfo.sentinel_emerg[ii][n,m]), 
                     observed=True)
     sent_collections = pm.Container(sent_collections)
             
@@ -401,7 +413,7 @@ def main():
                 rel_collections[ii][n,m] = pm.Poisson(
                     "rel_em_obs_{}_{}_{}".format(ii,n,m),
                     rel_poi_rates[ii][n,m], 
-                    value=locinfo.release_emerg[ii][n,m], 
+                    value=float(locinfo.release_emerg[ii][n,m]), 
                     observed=True)
     rel_collections = pm.Container(rel_collections)
 
@@ -410,7 +422,7 @@ def main():
     for n in range(grid_obs.shape[0]):
         for m in range(grid_obs.shape[1]):
             grid_obs[n,m] = pm.Poisson("grid_obs_{}_{}".format(n,m),
-                grid_poi_rates[n,m], value=locinfo.grid_obs[n,m],
+                grid_poi_rates[n,m], value=float(locinfo.grid_obs[n,m]),
                 observed=True)
     grid_obs = pm.Container(grid_obs)
 
@@ -435,14 +447,14 @@ def main():
     ### Collect model ###
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
-                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
+                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,mu_r,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
-                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,n_periods,
+                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,mu_r,
                                 grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
@@ -452,143 +464,97 @@ def main():
     ######################################################################
     #####                   Start Interactive Menu                   #####
     ######################################################################
-    print('--------------- MCMC MAIN MENU ---------------')
-    print(" 'new': Start a new MCMC chain from the beginning.")
-    print("'cont': Continue a previous MCMC chain from an hdf5 file.")
-    #print("'plot': Plot traces/distribution from an hdf5 file.")
-    print("'quit': Quit.")
-    cmd = input('Enter: ')
-    cmd = cmd.strip().lower()
-    if cmd == 'new':
-        print('\n\n')
-        print('--------------- New MCMC Chain ---------------')
-        while True:
-            val = input("Enter number of realizations or 'quit' to quit:")
-            val = val.strip()
-            if val == 'q' or val == 'quit':
-                return
-            else:
-                try:
-                    nsamples = int(val)
-                    val2 = input("Enter number of realizations to discard:")
-                    val2 = val2.strip()
-                    if val2 == 'q' or val2 == 'quit':
-                        return
-                    else:
-                        burn = int(val2)
-                    fname = input("Enter filename to save or 'back' to cancel:")
-                    fname = fname.strip()
-                    if fname == 'q' or fname == 'quit':
-                        return
-                    elif fname == 'b' or fname == 'back':
-                        continue
-                    else:
-                        fname = fname+'.h5'
-                        break # BREAK LOOP AND RUN MCMC WITH GIVEN VALUES
-                except ValueError:
-                    print('Unrecognized input.')
-                    continue
-        ##### RUN FIRST MCMC HERE #####
-        mcmc = pm.MCMC(Bayes_model,db='hdf5',dbname=fname,
-                        dbmode='a',dbcomplevel=0)
-        try:
-            tic = time.time()
-            print('Sampling...')
-            mcmc.sample(nsamples,burn)
-            # sampling finished. commit to database and continue
-            print('Sampling finished.')
-            print('Time elapsed: {}'.format(time.time()-tic))
-            print('Saving...')
-            #mcmc.save_state()
-            mcmc.commit()
-        except:
-            print('Exception: database closing...')
-            mcmc.db.close()
-            raise
-
-    elif cmd == 'cont':
-        # Load db and continue
-        print('\n')
-        while True:
-            fname = input("Enter path to database to load, or 'q' to quit:")
-            fname = fname.strip()
-            if fname.lower() == 'q' or fname.lower() == 'quit':
-                return
-            else:
-                if fname[-3:] != '.h5':
-                    fname += '.h5'
-                if os.path.isfile(fname):
-                    db = pm.database.hdf5.load(fname)
-                    mcmc = pm.MCMC(Bayes_model,db=db)
-                    break # database loaded
-                else:
-                    print('File not found.')
-                    #continue
-
-    elif cmd == 'plot':
-        # Get filename and pass to plotting routine.
-        pass
-        # return
-    elif cmd == 'quit' or cmd == 'q':
-        return
-    else:
-        print('Command not recognized.')
-        print('Quitting....')
-        return
-        
-    ##### MCMC Loop #####
-    # This should be reached only by cmd == 'new' or 'cont' with a database.
-    # It resumes sampling of a previously sampled chain.
-    print('\n')
+    print('----- Maximum a posteriori estimates & Normal approximations -----')
     while True:
-        print('--------------- MCMC ---------------')
-        print("'inspect': launch IPython to inspect state")
-        print("    'run': conduct further sampling")
-        print("   'quit': Quit")
+        print(" 'map': Calculate maximum a posteriori estimate")
+        print("'norm': Calculate normal approximation")
+        print("'quit': Quit.")
         cmd = input('Enter: ')
         cmd = cmd.strip()
         cmd = cmd.lower()
-        if cmd == 'inspect':
-            try:
-                import IPython
-                IPython.embed()
-            except ImportError:
-                print('IPython not found.')
-            except:
-                print('Exception: database closing...')
-                mcmc.db.close()
-                raise
-        elif cmd == 'run' or cmd == 'r':
-            val = input("Enter number of realizations or 'back':")
-            val = val.strip()
-            if val == 'back' or val == 'b':
-                continue
-            else:
-                try:
-                    nsamples = int(val)
-                except ValueError:
-                    print('Unrecognized input.')
-                    continue
-            # Run chain
+        if cmd == 'map':
             try:
                 tic = time.time()
-                mcmc.sample(nsamples)
-                # sampling finished. commit to database and continue
-                print('Sampling finished.')
-                print('Time elapsed: {}'.format(time.time()-tic))
-                print('Saving...')
-                #mcmc.save_state()
-                mcmc.commit()
+                M = pm.MAP(Bayes_model,eps=0.0001)
+                print('Fitting....')
+                M.fit()
+                # Return statistics
+                print('Estimate complete. Time elapsed: {}'.format(
+                      time.time() - tic))
+                print('Free stochastic variables: {}'.format(M.len))
+                print('Joint log-probability of model: {}'.format(M.logp))
+                print('Max joint log-probability of model: {}'.format(
+                      M.logp_at_max))
+                print('Maximum log-likelihood: {}'.format(M.lnL))
+                print("Akaike's Information Criterion {}".format(M.AIC),
+                    flush=True)
+                print('---------------Variable estimates---------------')
+                for var in Bayes_model.stochastics:
+                    print('{} = {}'.format(var,var.value))
+                cmd_py = input('Enter IPython y/[n]:')
+                cmd_py = cmd_py.strip()
+                cmd_py = cmd_py.lower()
+                if cmd_py == 'y' or cmd_py == 'yes':
+                    import IPython
+                    IPython.embed()
             except:
+                import pdb; pdb.set_trace()
+                raise
+        elif cmd == 'norm':
+            fname = input("Enter database name or 'back' to cancel:")
+            fname = fname.strip()
+            if fname == 'q' or fname == 'quit':
+                return
+            elif fname == 'b' or fname == 'back':
+                continue
+            else:
+                fname = fname+'.h5'
+            try:
+                tic = time.time()
+                M = pm.NormApprox(Bayes_model,eps=0.0001,db='hdf5',dbname=fname,
+                                  dbmode='a',dbcomplevel=0)
+                print('Fitting....')
+                M.fit()
+                # Return statistics
+                print('Estimate complete. Time elapsed: {}'.format(
+                      time.time() - tic))
+                print('Free stochastic variables: {}'.format(M.len))
+                print('Joint log-probability of model: {}'.format(M.logp))
+                print('Max joint log-probability of model: {}'.format(
+                      M.logp_at_max))
+                print("Akaike's Information Criterion {}".format(M.AIC),
+                    flush=True)
+                print('---------------Variable estimates---------------')
+                print('Estimated means: ')
+                for var in bio_model.stochastics:
+                    print('{} = {}'.format(var,M.mu[var]))
+                print('Estimated variances: ')
+                for var in bio_model.stochastics:
+                    print('{} = {}'.format(var,M.C[var]))
+                print('For covariances, enter IPython and request a covariance'+
+                      ' matrix by passing variables in the following syntax:\n'+
+                      'M.C[var1,var2,...,varn]\n'+
+                      'Example: M.C[f_a1,f_a2] gives the covariance matrix of\n'+
+                      ' f_a1 and f_a2.')
+                cmd_py = input('Enter IPython y/[n]:')
+                cmd_py = cmd_py.strip()
+                cmd_py = cmd_py.lower()
+                if cmd_py == 'y' or cmd_py == 'yes':
+                    import IPython
+                    IPython.embed()
+                M.db.close()
+                print('Database closed.')
+            except:
+                import pdb; pdb.set_trace()
                 print('Exception: database closing...')
                 mcmc.db.close()
+                print('Database closed.')
                 raise
         elif cmd == 'quit' or cmd == 'q':
-            mcmc.db.close()
-            print('Database closed.')
-            break
+                return
         else:
             print('Command not recognized.')
+
     
 if __name__ == "__main__":
     with Pool() as pool:
