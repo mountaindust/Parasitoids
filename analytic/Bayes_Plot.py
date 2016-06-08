@@ -124,45 +124,217 @@ def plot_f_g(db=db,start=0):
     plt.figure()
     ax = plt.subplot(311) # f-a_1, f-a_2
     # Get color cycler
-    color_cycle = ax._get_lines.color_cycle
+    color_cycle = ax._get_lines.prop_cycler
     plt.title(r"Posterior distributions of $f$ and $g$ model functions")
     plt.xlim(0,24)
     plt.hold(True)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("a_1",chain=None)[start:], histtype='stepfilled', bins=27,
              alpha=0.85, label=r"posterior of position param $a_1$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("a_2",chain=None)[start:], histtype='stepfilled', bins=27,
              alpha=0.85, label=r"posterior of position param $a_2$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
     plt.hold(False)
-    plt.legend(loc="upper center")
+    leg = plt.legend(loc="upper center")
+    leg.get_frame().set_alpha(0.7)
 
     ax = plt.subplot(312) #f-b_1, f-b_2
     plt.xlim(1,15)
     plt.hold(True)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("f_b1",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior of shape param $b_1$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("f_b2",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior of shape param $b_2$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
     plt.hold(False)
-    plt.legend(loc="upper right")
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
 
     ax = plt.subplot(313) #g-a_w, g-b_w
     plt.xlim(0,15)
     # Get new color cycler
-    color_cycle = ax._get_lines.color_cycle
+    color_cycle = ax._get_lines.prop_cycler
     plt.hold(True)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("a_w",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior of position param $a_w$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
     unused = next(color_cycle)
+    clrdict = next(color_cycle)
     plt.hist(db.trace("b_w",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior of shape param $b_w$",
-             color=next(color_cycle), normed=True)
+             color=clrdict['color'], normed=True)
     plt.hold(False)
-    plt.legend(loc="upper right")
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        plt.draw()
+        plt.pause(0.0001)
+        
+        
+        
+def plot_sprd_vars(db=db,start=0):
+    '''Plot posteriors of covariance variables for local/wind diffusion, and for
+       flight time.
+    
+    Arguments:
+        db: database object
+        start: where to begin in the trace (with all chains taken together)
+    '''
+    
+    plt.figure()
+    ax = plt.subplot(411)
+    plt.title("Posterior distribs for diffusion covariance & flight time")
+    plt.hold(True)
+    plt.hist(db.trace("sig_x",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of wind $\sigma_x$",
+             normed=True)
+    plt.hist(db.trace("sig_y",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of wind $\sigma_y$",
+             normed=True)
+    plt.hold(False)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(412)
+    plt.hold(True)
+    plt.hist(db.trace("sig_xl",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of local $\sigma_x$",
+             normed=True)
+    plt.hist(db.trace("sig_yl",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of local $\sigma_y$",
+             normed=True)
+    plt.hold(False)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(413)
+    color_cycle = ax._get_lines.prop_cycler
+    # get some new colors
+    unused = next(color_cycle)
+    unused = next(color_cycle)
+    clrdict = next(color_cycle)
+    plt.hold(True)
+    plt.hist(db.trace("rho",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of wind $\rho$",
+             color=clrdict['color'], normed=True)
+    clrdict = next(color_cycle)
+    plt.hist(db.trace("rho_l",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior of local $\rho$",
+             color=clrdict['color'], normed=True)
+    plt.hold(False)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(414)
+    color_cycle = ax._get_lines.prop_cycler
+    # get a new color
+    for ii in range(3):
+        unused = next(color_cycle)
+    clrdict = next(color_cycle)
+    # this is discrete data. need to bin it correctly
+    tr = db.trace("t_dur",chain=None)[start:]
+    plt.hold(True)
+    plt.hist(tr, bins=np.arange(tr.min(),tr.max()+2,1)-.5,
+             histtype='stepfilled',  alpha=0.85, 
+             label=r"posterior of avg flight time (min)", 
+             color=clrdict['color'], normed=True)
+    plt.hold(False)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        plt.draw()
+        plt.pause(0.0001)
+        
+        
+        
+def plot_sent_obs_probs(db=db,start=0):
+    '''Plot posteriors for emergence observation probability in each 
+    sentinel field.
+    
+    Arguments:
+        db: database object
+        start: where to begin in the trace (with all chains taken together)
+    '''
+    
+    # Get sentinel field info
+    N_fields = 0
+    field_names = []
+    field_ids = []
+    for name in db.trace_names[0]:
+        if name[:13] == 'sent_obs_prob':
+            N_fields += 1
+            field_names.append(name)
+            field_ids.append(name[-1])
+    
+    plt.figure()
+    for ii in range(N_fields):
+        ax = plt.subplot(N_fields,1,ii+1)
+        if ii == 0:
+            plt.title("Posterior distribs for sentinel field emerg obs probs")
+        plt.hist(db.trace(field_names[ii],chain=None)[start:], 
+                 histtype='stepfilled', bins=25, alpha=0.85, 
+                 label="field {}".format(field_ids[ii]),
+                 normed=True)
+        leg = plt.legend(loc="upper right")
+        leg.get_frame().set_alpha(0.7)
+        
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        plt.draw()
+        plt.pause(0.0001)
+        
+        
+        
+def plot_other(db=db,start=0):
+    '''Plot posteriors for lambda, xi, grid_obs_prob, em_obs_prob and A_collected
+    
+    Arguments:
+        db: database object
+        start: where to begin in the trace (with all chains taken together)
+    '''
+    
+    plt.figure()
+    ax = plt.subplot(411)
+    plt.title(r"Posteriors for $\lambda$, $\xi$, grid_obs_prob and em_obs_prob")
+    plt.hist(db.trace("lam",chain=None)[start:], histtype='stepfilled', bins=25,
+             alpha=0.85, label=r"posterior for $\lambda$", normed=True)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(412)
+    plt.hist(db.trace("xi",chain=None)[start:], histtype='stepfilled', bins=25,
+             alpha=0.85, label=r"posterior for $\xi$", normed=True)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(413)
+    plt.hold(True)
+    plt.hist(db.trace("grid_obs_prob",chain=None)[start:], histtype='stepfilled',
+             bins=25, alpha=0.85, label=r"posterior for grid_obs_prob",
+             normed=True)
+    plt.hist(db.trace("em_obs_prob",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label=r"posterior for em_obs_prob",
+             normed=True)
+    plt.hold(False)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    ax = plt.subplot(414)
+    plt.hist(db.trace("A_collected",chain=None)[start:], histtype='stepfilled', 
+             bins=25, alpha=0.85, label="posterior for A_collected", normed=True)
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
