@@ -89,51 +89,54 @@ def main():
     
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
-    prior_eps["lam"] = 0.0001
+    prior_eps[lam] = 0.001
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
-    prior_eps["a_1"] = 0.001
+    prior_eps[f_a1] = 0.02
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
-    prior_eps["a_2"] = 0.001
+    prior_eps[f_a2] = 0.02
     f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
-    prior_eps["b_1"] = 0.001
+    prior_eps[f_b1_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
     f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
-    prior_eps["b_2"] = 0.001
+    prior_eps[f_b2_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
-    prior_eps["a_w"] = 0.0001
+    prior_eps[g_aw] = 0.05
     g_bw = pm.Gamma("b_w",5,1,value=5)
-    prior_eps["a_w"] = 0.0001
+    prior_eps[g_bw] = 0.05
     # flight diffusion parameters. note: mean is average over flight advection
     sig_x = pm.Gamma("sig_x",32.4,1,value=32.4)
-    prior_eps["sig_x"] = 0.001
+    prior_eps[sig_x] = 0.1
     sig_y = pm.Gamma("sig_y",16.2,1,value=16.2)
-    prior_eps["sig_y"] = 0.001
+    prior_eps[sig_y] = 0.1
     corr = pm.Uniform("rho",-1,1,value=0)
-    prior_eps["corr"] = 0.0001
+    prior_eps[corr] = 0.01
     # local spread paramters
     sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
-    prior_eps["sig_xl"] = 0.001
+    prior_eps[sig_x_l] = 0.1
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
-    prior_eps["sig_yl"] = 0.001
+    prior_eps[sig_y_l] = 0.1
     corr_l = pm.Uniform("rho_l",-1,1,value=0)
-    prior_eps["corr_l"] = 0.0001
+    prior_eps[corr_l] = 0.01
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
-    prior_eps["mu_r"] = 0.0001
+    prior_eps[mu_r] = 0.01
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
+    prior_eps[xi] = 0.05
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.25) # per-wasp prob of  
             # observing emergence in release field grid given max leaf collection
             # this is dependent on the size of the cell surrounding the grid point
             # ...not much to be done about this.
+    prior_eps[em_obs_prob] = 0.0005
     grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.25) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
+    prior_eps[grid_obs_prob] = 0.0005
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
@@ -144,15 +147,26 @@ def main():
     A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
                                     min(locinfo.field_sizes.values())*cell_area,
                                     value=3600)  # in m**2
+    prior_eps[A_collected] = 10
     # Each field has its own binomial probability.
     # Probabilities are likely to be small, and pm.Beta cannot handle small
     #   parameter values. So we will use TruncatedNormal again.
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
+    # fix beta for the Beta distribution
+    sent_beta = 10
+    # mean of Beta distribution will be A_collected/field size
     for n,key in enumerate(locinfo.sent_ids):
+        '''
         sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area),0.05,0,1,
             value=3600/(locinfo.field_sizes[key]*cell_area))
+        '''
+        sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
+            A_collected/(locinfo.field_sizes[key]*cell_area)*sent_beta/(
+            1 - A_collected/(locinfo.field_sizes[key]*cell_area)),
+            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area))
+        prior_eps[sent_obs_probs[n]] = 0.001
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
@@ -163,6 +177,7 @@ def main():
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
         sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.3)
+        prior_eps[sprd_factor] = 0.01
     else:
         sprd_factor = None
 
@@ -475,7 +490,7 @@ def main():
         if cmd == 'map':
             try:
                 tic = time.time()
-                M = pm.MAP(Bayes_model,eps=0.0001)
+                M = pm.MAP(Bayes_model,prior_eps)
                 print('Fitting....')
                 M.fit()
                 # Return statistics
@@ -498,7 +513,7 @@ def main():
                     import IPython
                     IPython.embed()
             except:
-                import pdb; pdb.set_trace()
+                #import pdb; pdb.set_trace()
                 raise
         elif cmd == 'norm':
             fname = input("Enter database name or 'back' to cancel:")
@@ -511,7 +526,7 @@ def main():
                 fname = fname+'.h5'
             try:
                 tic = time.time()
-                M = pm.NormApprox(Bayes_model,eps=0.0001,db='hdf5',dbname=fname,
+                M = pm.NormApprox(Bayes_model,prior_eps,db='hdf5',dbname=fname,
                                   dbmode='a',dbcomplevel=0)
                 print('Fitting....')
                 M.fit()
