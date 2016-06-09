@@ -74,7 +74,7 @@ class Params():
         self.Dlparams = (21.1,10.6,0)
 
         ### general flight parameters
-        # Probability of any flight during the day under ideal circumstances
+        # Probability of wind-based flight during the day under ideal conditions
         self.lam = 1.
         # scaling flight advection to wind advection
         self.mu_r = 1.0
