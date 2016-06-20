@@ -512,8 +512,9 @@ def main():
                 if cmd_py == 'y' or cmd_py == 'yes':
                     import IPython
                     IPython.embed()
-            except:
+            except Exception as e:
                 #import pdb; pdb.set_trace()
+                print(e)
                 raise
         elif cmd == 'norm':
             fname = input("Enter database name or 'back' to cancel:")
@@ -526,7 +527,7 @@ def main():
                 fname = fname+'.h5'
             try:
                 tic = time.time()
-                M = pm.NormApprox(Bayes_model,prior_eps,db='hdf5',dbname=fname,
+                M = pm.NormApprox(Bayes_model,eps=prior_eps,db='hdf5',dbname=fname,
                                   dbmode='a',dbcomplevel=0)
                 print('Fitting....')
                 M.fit()
@@ -559,8 +560,8 @@ def main():
                     IPython.embed()
                 M.db.close()
                 print('Database closed.')
-            except:
-                import pdb; pdb.set_trace()
+            except Exception as e:
+                print(e)
                 print('Exception: database closing...')
                 mcmc.db.close()
                 print('Database closed.')
