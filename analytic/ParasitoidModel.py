@@ -271,7 +271,10 @@ def Dmat(sig_x, sig_y, rho):
     Arguments:
         - sig_x, sig_y -- Std. deviation in x and y direction respectively
         - rho -- Covariance"""
-        
+    
+    assert sig_x > 0, 'sig_x must be positive'
+    assert sig_y > 0, 'sig_y must be positive'
+    assert -1 <= rho <= 1, 'correlation must be between -1 and 1'    
     return np.array([[sig_x**2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y**2]])
     
@@ -334,7 +337,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
     low = np.array([-r,-r])
     upp = np.array([r,r])
     val, inform = mvn.mvnun(low,upp,mu,S)
-    #assert inform == 0 # integration finished with error < EPS
+    assert inform == 0 # integration finished with error < EPS
     # cdf_vals is a dict that takes x,y coordinate pairs (cell center locations)
     #   to probability mass values.
     cdf_vals = {(0,0):val}
@@ -350,7 +353,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
-                #assert inform == 0 #integration finished with error < EPS
+                assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
                 
@@ -360,11 +363,11 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 low = np.array([ii*cell_length-r,jj*cell_length-r])
                 upp = low + cell_length_ary
                 val, inform = mvn.mvnun(low,upp,mu,S)
-                #assert inform == 0 #integration finished with error < EPS
+                assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
                 val, inform = mvn.mvnun(low[::-1],upp[::-1],mu,S)
-                #assert inform == 0 #integration finished with error < EPS
+                assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(jj,ii)] = val
                 val_sum += val
         
