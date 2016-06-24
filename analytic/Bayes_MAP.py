@@ -124,7 +124,7 @@ def main():
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
     prior_eps[sig_y_l] = 0.1
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
-    @pm.determinstic(trace=True,plot=True)
+    @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
     prior_eps[corr_l] = 0.01
