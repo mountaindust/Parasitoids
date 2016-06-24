@@ -114,20 +114,20 @@ def main():
     sig_y = pm.Gamma("sig_y",16.2,1,value=16.2)
     prior_eps[sig_y] = 0.1
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
+    prior_eps[corr_p] = 0.005
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
-    prior_eps[corr] = 0.01
     # local spread paramters
     sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
     prior_eps[sig_x_l] = 0.1
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
     prior_eps[sig_y_l] = 0.1
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
+    prior_eps[corr_l_p] = 0.005
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
-    prior_eps[corr_l] = 0.01
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
     prior_eps[mu_r] = 0.01
