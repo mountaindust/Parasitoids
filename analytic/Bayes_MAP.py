@@ -113,14 +113,20 @@ def main():
     prior_eps[sig_x] = 0.1
     sig_y = pm.Gamma("sig_y",16.2,1,value=16.2)
     prior_eps[sig_y] = 0.1
-    corr = pm.Uniform("rho",-1,1,value=0)
+    corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
+    @pm.deterministic(trace=True,plot=True)
+    def corr(corr_p=corr_p):
+        return corr_p*2 - 1
     prior_eps[corr] = 0.01
     # local spread paramters
     sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
     prior_eps[sig_x_l] = 0.1
     sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
     prior_eps[sig_y_l] = 0.1
-    corr_l = pm.Uniform("rho_l",-1,1,value=0)
+    corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
+    @pm.determinstic(trace=True,plot=True)
+    def corr_l(corr_l_p=corr_l_p):
+        return corr_l_p*2 - 1
     prior_eps[corr_l] = 0.01
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
@@ -462,15 +468,16 @@ def main():
     ### Collect model ###
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
-                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,mu_r,
+                                sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
+                                corr_l_p,corr_l,mu_r,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
-                                sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,mu_r,
-                                grid_obs_prob,xi,em_obs_prob,
+                                sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
+                                corr_l_p,corr_l,mu_r,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
@@ -506,6 +513,20 @@ def main():
                 print('---------------Variable estimates---------------')
                 for var in Bayes_model.stochastics:
                     print('{} = {}'.format(var,var.value))
+                # Save result to file
+                with open('Max_aPosteriori_Estimate.txt','w') as fobj:
+                    fobj.write('Time elapsed: {}'.format(time.time() - tic))
+                    fobj.write('Free stochastic variables: {}'.format(M.len))
+                    fobj.write('Joint log-probability of model: {}'.format(M.logp))
+                    fobj.write('Max joint log-probability of model: {}'.format(
+                          M.logp_at_max))
+                    fobj.write('Maximum log-likelihood: {}'.format(M.lnL))
+                    fobj.write("Akaike's Information Criterion {}".format(M.AIC))
+                    fobj.write('---------------Variable estimates---------------')
+                    for var in Bayes_model.stochastics:
+                        fobj.write('{} = {}'.format(var,var.value))
+                print('Result saved to Max_aPosteriori_Estimate.txt.')
+                # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
                 cmd_py = cmd_py.lower()
@@ -547,11 +568,28 @@ def main():
                 print('Estimated variances: ')
                 for var in bio_model.stochastics:
                     print('{} = {}'.format(var,M.C[var]))
+                # Save result to file
+                with open('Normal_approx.txt','w') as fobj:
+                    fobj.write('Time elapsed: {}'.format(time.time() - tic))
+                    fobj.write('Free stochastic variables: {}'.format(M.len))
+                    fobj.write('Joint log-probability of model: {}'.format(M.logp))
+                    fobj.write('Max joint log-probability of model: {}'.format(
+                          M.logp_at_max))
+                    fobj.write("Akaike's Information Criterion {}".format(M.AIC))
+                    fobj.write('---------------Variable estimates---------------')
+                    fobj.write('Estimated means: ')
+                    for var in bio_model.stochastics:
+                        fobj.write('{} = {}'.format(var,M.mu[var]))
+                    fobj.write('Estimated variances: ')
+                    for var in bio_model.stochastics:
+                        fobj.write('{} = {}'.format(var,M.C[var]))
+                print('These results have been saved to Normal_approx.txt.')
                 print('For covariances, enter IPython and request a covariance'+
                       ' matrix by passing variables in the following syntax:\n'+
                       'M.C[var1,var2,...,varn]\n'+
                       'Example: M.C[f_a1,f_a2] gives the covariance matrix of\n'+
                       ' f_a1 and f_a2.')
+                # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
                 cmd_py = cmd_py.lower()

@@ -65,7 +65,7 @@ class LocInfo(object):
         self.field_polys = LocInfo.get_fields('./data/'+location+'fields.txt',
             release_latlong) # this is a dict. keys are field labels
         ## ## Remove furthest field ## ##
-        del self.field_polys['G']
+        #del self.field_polys['G']
         # Convert to dict of cell indices
         self.field_cells = LocInfo.get_field_cells(self.field_polys,domain_info)
         # Get the number of cells in each sentinal field
@@ -454,8 +454,8 @@ class LocInfo(object):
             sentinel_fields_data.reset_index(inplace=True,drop=True)
                                     
             ## ## Remove furthest field ## ##
-            sentinel_fields_data = sentinel_fields_data[
-                                    sentinel_fields_data['id'] != 'G']
+            # sentinel_fields_data = sentinel_fields_data[
+                                    # sentinel_fields_data['id'] != 'G']
             
             ### Store DataFrame in list
             self.sent_DataFrames.append(sentinel_fields_data)
