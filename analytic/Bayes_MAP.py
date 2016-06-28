@@ -515,16 +515,16 @@ def main():
                     print('{} = {}'.format(var,var.value))
                 # Save result to file
                 with open('Max_aPosteriori_Estimate.txt','w') as fobj:
-                    fobj.write('Time elapsed: {}'.format(time.time() - tic))
-                    fobj.write('Free stochastic variables: {}'.format(M.len))
-                    fobj.write('Joint log-probability of model: {}'.format(M.logp))
-                    fobj.write('Max joint log-probability of model: {}'.format(
+                    fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
+                    fobj.write('Free stochastic variables: {}\n'.format(M.len))
+                    fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
+                    fobj.write('Max joint log-probability of model: {}\n'.format(
                           M.logp_at_max))
-                    fobj.write('Maximum log-likelihood: {}'.format(M.lnL))
-                    fobj.write("Akaike's Information Criterion {}".format(M.AIC))
-                    fobj.write('---------------Variable estimates---------------')
+                    fobj.write('Maximum log-likelihood: {}\n'.format(M.lnL))
+                    fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
+                    fobj.write('---------------Variable estimates---------------\n')
                     for var in Bayes_model.stochastics:
-                        fobj.write('{} = {}'.format(var,var.value))
+                        fobj.write('{} = {}\n'.format(var,var.value))
                 print('Result saved to Max_aPosteriori_Estimate.txt.')
                 # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
@@ -570,19 +570,19 @@ def main():
                     print('{} = {}'.format(var,M.C[var]))
                 # Save result to file
                 with open('Normal_approx.txt','w') as fobj:
-                    fobj.write('Time elapsed: {}'.format(time.time() - tic))
-                    fobj.write('Free stochastic variables: {}'.format(M.len))
-                    fobj.write('Joint log-probability of model: {}'.format(M.logp))
-                    fobj.write('Max joint log-probability of model: {}'.format(
+                    fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
+                    fobj.write('Free stochastic variables: {}\n'.format(M.len))
+                    fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
+                    fobj.write('Max joint log-probability of model: {}\n'.format(
                           M.logp_at_max))
-                    fobj.write("Akaike's Information Criterion {}".format(M.AIC))
-                    fobj.write('---------------Variable estimates---------------')
-                    fobj.write('Estimated means: ')
+                    fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
+                    fobj.write('---------------Variable estimates---------------\n')
+                    fobj.write('Estimated means: \n')
                     for var in bio_model.stochastics:
-                        fobj.write('{} = {}'.format(var,M.mu[var]))
-                    fobj.write('Estimated variances: ')
+                        fobj.write('{} = {}\n'.format(var,M.mu[var]))
+                    fobj.write('Estimated variances: \n')
                     for var in bio_model.stochastics:
-                        fobj.write('{} = {}'.format(var,M.C[var]))
+                        fobj.write('{} = {}\n'.format(var,M.C[var]))
                 print('These results have been saved to Normal_approx.txt.')
                 print('For covariances, enter IPython and request a covariance'+
                       ' matrix by passing variables in the following syntax:\n'+
