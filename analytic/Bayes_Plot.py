@@ -68,10 +68,17 @@ def plot_traces(db=db):
     
     # corr,corr_l,lam
     plt.subplot(414)
-    plt.plot(db.trace("rho",chain=None)[:], label=r"trace of $\rho$",
-             c=cmap(0.01), lw=lw)
-    plt.plot(db.trace("rho_l",chain=None)[:], label=r"trace of local $\rho$",
-             c=cmap(0.25), lw=lw)
+    # previous versions did not have a hypervariable rho_p, so rho is plotted
+    try:
+        plt.plot(db.trace("rho",chain=None)[:], label=r"trace of $\rho$",
+                c=cmap(0.01), lw=lw)
+        plt.plot(db.trace("rho_l",chain=None)[:], label=r"trace of local $\rho$",
+                c=cmap(0.25), lw=lw)
+    except KeyError:
+        plt.plot(db.trace("corr",chain=None)[:], label=r"trace of $\rho$",
+                c=cmap(0.01), lw=lw)
+        plt.plot(db.trace("corr_l",chain=None)[:], label=r"trace of local $\rho$",
+                c=cmap(0.25), lw=lw)
     plt.plot(db.trace("lam",chain=None)[:], label=r"trace of $\lambda$",
              c=cmap(0.5), lw=lw)
     leg = plt.legend(loc="upper left")
