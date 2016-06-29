@@ -94,12 +94,12 @@ def main():
     prior_eps[f_a1] = 0.02
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
     prior_eps[f_a2] = 0.02
-    f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
+    f_b1_p = pm.Gamma("fb1_p",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
     prior_eps[f_b1_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
-    f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
+    f_b2_p = pm.Gamma("fb2_p",2,1,value=2,trace=False,plot=False)
     prior_eps[f_b2_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):

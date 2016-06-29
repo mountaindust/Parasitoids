@@ -235,6 +235,9 @@ def plot_all(modelsol,params,locinfo=None):
         oval = 0.0 if oval is np.ma.masked else oval
         plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
+        res = int(params.domain_info[0]//params.domain_info[1])
+        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+        ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
         with warnings.catch_warnings():
@@ -348,6 +351,9 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
     oval = 0.0 if oval is np.ma.masked else oval
     plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
         ha='right',va='center',transform=ax.transAxes,fontsize=16)
+    res = int(params.domain_info[0]//params.domain_info[1])
+    plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+        ha='left',va='center',transform=ax.transAxes,fontsize=12)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
     if saveonly is None:
@@ -357,6 +363,7 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
             plt.pause(0.0001)
     else:
         plt.savefig(outname+'.'+format,dpi=dpi,format=format)
+        plt.close()
         print('...Figure saved to {}.'.format(outname+'.'+format))
         print('----------------Model result visualizations----------------')
         
@@ -403,8 +410,9 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         for col in ax.collections:
             col.remove()
         #also remove the text from before
-        for txt in ax.texts:
-            txt.remove()
+        ntexts = len(ax.texts)
+        for ii in range(ntexts): 
+            ax.texts[0].remove()
         #Establish a miminum for plotting based 0.00001 of the maximum
         mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
         #remove all values that are too small to be plotted.
@@ -445,6 +453,9 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         oval = 0.0 if oval is np.ma.masked else oval
         ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
+        res = int(params.domain_info[0]//params.domain_info[1])
+        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+            ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar.mappable = pcl
         cbar.update_bruteforce(pcl)
         cbar.solids.set_edgecolor("face")
@@ -479,7 +490,12 @@ def main(argv):
     
     The first argument in the list should be the location of a simulation file.
     '''
-    filename = argv[0]
+    try:
+        filename = argv[0]
+    except IndexError:
+        print('Please pass the filename you wish to load as an argument, e.g.:')
+        print('python Plot_Result.py output/filename')
+        return
     if filename.rstrip()[-5:] == '.json':
         filename = filename[:-5]
     elif filename.rstrip()[-4:] == '.npz':
