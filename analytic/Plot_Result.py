@@ -233,13 +233,14 @@ def plot_all(modelsol,params,locinfo=None):
         plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
         oval = sol_fm.flat[sol_fm.size//2]
         oval = 0.0 if oval is np.ma.masked else oval
-        plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+        plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
         res = int(params.domain_info[0]//params.domain_info[1])
-        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
         ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
+        cbar.set_label('Wasps per cell')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if n != len(modelsol)-1:
@@ -349,13 +350,14 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
     #report the value at the origin
     oval = sol_fm.flat[sol_fm.size//2]
     oval = 0.0 if oval is np.ma.masked else oval
-    plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+    plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
         ha='right',va='center',transform=ax.transAxes,fontsize=16)
     res = int(params.domain_info[0]//params.domain_info[1])
-    plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+    plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
         ha='left',va='center',transform=ax.transAxes,fontsize=12)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
+    cbar.set_label('Wasps per cell')
     if saveonly is None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -403,6 +405,7 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         #plt.imshow(sat_img,zorder=0,extent=plot_limits)
         SAT = True
     cbar = plt.colorbar(pcl)
+    cbar.set_label('Wasps per cell')
         
     def animate(nsol):
         n,sol = nsol
@@ -451,10 +454,10 @@ def create_mp4(modelsol,params,filename,locinfo=None):
                 zorder=1,alpha=1)
         oval = sol_fm.flat[sol_fm.size//2]
         oval = 0.0 if oval is np.ma.masked else oval
-        ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),
+        ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
         res = int(params.domain_info[0]//params.domain_info[1])
-        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),
+        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
             ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar.mappable = pcl
         cbar.update_bruteforce(pcl)
@@ -570,6 +573,7 @@ def main(argv):
             except:
                 print('Could not load sentinel field data.')
                 print(sys.exc_info()[0])
+                continue
         elif val[0] == 's':
             try:
                 if val[:4] == 'save':
@@ -578,6 +582,7 @@ def main(argv):
                     val = int(val[1:].strip())
             except ValueError:
                 print('Could not convert {} to an integer.'.format(val))
+                continue
             if LOCINFO_LOADED:
                 plot(modelsol[val-1],val,params,saveonly=filename,locinfo=locinfo)
             else:
@@ -590,6 +595,9 @@ def main(argv):
                     plot(modelsol[int(val)-1],val,params)
             except KeyError:
                 print('Day {0} not found.'.format(val))
+            except ValueError:
+                print('Input {} not understood.'.format(val))
+                continue
     
 if __name__ == "__main__":
     main(sys.argv[1:])
