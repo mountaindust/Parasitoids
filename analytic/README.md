@@ -248,15 +248,19 @@ from population model results, as well as gathering the expected number of wasps
 at grid points and cardinal direction sample points. Bayes_Plot.py contains 
 functions for plotting traces and posterior distributions from mcmc samples.
 
-All functionality should be provided via interactive menus in Bayes_Run.py and
-Bayes_MAP.py. MCMC samples are saved in hdf5 databases which allow for later
-inspection and resuming of sampling. It may be useful to import pymc and 
-Bayes_Plot.py into an IPython session to load the database and inspect it 
-directly (a menu item in Bayes_Run.py does this as well). Please see 
+All functionality is provided via interactive menus in Bayes_Run.py and
+Bayes_MAP.py, though Bayes_MAP can can also be run via command line arguments
+(pass the -h flag to see options). MCMC samples are saved in hdf5 databases 
+which allow for later inspection and resuming of sampling. It may be useful to 
+import pymc and Bayes_Plot.py into an IPython session to load the database and 
+inspect it directly (a menu item in Bayes_Run.py does this as well). Please see 
 implementation for further details.
 
 At this time, the Bayesian modules are only tested for the Kalbar dataset, and
-thus Kalbar is hard coded into the modules Bayes_Run.py and Bayes_MAP.py.
+thus Kalbar is hard coded into the modules Bayes_Run.py and Bayes_MAP.py. In 
+Bayes_MAP, it is necessary to specify a value in the dict prior_eps for each 
+stochastic parameter. This tells the solver what step size to use when 
+discretizing derivatives.
 
 While these modules have been tested and run as advertised, they should be 
 considered under construction while results are examined, priors possibly 
