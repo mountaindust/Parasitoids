@@ -7,6 +7,7 @@ Author: Christopher Strickland
 Email: cstrickland@samsi.info 
 '''
 
+import sys
 import warnings
 import numpy as np
 import pymc as pm
@@ -346,3 +347,76 @@ def plot_other(db=db,start=0):
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
+    
+    
+    
+if __name__ == "__main__":
+    nargs = len(sys.argv) - 1
+    if nargs == 0:
+        print("Please include the database name as an argument, optionally\n"+
+              "followed by the module to run (with or w/o start point.")
+    elif nargs > 0:
+        database_name = sys.argv[1]
+        db = pm.database.hdf5.load(database_name)
+        
+    if nargs > 1:
+        '''Run the requested plot'''
+        if nargs > 2:
+            start = sys.argv[3]
+        else:
+            start = 0
+            
+        if sys.argv[2] == 'plot_traces':
+            plot_traces(db)
+        elif sys.argv[2] == 'plot_f_g':
+            plot_f_g(db,start)
+        elif sys.argv[2] == 'plot_sprd_vars':
+            plot_sprd_vars(db,start)
+        elif sys.argv[2] == 'plot_sent_obs_probs':
+            plot_sent_obs_probs(db,start)
+        elif sys.argv[2] == 'plot_other':
+            plot_other(db,start)
+        else:
+            print('Method not found.')
+    elif nargs == 1:
+        while True:
+            '''Open an interactive menu'''
+            print("----------Plot MCMC Results----------")
+            print("(1) Plot traces")
+            print("(2) Plot f & g argument posteriors")
+            print("(3) Plot diffusion posteriors")
+            print("(4) Plot sentinel field posteriors")
+            print("(5) Plot others")
+            print("(6) Quit")
+            print("2-5 may be followed by a start number.")
+            cmd = input(":")
+            
+            try:
+                if cmd[0] == "1":
+                    plot_traces(db)
+                elif cmd[0] == "2":
+                    if cmd[1:].strip() == '':
+                        plot_f_g(db)
+                    else:
+                        plot_f_g(db,int(cmd[1:].strip()))
+                elif cmd[0] == "3":
+                    if cmd[1:].strip() == '':
+                        plot_sprd_vars(db)
+                    else:
+                        plot_sprd_vars(db,int(cmd[1:].strip()))
+                elif cmd[0] == "4":
+                    if cmd[1:].strip() == '':
+                        plot_sent_obs_probs(db)
+                    else:
+                        plot_sent_obs_probs(db,int(cmd[1:].strip()))
+                elif cmd[0] == "5":
+                    if cmd[1:].strip() == '':
+                        plot_other(db)
+                    else:
+                        plot_other(db,int(cmd[1:].strip()))
+                elif cmd[0] == "6" or cmd[0] == "q" or cmd[0] == "Q":
+                    break
+                else:
+                    print("Command not found.")
+            except ValueError:
+                print("Could not parse start number {}.".format(cmd[1:].strip()))

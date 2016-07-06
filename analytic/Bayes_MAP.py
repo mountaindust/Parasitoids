@@ -12,6 +12,7 @@ __status__ = "Development"
 __version__ = "0.5"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
+import argparse
 import sys, time, warnings
 from io import StringIO
 import os.path
@@ -25,6 +26,15 @@ from Data_Import import LocInfo
 from CalcSol import get_populations
 import ParasitoidModel as PM
 from Bayes_funcs import *
+
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--MAP", help="Find max a posteriori estimate"+
+                   " and exit on completion.", action="store_true")
+group.add_argument("--norm", help="Find normal approximation",
+                   metavar="database_name")
+# Normal approximation - we would like to explore covarience?
+# We need to add something here...
 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
@@ -57,7 +67,7 @@ class Capturing(list):
 #                                                                             #
 ###############################################################################
 
-def main():
+def main(RUNFLAG):
 
     print('Setting up parameters and priors...')
 
@@ -484,48 +494,109 @@ def main():
 
 
     ######################################################################
-    #####                   Start Interactive Menu                   #####
+    #####              Run Methods and Interactive Menu              #####
     ######################################################################
-    print('----- Maximum a posteriori estimates & Normal approximations -----')
-    while True:
-        print(" 'map': Calculate maximum a posteriori estimate")
-        print("'norm': Calculate normal approximation")
-        print("'quit': Quit.")
-        cmd = input('Enter: ')
-        cmd = cmd.strip()
-        cmd = cmd.lower()
-        if cmd == 'map':
-            try:
-                tic = time.time()
-                M = pm.MAP(Bayes_model,prior_eps)
-                print('Fitting....')
-                M.fit()
-                # Return statistics
-                print('Estimate complete. Time elapsed: {}'.format(
-                      time.time() - tic))
-                print('Free stochastic variables: {}'.format(M.len))
-                print('Joint log-probability of model: {}'.format(M.logp))
-                print('Max joint log-probability of model: {}'.format(
+    
+    def MAP_run():
+        '''Find Maximum a posteriori distribution'''
+        tic = time.time()
+        M = pm.MAP(Bayes_model,prior_eps)
+        print('Fitting....')
+        M.fit()
+        # Return statistics
+        print('Estimate complete. Time elapsed: {}'.format(
+              time.time() - tic))
+        print('Free stochastic variables: {}'.format(M.len))
+        print('Joint log-probability of model: {}'.format(M.logp))
+        print('Max joint log-probability of model: {}'.format(
+              M.logp_at_max))
+        print('Maximum log-likelihood: {}'.format(M.lnL))
+        print("Akaike's Information Criterion {}".format(M.AIC),
+            flush=True)
+        print('---------------Variable estimates---------------')
+        for var in Bayes_model.stochastics:
+            print('{} = {}'.format(var,var.value))
+        # Save result to file
+        with open('Max_aPosteriori_Estimate.txt','w') as fobj:
+            fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
+            fobj.write('Free stochastic variables: {}\n'.format(M.len))
+            fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
+            fobj.write('Max joint log-probability of model: {}\n'.format(
+                  M.logp_at_max))
+            fobj.write('Maximum log-likelihood: {}\n'.format(M.lnL))
+            fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
+            fobj.write('---------------Variable estimates---------------\n')
+            for var in Bayes_model.stochastics:
+                fobj.write('{} = {}\n'.format(var,var.value))
+        print('Result saved to Max_aPosteriori_Estimate.txt.')
+        
+        
+        
+    def norm_run(fname):
+        '''Find normal approximation'''
+        try:
+            tic = time.time()
+            M = pm.NormApprox(Bayes_model,eps=prior_eps,db='hdf5',dbname=fname,
+                              dbmode='a',dbcomplevel=0)
+            print('Fitting....')
+            M.fit()
+            # Return statistics
+            print('Estimate complete. Time elapsed: {}'.format(
+                  time.time() - tic))
+            print('Free stochastic variables: {}'.format(M.len))
+            print('Joint log-probability of model: {}'.format(M.logp))
+            print('Max joint log-probability of model: {}'.format(
+                  M.logp_at_max))
+            print("Akaike's Information Criterion {}".format(M.AIC),
+                flush=True)
+            print('---------------Variable estimates---------------')
+            print('Estimated means: ')
+            for var in bio_model.stochastics:
+                print('{} = {}'.format(var,M.mu[var]))
+            print('Estimated variances: ')
+            for var in bio_model.stochastics:
+                print('{} = {}'.format(var,M.C[var]))
+            # Save result to file
+            with open('Normal_approx.txt','w') as fobj:
+                fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
+                fobj.write('Free stochastic variables: {}\n'.format(M.len))
+                fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
+                fobj.write('Max joint log-probability of model: {}\n'.format(
                       M.logp_at_max))
-                print('Maximum log-likelihood: {}'.format(M.lnL))
-                print("Akaike's Information Criterion {}".format(M.AIC),
-                    flush=True)
-                print('---------------Variable estimates---------------')
-                for var in Bayes_model.stochastics:
-                    print('{} = {}'.format(var,var.value))
-                # Save result to file
-                with open('Max_aPosteriori_Estimate.txt','w') as fobj:
-                    fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
-                    fobj.write('Free stochastic variables: {}\n'.format(M.len))
-                    fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
-                    fobj.write('Max joint log-probability of model: {}\n'.format(
-                          M.logp_at_max))
-                    fobj.write('Maximum log-likelihood: {}\n'.format(M.lnL))
-                    fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
-                    fobj.write('---------------Variable estimates---------------\n')
-                    for var in Bayes_model.stochastics:
-                        fobj.write('{} = {}\n'.format(var,var.value))
-                print('Result saved to Max_aPosteriori_Estimate.txt.')
+                fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
+                fobj.write('---------------Variable estimates---------------\n')
+                fobj.write('Estimated means: \n')
+                for var in bio_model.stochastics:
+                    fobj.write('{} = {}\n'.format(var,M.mu[var]))
+                fobj.write('Estimated variances: \n')
+                for var in bio_model.stochastics:
+                    fobj.write('{} = {}\n'.format(var,M.C[var]))
+            print('These results have been saved to Normal_approx.txt.')
+        except Exception as e:
+            print(e)
+            print('Exception: database closing...')
+            mcmc.db.close()
+            print('Database closed.')
+            raise
+        
+    
+    
+    # Parse run type
+    if RUNFLAG == 'MAP_RUN':
+        MAP_run()
+    elif RUNFLAG is not None:
+        norm_run(RUNFLAG)
+    else:
+        print('----- Maximum a posteriori estimates & Normal approximations -----')
+        while True:
+            print(" 'map': Calculate maximum a posteriori estimate")
+            print("'norm': Calculate normal approximation")
+            print("'quit': Quit.")
+            cmd = input('Enter: ')
+            cmd = cmd.strip()
+            cmd = cmd.lower()
+            if cmd == 'map':
+                MAP_run()
                 # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
@@ -533,84 +604,51 @@ def main():
                 if cmd_py == 'y' or cmd_py == 'yes':
                     import IPython
                     IPython.embed()
-            except Exception as e:
-                #import pdb; pdb.set_trace()
-                print(e)
-                raise
-        elif cmd == 'norm':
-            fname = input("Enter database name or 'back' to cancel:")
-            fname = fname.strip()
-            if fname == 'q' or fname == 'quit':
-                return
-            elif fname == 'b' or fname == 'back':
-                continue
+            elif cmd == 'norm':
+                fname = input("Enter database name or 'back' to cancel:")
+                fname = fname.strip()
+                if fname == 'q' or fname == 'quit':
+                    return
+                elif fname == 'b' or fname == 'back':
+                    continue
+                else:
+                    fname = fname+'.h5'
+                norm_run(fname)
+                try:
+                    print('For covariances, enter IPython and request a covariance'+
+                          ' matrix by passing variables in the following syntax:\n'+
+                          'M.C[var1,var2,...,varn]\n'+
+                          'Example: M.C[f_a1,f_a2] gives the covariance matrix of\n'+
+                          ' f_a1 and f_a2.')
+                    # Option to enter IPython
+                    cmd_py = input('Enter IPython y/[n]:')
+                    cmd_py = cmd_py.strip()
+                    cmd_py = cmd_py.lower()
+                    if cmd_py == 'y' or cmd_py == 'yes':
+                        import IPython
+                        IPython.embed()
+                    M.db.close()
+                    print('Database closed.')
+                except Exception as e:
+                    print(e)
+                    print('Exception: database closing...')
+                    mcmc.db.close()
+                    print('Database closed.')
+                    raise
+            elif cmd == 'quit' or cmd == 'q':
+                    return
             else:
-                fname = fname+'.h5'
-            try:
-                tic = time.time()
-                M = pm.NormApprox(Bayes_model,eps=prior_eps,db='hdf5',dbname=fname,
-                                  dbmode='a',dbcomplevel=0)
-                print('Fitting....')
-                M.fit()
-                # Return statistics
-                print('Estimate complete. Time elapsed: {}'.format(
-                      time.time() - tic))
-                print('Free stochastic variables: {}'.format(M.len))
-                print('Joint log-probability of model: {}'.format(M.logp))
-                print('Max joint log-probability of model: {}'.format(
-                      M.logp_at_max))
-                print("Akaike's Information Criterion {}".format(M.AIC),
-                    flush=True)
-                print('---------------Variable estimates---------------')
-                print('Estimated means: ')
-                for var in bio_model.stochastics:
-                    print('{} = {}'.format(var,M.mu[var]))
-                print('Estimated variances: ')
-                for var in bio_model.stochastics:
-                    print('{} = {}'.format(var,M.C[var]))
-                # Save result to file
-                with open('Normal_approx.txt','w') as fobj:
-                    fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
-                    fobj.write('Free stochastic variables: {}\n'.format(M.len))
-                    fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
-                    fobj.write('Max joint log-probability of model: {}\n'.format(
-                          M.logp_at_max))
-                    fobj.write("Akaike's Information Criterion {}\n".format(M.AIC))
-                    fobj.write('---------------Variable estimates---------------\n')
-                    fobj.write('Estimated means: \n')
-                    for var in bio_model.stochastics:
-                        fobj.write('{} = {}\n'.format(var,M.mu[var]))
-                    fobj.write('Estimated variances: \n')
-                    for var in bio_model.stochastics:
-                        fobj.write('{} = {}\n'.format(var,M.C[var]))
-                print('These results have been saved to Normal_approx.txt.')
-                print('For covariances, enter IPython and request a covariance'+
-                      ' matrix by passing variables in the following syntax:\n'+
-                      'M.C[var1,var2,...,varn]\n'+
-                      'Example: M.C[f_a1,f_a2] gives the covariance matrix of\n'+
-                      ' f_a1 and f_a2.')
-                # Option to enter IPython
-                cmd_py = input('Enter IPython y/[n]:')
-                cmd_py = cmd_py.strip()
-                cmd_py = cmd_py.lower()
-                if cmd_py == 'y' or cmd_py == 'yes':
-                    import IPython
-                    IPython.embed()
-                M.db.close()
-                print('Database closed.')
-            except Exception as e:
-                print(e)
-                print('Exception: database closing...')
-                mcmc.db.close()
-                print('Database closed.')
-                raise
-        elif cmd == 'quit' or cmd == 'q':
-                return
-        else:
-            print('Command not recognized.')
+                print('Command not recognized.')
 
     
 if __name__ == "__main__":
+    args = parser.parse_args()
+    if args.MAP:
+        RUNFLAG = 'MAP_RUN'
+    elif args.norm is not None:
+        RUNFLAG = args.norm
+    else:
+        RUNFLAG = None
     with Pool() as pool:
-        main()
+        main(RUNFLAG)
         #main(sys.argv[1:])
