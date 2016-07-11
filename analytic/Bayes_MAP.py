@@ -649,6 +649,6 @@ if __name__ == "__main__":
         RUNFLAG = args.norm
     else:
         RUNFLAG = None
-    with Pool() as pool:
+    with Pool(12) as pool:
         main(RUNFLAG)
         #main(sys.argv[1:])

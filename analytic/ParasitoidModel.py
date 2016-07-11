@@ -543,6 +543,14 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
         raise
     if total_flight_prob < 0.99999:
+        # TODO: Shift by avg wind velocity, where avg is weighted by f function
+        # Get value of f function
+        n = day_wind.shape[0] #number of wind data entries in the day
+        fprob = f_time_prob(n,*hparams[-4:])
+        # Find weighted average of wind velocity
+        wind_avg = np.average(day_wind,axis=0,weights=fprob)
+        # TODO: Do that shift thing.
+        
         cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
         norm_r = int(cdf_mat.shape[0]/2)
         pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
