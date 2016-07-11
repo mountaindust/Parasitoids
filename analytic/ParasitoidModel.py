@@ -546,15 +546,44 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         # TODO: Shift by avg wind velocity, where avg is weighted by f function
         # Get value of f function
         n = day_wind.shape[0] #number of wind data entries in the day
-        fprob = f_time_prob(n,*hparams[-4:])
+        fprob_vec = f_time_prob(n,*hparams[-4:]) #day long vector
         # Find weighted average of wind velocity
-        wind_avg = np.average(day_wind,axis=0,weights=fprob)
-        # TODO: Do that shift thing.
+        wind_avg = np.average(day_wind,axis=0,weights=fprob_vec)
+        # wind_avg is in km/hr. convert to m/(n_periods)
+        # here, we are assuming that a parasitoid will on average
+        #   be drifting an amount proportional to n_periods
+        wind_avg *= 1000*24/(periods/n_periods) # m/(n_periods)
+        # TODO: Scale this by a new parameter.
+        # wind_avg *= mu_l_r
         
-        cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
-        norm_r = int(cdf_mat.shape[0]/2)
-        pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
+        # Pass the remainder of the translation to get_mvn_cdf_values
+        cdf_mu = wind_avg - np.round(wind_avg/cell_dist)*cell_dist
+        cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,Sl)
+        
+        #translate wind_avg from (x,y) coordinates to nearest cell-center location.
+        #   [rad_res,rad_res] is the center cell of the domain.
+        col_offset = int(np.round(wind_avg[0]/cell_dist))
+        row_offset = int(np.round(-wind_avg[1]/cell_dist))
+        row_cent = rad_res+row_offset
+        col_cent = rad_res+col_offset
+        adv_cent = np.array([row_cent,col_cent])
+        
+        #now we want to plop the normal distribution around this center
+        norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
+        # Get indices in pmf array
+        row_min, col_min = adv_cent - norm_r
+        row_max, col_max = adv_cent + norm_r
+        # Return a unique error if the domain is not big enough so that it can
+        # be handled in context.
+        if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
+            row_min < 0 or col_min < 0:
+            raise BndsError
+            
+        # Add local diffusion to model
+        pmf[row_min:row_max+1,col_min:col_max+1] += \
             (1-total_flight_prob)*cdf_mat
+            
+            
         # assure it sums to one by adding any error to the center cell.
         total_flight_prob = pmf.sum()
         try:
