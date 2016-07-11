@@ -436,9 +436,12 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         start_indx = 0
     else:
         start_indx = floor(start_time*periods)
-    for t_indx in range(start_indx,periods):
-        ### Get the advection velocity and put in units = m/(unit time) ###
         
+    #################### Day Loop ####################
+    for t_indx in range(start_indx,periods):
+        ###                                                             ###
+        ### Get the advection velocity and put in units = m/(unit time) ###
+        ###                                                             ###
         if (not TEST_RUN) and n_periods > 1:
             if t_indx+n_periods-1 < periods:
                 # effective flight advection over n periods in km/hr
@@ -475,20 +478,18 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         mu_v *= mu_r
         # Note: this is in (x,y) coordinates
         
-        
+        ###                                                         ###
         ### calculate spatial integral (in a spatially limited way) ###
+        ###                                                         ###
+        '''We know the distribution is centered around mu_v(t) at each t_indx, and
+           that it has very limited support. Translate the normal distribution
+           back to the origin and let get_mvn_cdf_values integrate until
+           the support is exhausted.'''
         
-        #we know the distribution is centered around mu_v(t) at each t_indx, and
-        #   that it has very limited support. Translate the normal distribution
-        #   back to the origin and let get_mvn_cdf_values integrate until
-        #   the support is exhausted.
-        
-        # We will translate to the nearest cell center given by mu_v below.
+        #   We will translate to the nearest cell center given by mu_v below.
         #   Pass the remainder of the translation to get_mvn_cdf_values as mu.
         cdf_mu = mu_v - np.round(mu_v/cell_dist)*cell_dist
-        
         cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,S)
-        
         #translate mu_v from (x,y) coordinates to nearest cell-center location.
         #   [rad_res,rad_res] is the center cell of the domain.
         col_offset = int(np.round(mu_v[0]/cell_dist))
@@ -497,16 +498,15 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         col_cent = rad_res+col_offset
         adv_cent = np.array([row_cent,col_cent])
         
-        #now we want to plop the normal distribution around this center
+        ### now we want to plop the normal distribution around this center ###
         
         norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
-        
         # Get indices in pmf array
         row_min, col_min = adv_cent - norm_r
         row_max, col_max = adv_cent + norm_r
         
+        ### approximate integral over time ###
         
-        #approximate integral over time
         # Return a unique error if the domain is not big enough so that it can
         # be handled in context.
         if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
@@ -525,11 +525,16 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat)
 
-
-    # pmf now has probabilities per cell of flying there.
-    # 1-np.sum(ppdf) is the probability of not flying.
-    # Add this probability to a distribution around the origin cell, if it isn't
-    #   in roundoff territory.
+    ###                                                             ###
+    ###                     Find local spread                       ###
+    ###                                                             ###
+    '''pmf now has probabilities per cell of flying there.
+       1-np.sum(pmf) is the probability of not flying.
+       Add this probability to a distribution near the origin cell, if it isn't
+       in roundoff territory.'''
+       
+    ### Check sum of pmf ###
+    
     total_flight_prob = pmf.sum()
     try:
         assert pmf.min() >= -1e-8, 'pmf.min() less than zero, first block'
@@ -543,7 +548,9 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
         raise
     if total_flight_prob < 0.99999:
-        # TODO: Shift by avg wind velocity, where avg is weighted by f function
+    
+        ### Shift by avg wind vel, where avg is weighted by f function ###
+    
         # Get value of f function
         n = day_wind.shape[0] #number of wind data entries in the day
         fprob_vec = f_time_prob(n,*hparams[-4:]) #day long vector
@@ -556,19 +563,20 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         # TODO: Scale this by a new parameter.
         # wind_avg *= mu_l_r
         
-        # Pass the remainder of the translation to get_mvn_cdf_values
+        ### Pass the remainder of the translation to get_mvn_cdf_values ###
+        
         cdf_mu = wind_avg - np.round(wind_avg/cell_dist)*cell_dist
         cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,Sl)
         
-        #translate wind_avg from (x,y) coordinates to nearest cell-center location.
-        #   [rad_res,rad_res] is the center cell of the domain.
+        ### translate wind_avg from (x,y) coords to nearest cell-center location. ###
+        
+        # [rad_res,rad_res] is the center cell of the domain.
         col_offset = int(np.round(wind_avg[0]/cell_dist))
         row_offset = int(np.round(-wind_avg[1]/cell_dist))
         row_cent = rad_res+row_offset
         col_cent = rad_res+col_offset
         adv_cent = np.array([row_cent,col_cent])
-        
-        #now we want to plop the normal distribution around this center
+        # now we want to plop the normal distribution around this center
         norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
         # Get indices in pmf array
         row_min, col_min = adv_cent - norm_r
@@ -579,12 +587,15 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             row_min < 0 or col_min < 0:
             raise BndsError
             
-        # Add local diffusion to model
+        ### Add local diffusion to model ###
+        
         pmf[row_min:row_max+1,col_min:col_max+1] += \
             (1-total_flight_prob)*cdf_mat
             
-            
-        # assure it sums to one by adding any error to the center cell.
+        ###                                                              ###
+        ### assure it sums to one by adding any error to the center cell ###
+        ###                                                              ###
+        
         total_flight_prob = pmf.sum()
         try:
             assert pmf.min() >= -1e-8, 'pmf.min() less than zero'
@@ -599,8 +610,10 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                 'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
             raise
     
-    # shrink the domain down as much as possible and return a sparse array
-
+    ###                                                                    ###
+    ### shrink the domain down as much as possible and return sparse array ###
+    ###                                                                    ###
+    
     # first, remove the really small data values from the array
     #   In some large pmf arrays, this can significantly reduce the size
     pmf_coo = r_small_vals(sparse.coo_matrix(pmf),prob_model=True)
