@@ -141,6 +141,8 @@ def main(RUNFLAG):
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
     prior_eps[mu_r] = 0.01
+    mu_l_r = pm.Normal("mu_l_r",1.,2.,value=0.8)
+    prior_eps[mu_l_r] = 0.01
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
@@ -188,7 +190,7 @@ def main(RUNFLAG):
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,mu_r],dtype=object))
+                                        lam,mu_r,mu_l_r],dtype=object))
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
@@ -225,6 +227,7 @@ def main(RUNFLAG):
         
         # scaling flight advection to wind advection
         params.mu_r = params_ary[13]
+        params.mu_l_r = params_ary[14]
 
         
         ### PHASE ONE ###
@@ -479,7 +482,7 @@ def main(RUNFLAG):
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,
+                                corr_l_p,corr_l,mu_r,mu_l_r
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
@@ -487,9 +490,10 @@ def main(RUNFLAG):
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,grid_obs_prob,xi,em_obs_prob,
-                                A_collected,sent_obs_probs,params_ary,pop_model,
-                                grid_poi_rates,rel_poi_rates,sent_poi_rates,
+                                corr_l_p,corr_l,mu_r,mu_l_r,grid_obs_prob,xi,
+                                em_obs_prob,A_collected,sent_obs_probs,
+                                params_ary,pop_model,grid_poi_rates,
+                                rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
 
 

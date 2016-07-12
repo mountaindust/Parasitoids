@@ -93,8 +93,8 @@ def plot_traces(db=db):
     plt.figure()
     plt.hold(True)
     
-    plt.subplot(211)
-    plt.title("Traces of unknown Bayesian model parameters")
+    plt.subplot(311)
+    plt.title("Traces of collection parameters and local drift")
     # xi, em_obs_prob, grid_obs_prob
     plt.plot(db.trace("xi",chain=None)[:], label=r"trace of $\xi$",
              c=cmap(0.01), lw=lw)
@@ -106,7 +106,7 @@ def plot_traces(db=db):
     leg.get_frame().set_alpha(0.7)
     
     # sent_obs_probs
-    plt.subplot(212)
+    plt.subplot(312)
     n = 0
     for name in db.trace_names[0]:
         if name[:13] == 'sent_obs_prob':
@@ -115,6 +115,12 @@ def plot_traces(db=db):
                      label="trace of obs prob field {}".format(id),
                      c=cmap(.10+n*.16), lw=lw)
             n += 1
+    leg = plt.legend(loc="upper right")
+    leg.get_frame().set_alpha(0.7)
+    
+    # mu_l_r
+    plt.plot(db.trace("mu_l_r",chain=None)[:], label=r"trace of local $\mu_r$",
+             c=cmap(0.01), lw=lw)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
     
@@ -313,7 +319,8 @@ def plot_other(db=db,start=0):
     
     plt.figure()
     ax = plt.subplot(411)
-    plt.title(r"Posteriors for $\lambda$, $\xi$, grid_obs_prob and em_obs_prob")
+    plt.title(r"Posteriors for $\lambda$, $\xi$, local $\mu_r$, "+
+              "grid_obs_prob and em_obs_prob")
     plt.hist(db.trace("lam",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior for $\lambda$", normed=True)
     leg = plt.legend(loc="upper right")
@@ -322,6 +329,10 @@ def plot_other(db=db,start=0):
     ax = plt.subplot(412)
     plt.hist(db.trace("xi",chain=None)[start:], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior for $\xi$", normed=True)
+    plt.hold(True)
+    plt.hist(db.trace("mu_l_r",chain=None)[start:], histtype='stepfilled', bins=25,
+             alpha=0.45, label=r"posterior for local $\mu_r$", normed=True)
+    plt.hold(False)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
     

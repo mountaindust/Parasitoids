@@ -114,8 +114,10 @@ def main():
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
-        return corr_l_p*2 - 1    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
+        return corr_l_p*2 - 1    
+    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
     n_periods = pm.Poisson("t_dur",30,value=30)
+    mu_l_r = pm.Normal("mu_l_r",1.,2,value=0.8)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1.5) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.1) # per-wasp prob of  
@@ -157,7 +159,7 @@ def main():
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,n_periods],dtype=object))
+                                        lam,n_periods,mu_l_r],dtype=object))
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
@@ -196,6 +198,7 @@ def main():
         #params.mu_r = params_ary[13]
         # number of time periods (based on interp_num) in one flight
         params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
+        params.mu_l_r = params_ary[14]
 
         
         ### PHASE ONE ###
@@ -450,7 +453,7 @@ def main():
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,
+                                corr_l_p,corr_l,n_periods,mu_l_r,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
@@ -458,7 +461,7 @@ def main():
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,grid_obs_prob,
+                                corr_l_p,corr_l,n_periods,mu_l_r,grid_obs_prob,
                                 xi,em_obs_prob,A_collected,sent_obs_probs,
                                 params_ary,pop_model,grid_poi_rates,
                                 rel_poi_rates,sent_poi_rates,

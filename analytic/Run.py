@@ -1,4 +1,4 @@
-﻿#! /usr/bin/env python3
+#! /usr/bin/env python3
 
 '''Main file for running parasitoid model simulations.
 
@@ -76,6 +76,8 @@ class Params():
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
         self.lam = 1.
+        # scaling parameter for local drift
+        self.mu_l_r = 0.2
         # scaling flight advection to wind advection
         self.mu_r = 1.0
         # number of time periods (based on interp_num) in one flight
@@ -309,6 +311,8 @@ class Params():
                     float(strinfo[2]))
             elif arg == 'lam':
                 self.lam = float(val)
+            elif arg == 'mu_l_r':
+                self.mu_l_r = float(val)
             elif arg == 'mu_r':
                 self.mu_r = float(val)
             elif arg == 'n_periods':
@@ -374,8 +378,8 @@ class Params():
         '''Return params in order of ParasitoidModel.prob_mass signature, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
-        return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.n_periods,
-            *self.domain_info)  
+        return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.mu_l_r,
+            self.n_periods,*self.domain_info)  
         
         
     def get_wind_params(self):

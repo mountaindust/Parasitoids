@@ -388,7 +388,7 @@ class BndsError(Exception):
     
     
     
-def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
+def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,mu_l_r,n_periods,
                 rad_dist,rad_res,start_time=None):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
@@ -560,8 +560,8 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         # here, we are assuming that a parasitoid will on average
         #   be drifting an amount proportional to n_periods
         wind_avg *= 1000*24/(periods/n_periods) # m/(n_periods)
-        # TODO: Scale this by a new parameter.
-        # wind_avg *= mu_l_r
+        # Scale this by a parameter.
+        wind_avg *= mu_l_r
         
         ### Pass the remainder of the translation to get_mvn_cdf_values ###
         
