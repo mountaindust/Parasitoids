@@ -555,7 +555,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,mu_l_r,n_periods,
         n = day_wind.shape[0] #number of wind data entries in the day
         fprob_vec = f_time_prob(n,*hparams[-4:]) #day long vector
         # Find weighted average of wind velocity
-        wind_avg = np.average(day_wind[0:2],axis=0,weights=fprob_vec)
+        wind_avg = np.average(day_wind[:,0:2],axis=0,weights=fprob_vec)
         # wind_avg is in km/hr. convert to m/(n_periods)
         # here, we are assuming that a parasitoid will on average
         #   be drifting an amount proportional to n_periods
