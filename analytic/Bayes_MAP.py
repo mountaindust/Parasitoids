@@ -482,7 +482,7 @@ def main(RUNFLAG):
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,mu_l_r
+                                corr_l_p,corr_l,mu_r,mu_l_r,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
