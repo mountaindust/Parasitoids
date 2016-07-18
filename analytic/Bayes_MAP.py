@@ -31,7 +31,7 @@ parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
 group.add_argument("--MAP", help="Find max a posteriori estimate"+
                    " and exit on completion.", action="store_true")
-group.add_argument("--norm", help="Find normal approximation",
+group.add_argument("--norm", help="Find normal approximation and exit",
                    metavar="database_name")
 # Normal approximation - we would like to explore covarience?
 # We need to add something here...
@@ -533,7 +533,7 @@ def main(RUNFLAG):
             for var in Bayes_model.stochastics:
                 fobj.write('{} = {}\n'.format(var,var.value))
         print('Result saved to Max_aPosteriori_Estimate.txt.')
-        
+        return M
         
         
     def norm_run(fname):
@@ -579,17 +579,18 @@ def main(RUNFLAG):
         except Exception as e:
             print(e)
             print('Exception: database closing...')
-            mcmc.db.close()
+            M.db.close()
             print('Database closed.')
             raise
-        
+        return M
     
     
     # Parse run type
     if RUNFLAG == 'MAP_RUN':
-        MAP_run()
+        M = MAP_run()
     elif RUNFLAG is not None:
-        norm_run(RUNFLAG)
+        M = norm_run(RUNFLAG)
+        M.db.close()
     else:
         print('----- Maximum a posteriori estimates & Normal approximations -----')
         while True:
@@ -600,7 +601,7 @@ def main(RUNFLAG):
             cmd = cmd.strip()
             cmd = cmd.lower()
             if cmd == 'map':
-                MAP_run()
+                M = MAP_run()
                 # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
@@ -617,7 +618,7 @@ def main(RUNFLAG):
                     continue
                 else:
                     fname = fname+'.h5'
-                norm_run(fname)
+                M = norm_run(fname)
                 try:
                     print('For covariances, enter IPython and request a covariance'+
                           ' matrix by passing variables in the following syntax:\n'+
@@ -636,7 +637,7 @@ def main(RUNFLAG):
                 except Exception as e:
                     print(e)
                     print('Exception: database closing...')
-                    mcmc.db.close()
+                    M.db.close()
                     print('Database closed.')
                     raise
             elif cmd == 'quit' or cmd == 'q':
