@@ -119,20 +119,20 @@ def main(RUNFLAG):
     g_bw = pm.Gamma("b_w",5,1,value=5)
     prior_eps[g_bw] = 0.05
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",32.4,1,value=32.4)
-    prior_eps[sig_x] = 0.1
-    sig_y = pm.Gamma("sig_y",16.2,1,value=16.2)
-    prior_eps[sig_y] = 0.1
+    sig_x = pm.Gamma("sig_x",211,1,value=211)
+    prior_eps[sig_x] = 1
+    sig_y = pm.Gamma("sig_y",106,1,value=106)
+    prior_eps[sig_y] = 1
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
     prior_eps[corr_p] = 0.005
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",32.4,1,value=32.4)
-    prior_eps[sig_x_l] = 0.1
-    sig_y_l = pm.Gamma("sig_yl",16.2,1,value=16.2)
-    prior_eps[sig_y_l] = 0.1
+    sig_x_l = pm.Gamma("sig_xl",211,1,value=211)
+    prior_eps[sig_x_l] = 1
+    sig_y_l = pm.Gamma("sig_yl",106,1,value=106)
+    prior_eps[sig_y_l] = 1
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
     prior_eps[corr_l_p] = 0.005
     @pm.deterministic(trace=True,plot=True)

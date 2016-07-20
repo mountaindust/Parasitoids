@@ -69,9 +69,9 @@ class Params():
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (6, 3, 18, 3)
         # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (21.1,10.6,0)
+        self.Dparams = (211,106,0)
         # Out-of-flow diffusion coefficients
-        self.Dlparams = (21.1,10.6,0)
+        self.Dlparams = (211,106,0)
 
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
