@@ -141,8 +141,8 @@ def main(RUNFLAG):
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
     prior_eps[mu_r] = 0.01
-    mu_l_r = pm.Normal("mu_l_r",1.,1.,value=0.01)
-    prior_eps[mu_l_r] = 0.01
+    mu_l_r = pm.Normal("mu_l_r",0.15,0.2,value=0.01)
+    prior_eps[mu_l_r] = 0.005
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
