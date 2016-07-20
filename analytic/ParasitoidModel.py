@@ -471,7 +471,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,mu_l_r,n_periods,
             mu_v = np.array(day_wind[0:2])
         
         # mu_v is now in km/hr. convert to m/(n_periods)     
-        mu_v *= 1000*24/(periods/n_periods) # m/(n_periods)
+        mu_v *= 1000*24*(n_periods/periods) # m/(n_periods)
         
         # We also need to scale this by a constant which represents a scaling 
         # term that takes wind advection to flight advection.
@@ -559,7 +559,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,mu_l_r,n_periods,
         # wind_avg is in km/hr. convert to m/(n_periods)
         # here, we are assuming that a parasitoid will on average
         #   be drifting an amount proportional to n_periods
-        wind_avg *= 1000*24/(periods/n_periods) # m/(n_periods)
+        wind_avg *= 1000*24*(n_periods/periods) # m/(n_periods)
         # Scale this by a parameter.
         wind_avg *= mu_l_r
         
