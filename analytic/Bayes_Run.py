@@ -117,7 +117,7 @@ def main():
         return corr_l_p*2 - 1    
     #mu_r = pm.Normal("mu_r",1.,1,value=1.)
     n_periods = pm.Poisson("t_dur",30,value=30)
-    mu_l_r = pm.Normal("mu_l_r",0.15,0.2,value=0.01)
+    mu_l_r = pm.Normal("mu_l_r",0.1,0.1,value=0.01)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1.5) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.1) # per-wasp prob of  
