@@ -99,11 +99,11 @@ def main(RUNFLAG):
     
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
-    prior_eps[lam] = 0.001
+    prior_eps[lam] = 0.01
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
-    prior_eps[f_a1] = 0.02
+    prior_eps[f_a1] = 0.05
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
-    prior_eps[f_a2] = 0.02
+    prior_eps[f_a2] = 0.05
     f_b1_p = pm.Gamma("fb1_p",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
     prior_eps[f_b1_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
@@ -117,14 +117,14 @@ def main(RUNFLAG):
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     prior_eps[g_aw] = 0.05
     g_bw = pm.Gamma("b_w",5,1,value=5)
-    prior_eps[g_bw] = 0.05
+    prior_eps[g_bw] = 0.1
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",211,1,value=211)
+    sig_x = pm.Gamma("sig_x",26,.15,value=211)
     prior_eps[sig_x] = 1
-    sig_y = pm.Gamma("sig_y",106,1,value=106)
+    sig_y = pm.Gamma("sig_y",15,0.15,value=106)
     prior_eps[sig_y] = 1
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
-    prior_eps[corr_p] = 0.005
+    prior_eps[corr_p] = 0.01
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
@@ -143,7 +143,7 @@ def main(RUNFLAG):
     #     return corr_l_p*2 - 1
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
-    prior_eps[mu_r] = 0.01
+    prior_eps[mu_r] = 0.05
     mu_l_r = 0
     # mu_l_r = pm.Normal("mu_l_r",0.1,0.1,value=0.01)
     # prior_eps[mu_l_r] = 0.005
@@ -151,14 +151,26 @@ def main(RUNFLAG):
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
     prior_eps[xi] = 0.05
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.25) # per-wasp prob of  
-            # observing emergence in release field grid given max leaf collection
-            # this is dependent on the size of the cell surrounding the grid point
-            # ...not much to be done about this.
-    prior_eps[em_obs_prob] = 0.0005
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.25) # probability of
-            # observing a wasp present in the grid cell given max leaf sampling
-    prior_eps[grid_obs_prob] = 0.0005
+    
+    #### Observation probabilities. ####
+    # Cut-off at 0.1 to reduce computation time
+    em_obs_prob_p = pm.Beta("em_obs_prob_p",1,1,value=0.25,
+        trace=False,plot=False) # per-wasp prob of observing emergence in 
+            # release field grid given max leaf collection.
+            # This is dependent on the size of the cell surrounding the grid point,
+            # but there's not much to be done about this. Just remember to
+            # interpret this number based on grid coarseness.
+    prior_eps[em_obs_prob_p] = 0.005
+    @pm.deterministic(trace=True,plot=True)
+    def em_obs_prob(em_obs_prob_p=em_obs_prob_p):
+        return em_obs_prob_p*0.1
+    grid_obs_prob_p = pm.Beta("grid_obs_prob_p",1,1,value=0.25,
+        trace=False,plot=False) # probability of observing a wasp present in 
+        # the grid cell given max leaf sampling
+    prior_eps[grid_obs_prob_p] = 0.005
+    @pm.deterministic(trace=True,plot=True)
+    def grid_obs_prob(grid_obs_prob_p=grid_obs_prob_p):
+        return grid_obs_prob_p*0.1
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
@@ -175,20 +187,36 @@ def main(RUNFLAG):
     #   parameter values. So we will use TruncatedNormal again.
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
+    sent_obs_probs_p = np.empty(N, dtype=object)
     # fix beta for the Beta distribution
     sent_beta = 10
     # mean of Beta distribution will be A_collected/field size
+    ## Create function factory ##
+    def make_f(input_prior):
+        def f(prior=input_prior):
+            return prior*0.1
+        return f
+    ## Loop over fields ##
     for n,key in enumerate(locinfo.sent_ids):
         '''
         sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area),0.05,0,1,
             value=3600/(locinfo.field_sizes[key]*cell_area))
         '''
-        sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
+        sent_obs_probs_p[n] = pm.Beta("sent_obs_probs_p{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area)*sent_beta/(
             1 - A_collected/(locinfo.field_sizes[key]*cell_area)),
-            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area))
-        prior_eps[sent_obs_probs[n]] = 0.001
+            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area),
+            trace=False,plot=False)
+        prior_eps[sent_obs_probs_p[n]] = 0.005
+        # get function from function factory
+        sent_obs_probs[n] = pm.Deterministic(eval = make_f(sent_obs_probs_p[n]),
+            name = "sent_obs_probs{}".format(key),
+            parents = {'prior':sent_obs_probs_p[n]},
+            doc = "Probability of observing a given wasp emergence",
+            trace = True, plot = False)
+        
+    sent_obs_probs_p = pm.Container(sent_obs_probs_p)
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
@@ -488,18 +516,19 @@ def main(RUNFLAG):
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,mu_r,
                                 # sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
-                                sprd_factor,grid_obs_prob,xi,em_obs_prob,
-                                A_collected,sent_obs_probs,params_ary,pop_model,
+                                sprd_factor,grid_obs_prob_p,grid_obs_prob,
+                                xi,em_obs_prob_p,em_obs_prob,A_collected,
+                                sent_obs_probs_p,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,mu_r,
                                 # sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
-                                grid_obs_prob,xi,
-                                em_obs_prob,A_collected,sent_obs_probs,
-                                params_ary,pop_model,grid_poi_rates,
-                                rel_poi_rates,sent_poi_rates,
+                                grid_obs_prob_p,grid_obs_prob,xi,
+                                em_obs_prob_p,em_obs_prob,A_collected,
+                                sent_obs_probs_p,sent_obs_probs,params_ary,
+                                pop_model,grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
 
 

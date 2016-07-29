@@ -71,7 +71,7 @@ class Params():
         # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
         self.Dparams = (211,106,0)
         # Out-of-flow diffusion coefficients
-        self.Dlparams = (211,106,0)
+        self.Dlparams = (21.1,10.6,0)
 
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
