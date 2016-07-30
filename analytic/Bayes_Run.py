@@ -102,15 +102,15 @@ def main():
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",211,1,value=211) 
-    sig_y = pm.Gamma("sig_y",106,1,value=106) 
+    sig_x = pm.Gamma("sig_x",26,0.15,value=211) 
+    sig_y = pm.Gamma("sig_y",15,0.15,value=106) 
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1    
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",211,1,value=211)
-    sig_y_l = pm.Gamma("sig_yl",106,1,value=106)
+    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
+    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):

@@ -130,10 +130,10 @@ def main(RUNFLAG):
         return corr_p*2 - 1
     # local spread paramters
     sig_x_l = 21.2
-    # sig_x_l = pm.Gamma("sig_xl",211,1,value=211)
+    # sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
     # prior_eps[sig_x_l] = 1
     sig_y_l = 10.6
-    # sig_y_l = pm.Gamma("sig_yl",106,1,value=106)
+    # sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
     # prior_eps[sig_y_l] = 1
     corr_l = 0
     # corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
