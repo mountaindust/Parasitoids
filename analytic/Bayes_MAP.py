@@ -129,24 +129,24 @@ def main(RUNFLAG):
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = 21.2
-    # sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
-    # prior_eps[sig_x_l] = 1
-    sig_y_l = 10.6
-    # sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
-    # prior_eps[sig_y_l] = 1
-    corr_l = 0
-    # corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
-    # prior_eps[corr_l_p] = 0.005
-    # @pm.deterministic(trace=True,plot=True)
-    # def corr_l(corr_l_p=corr_l_p):
-    #     return corr_l_p*2 - 1
+    # sig_x_l = 21.2
+    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
+    prior_eps[sig_x_l] = 1
+    # sig_y_l = 10.6
+    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
+    prior_eps[sig_y_l] = 1
+    # corr_l = 0
+    corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
+    prior_eps[corr_l_p] = 0.005
+    @pm.deterministic(trace=True,plot=True)
+    def corr_l(corr_l_p=corr_l_p):
+        return corr_l_p*2 - 1
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
     mu_r = pm.Normal("mu_r",1.,1,value=1.)
     prior_eps[mu_r] = 0.05
-    mu_l_r = 0
-    # mu_l_r = pm.Normal("mu_l_r",0.1,0.1,value=0.01)
-    # prior_eps[mu_l_r] = 0.005
+    # mu_l_r = 0
+    mu_l_r = pm.Normal("mu_l_r",0.1,0.1,value=0.01)
+    prior_eps[mu_l_r] = 0.005
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
@@ -515,7 +515,7 @@ def main(RUNFLAG):
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,mu_r,
-                                # sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
+                                sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
                                 sprd_factor,grid_obs_prob_p,grid_obs_prob,
                                 xi,em_obs_prob_p,em_obs_prob,A_collected,
                                 sent_obs_probs_p,sent_obs_probs,params_ary,pop_model,
@@ -524,7 +524,7 @@ def main(RUNFLAG):
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,mu_r,
-                                # sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
+                                sig_x_l,sig_y_l,corr_l_p,corr_l,mu_l_r,
                                 grid_obs_prob_p,grid_obs_prob,xi,
                                 em_obs_prob_p,em_obs_prob,A_collected,
                                 sent_obs_probs_p,sent_obs_probs,params_ary,
