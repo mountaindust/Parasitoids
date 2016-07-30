@@ -567,8 +567,11 @@ def main(RUNFLAG):
             print('Fitting....')
             M.fit()
             # Return statistics
-            print('Estimate complete. Time elapsed: {}'.format(
-                  time.time() - tic))
+            try:
+                print('Estimate complete. Time elapsed: {}'.format(
+                    time.time() - tic))
+            except:
+                pass
             print('Free stochastic variables: {}'.format(M.len))
             print('Joint log-probability of model: {}'.format(M.logp))
             print('Max joint log-probability of model: {}'.format(
@@ -601,7 +604,7 @@ def main(RUNFLAG):
         except Exception as e:
             print(e)
             print('Exception: database closing...')
-            mcmc.db.close()
+            M.db.close()
             print('Database closed.')
             raise
         
