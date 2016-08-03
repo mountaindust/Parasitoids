@@ -119,7 +119,7 @@ def main(RUNFLAG):
     g_bw = pm.Gamma("b_w",5,1,value=5)
     prior_eps[g_bw] = 0.1
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,.15,value=211)
+    sig_x = pm.Gamma("sig_x",26,0.15,value=211)
     prior_eps[sig_x] = 1
     sig_y = pm.Gamma("sig_y",15,0.15,value=106)
     prior_eps[sig_y] = 1
