@@ -31,7 +31,7 @@ parser = argparse.ArgumentParser()
 group = parser.add_mutually_exclusive_group()
 group.add_argument("--MAP", help="Find max a posteriori estimate"+
                    " and exit on completion.", action="store_true")
-group.add_argument("--norm", help="Find normal approximation",
+group.add_argument("--norm", help="Find normal approximation and exit",
                    metavar="database_name")
 # Normal approximation - we would like to explore covarience?
 # We need to add something here...
@@ -119,22 +119,22 @@ def main(RUNFLAG):
     g_bw = pm.Gamma("b_w",5,1,value=5)
     prior_eps[g_bw] = 0.1
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,.15,value=211.) #32.4
-    prior_eps[sig_x] = 1 #0.1
-    sig_y = pm.Gamma("sig_y",15,.15,value=106.) #16.2
-    prior_eps[sig_y] = 1 #0.1
+    sig_x = pm.Gamma("sig_x",26,0.15,value=211)
+    prior_eps[sig_x] = 1
+    sig_y = pm.Gamma("sig_y",15,0.15,value=106)
+    prior_eps[sig_y] = 1
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
     prior_eps[corr_p] = 0.01
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21.) #32.4
-    prior_eps[sig_x_l] = 1 #0.1
-    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16.) #16.2
-    prior_eps[sig_y_l] = 1 #0.1
+    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
+    prior_eps[sig_x_l] = 1
+    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
+    prior_eps[sig_y_l] = 1
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
-    prior_eps[corr_l_p] = 0.01
+    prior_eps[corr_l_p] = 0.005
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
@@ -146,25 +146,16 @@ def main(RUNFLAG):
     xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
     prior_eps[xi] = 0.05
     
-    #### Observation probabilities ####
-    # Cut-off at 0.1 to reduce computation time
-    em_obs_prob_p = pm.Beta("em_obs_prob_p",1,1,value=0.25,
-        trace=False,plot=False) # per-wasp prob of observing emergence in
-            # release field grid given max leaf collection.
-            # This is dependent on the size of the cell surrounding the grid point,
-            # but there's not much to be done about this. Just remember to
-            # interpret this number based on grid coarseness.
-    prior_eps[em_obs_prob_p] = 0.005
-    @pm.deterministic(trace=True,plot=True)
-    def em_obs_prob(em_obs_prob_p=em_obs_prob_p):
-        return em_obs_prob_p*0.1
-    grid_obs_prob_p = pm.Beta("grid_obs_prob_p",1,1,value=0.25,
-        trace=False,plot=False) # probability of observing a wasp present in
-        # the grid cell given max leaf sampling
-    prior_eps[grid_obs_prob_p] = 0.005
-    @pm.deterministic(trace=True,plot=True)
-    def grid_obs_prob(grid_obs_prob_p=grid_obs_prob_p):
-        return grid_obs_prob_p*0.1
+    #### Observation probabilities. ####
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.005) # per-wasp prob of 
+        # observing emergence in release field grid given max leaf collection.
+        # This is dependent on the size of the cell surrounding the grid point,
+        # but there's not much to be done about this. Just remember to
+        # interpret this number based on grid coarseness.
+    prior_eps[em_obs_prob] = 0.0005
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.004) # probability of
+        # observing a wasp present in the grid cell given max leaf sampling
+    prior_eps[grid_obs_prob] = 0.0005
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
@@ -183,29 +174,17 @@ def main(RUNFLAG):
     sent_obs_probs = np.empty(N, dtype=object)
     sent_obs_probs_p = np.empty(N, dtype=object)
     # fix beta for the Beta distribution
-    sent_beta = 10
+    sent_beta = 40
     # mean of Beta distribution will be A_collected/field size
-    ## Create function factory ##
-    def make_f(input_prior):
-        def f(prior=input_prior):
-            return prior*0.1
-        return f
+
     ## Loop over fields ##
     for n,key in enumerate(locinfo.sent_ids):
-        sent_obs_probs_p[n] = pm.Beta("sent_obs_probs_p_{}".format(key),
+        sent_obs_probs[n] = pm.Beta("sent_obs_probs_{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area)*sent_beta/(
             1 - A_collected/(locinfo.field_sizes[key]*cell_area)),
-            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area),
-            trace=False,plot=False)
-        prior_eps[sent_obs_probs_p[n]] = 0.005
-        # get function from function factory
-        sent_obs_probs[n] = pm.Deterministic(eval = make_f(sent_obs_probs_p[n]),
-            name = "sent_obs_probs_{}".format(key),
-            parents = {'prior':sent_obs_probs_p[n]},
-            doc = "Probability of observing a given wasp emergence",
-            trace=True,plot=False)
-    
-    sent_obs_probs_p = pm.Container(sent_obs_probs_p)        
+            sent_beta, value=0.1*3600/(locinfo.field_sizes[key]*cell_area))
+        prior_eps[sent_obs_probs[n]] = 0.0005
+        
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
@@ -504,17 +483,17 @@ def main(RUNFLAG):
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
                                 corr_l_p,corr_l,mu_r,
-                                sprd_factor,grid_obs_prob_p,grid_obs_prob,
-                                xi,em_obs_prob_p,em_obs_prob,A_collected,
-                                sent_obs_probs_p,sent_obs_probs,params_ary,pop_model,
+                                sprd_factor,grid_obs_prob,
+                                xi,em_obs_prob,A_collected,
+                                sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,grid_obs_prob_p,grid_obs_prob,
-                                xi,em_obs_prob_p,em_obs_prob,A_collected,
-                                sent_obs_prob_p,sent_obs_probs,params_ary,pop_model,
+                                corr_l_p,corr_l,mu_r,grid_obs_prob,
+                                xi,em_obs_prob,A_collected,
+                                sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
 
@@ -555,7 +534,7 @@ def main(RUNFLAG):
             for var in Bayes_model.stochastics:
                 fobj.write('{} = {}\n'.format(var,var.value))
         print('Result saved to Max_aPosteriori_Estimate.txt.')
-        
+        return M
         
         
     def norm_run(fname):
@@ -567,11 +546,8 @@ def main(RUNFLAG):
             print('Fitting....')
             M.fit()
             # Return statistics
-            try:
-                print('Estimate complete. Time elapsed: {}'.format(
-                    time.time() - tic))
-            except:
-                pass
+            print('Estimate complete. Time elapsed: {}'.format(
+                  time.time() - tic))
             print('Free stochastic variables: {}'.format(M.len))
             print('Joint log-probability of model: {}'.format(M.logp))
             print('Max joint log-probability of model: {}'.format(
@@ -607,14 +583,15 @@ def main(RUNFLAG):
             M.db.close()
             print('Database closed.')
             raise
-        
+        return M
     
     
     # Parse run type
     if RUNFLAG == 'MAP_RUN':
-        MAP_run()
+        M = MAP_run()
     elif RUNFLAG is not None:
-        norm_run(RUNFLAG)
+        M = norm_run(RUNFLAG)
+        M.db.close()
     else:
         print('----- Maximum a posteriori estimates & Normal approximations -----')
         while True:
@@ -625,7 +602,7 @@ def main(RUNFLAG):
             cmd = cmd.strip()
             cmd = cmd.lower()
             if cmd == 'map':
-                MAP_run()
+                M = MAP_run()
                 # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
@@ -642,7 +619,7 @@ def main(RUNFLAG):
                     continue
                 else:
                     fname = fname+'.h5'
-                norm_run(fname)
+                M = norm_run(fname)
                 try:
                     print('For covariances, enter IPython and request a covariance'+
                           ' matrix by passing variables in the following syntax:\n'+
@@ -661,7 +638,7 @@ def main(RUNFLAG):
                 except Exception as e:
                     print(e)
                     print('Exception: database closing...')
-                    mcmc.db.close()
+                    M.db.close()
                     print('Database closed.')
                     raise
             elif cmd == 'quit' or cmd == 'q':

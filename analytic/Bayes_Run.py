@@ -91,33 +91,34 @@ def main():
     lam = pm.Beta("lam",5,1,value=0.95)
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
     f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
-    f_b1_p = pm.Gamma("b_1",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
+    f_b1_p = pm.Gamma("fb1_p",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
-    f_b2_p = pm.Gamma("b_2",2,1,value=2,trace=False,plot=False)
+    f_b2_p = pm.Gamma("fb2_p",2,1,value=2,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
     g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
     g_bw = pm.Gamma("b_w",5,1,value=5)
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,0.15,value=211) #32.4
-    sig_y = pm.Gamma("sig_y",15,0.15,value=106) #16.2
+    sig_x = pm.Gamma("sig_x",26,0.15,value=211)
+    sig_y = pm.Gamma("sig_y",15,0.15,value=106)
     corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
-        return corr_p*2 - 1    
+        return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21) #32.4
-    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16) #16.2
+    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
+    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
-        return corr_l_p*2 - 1    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
+        return corr_l_p*2 - 1    
+    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
     n_periods = pm.Poisson("t_dur",30,value=30)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
-    xi = pm.Gamma("xi",1,1,value=1.5) # presence to oviposition/emergence factor
+    xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.1) # per-wasp prob of  
             # observing emergence in release field grid given max leaf collection
             # this is dependent on the size of the cell surrounding the grid point
@@ -140,18 +141,14 @@ def main():
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
     # fix beta for the Beta distribution
-    sent_beta = 10
+    sent_beta = 40
     # mean of Beta distribution will be A_collected/field size
     for n,key in enumerate(locinfo.sent_ids):
-        '''
-        sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
-            A_collected/(locinfo.field_sizes[key]*cell_area),0.05,0,1,
-            value=3600/(locinfo.field_sizes[key]*cell_area))
-        '''
-        sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
+        sent_obs_probs[n] = pm.Beta("sent_obs_probs_{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area)*sent_beta/(
             1 - A_collected/(locinfo.field_sizes[key]*cell_area)),
-            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area))
+            sent_beta, value=0.1*3600/(locinfo.field_sizes[key]*cell_area))
+
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
@@ -246,7 +243,8 @@ def main():
         try:
             pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
         except PM.BndsError as e:
-            print('BndsErr caught..',end='\r')
+            print('BndsErr caught. at {}'.format(
+                time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
             # return output full of zeros, but of correct type/size
             release_emerg = []
             for nframe,dframe in enumerate(locinfo.release_DataFrames):
@@ -330,8 +328,8 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('{:03.1f} sec./model '.format(time.time() - modeltic),
-              end='\r')
+        print('{:03.1f} sec./model at {}'.format(time.time() - modeltic,
+            time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
         sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
@@ -399,7 +397,7 @@ def main():
                 sent_collections[ii][n,m] = pm.Poisson(
                     "sent_em_obs_{}_{}_{}".format(ii,n,m),
                     sent_poi_rates[ii][n,m], 
-                    value=locinfo.sentinel_emerg[ii][n,m], 
+                    value=float(locinfo.sentinel_emerg[ii][n,m]), 
                     observed=True)
     sent_collections = pm.Container(sent_collections)
             
@@ -415,7 +413,7 @@ def main():
                 rel_collections[ii][n,m] = pm.Poisson(
                     "rel_em_obs_{}_{}_{}".format(ii,n,m),
                     rel_poi_rates[ii][n,m], 
-                    value=locinfo.release_emerg[ii][n,m], 
+                    value=float(locinfo.release_emerg[ii][n,m]), 
                     observed=True)
     rel_collections = pm.Container(rel_collections)
 
@@ -424,7 +422,7 @@ def main():
     for n in range(grid_obs.shape[0]):
         for m in range(grid_obs.shape[1]):
             grid_obs[n,m] = pm.Poisson("grid_obs_{}_{}".format(n,m),
-                grid_poi_rates[n,m], value=locinfo.grid_obs[n,m],
+                grid_poi_rates[n,m], value=float(locinfo.grid_obs[n,m]),
                 observed=True)
     grid_obs = pm.Container(grid_obs)
 
