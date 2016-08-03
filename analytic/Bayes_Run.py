@@ -142,18 +142,14 @@ def main():
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
     # fix beta for the Beta distribution
-    sent_beta = 10
+    sent_beta = 40
     # mean of Beta distribution will be A_collected/field size
     for n,key in enumerate(locinfo.sent_ids):
-        '''
-        sent_obs_probs[n] = pm.TruncatedNormal("sent_obs_prob_{}".format(key),
-            A_collected/(locinfo.field_sizes[key]*cell_area),0.05,0,1,
-            value=3600/(locinfo.field_sizes[key]*cell_area))
-        '''
-        sent_obs_probs[n] = pm.Beta("sent_obs_prob_{}".format(key),
+        sent_obs_probs[n] = pm.Beta("sent_obs_probs_{}".format(key),
             A_collected/(locinfo.field_sizes[key]*cell_area)*sent_beta/(
             1 - A_collected/(locinfo.field_sizes[key]*cell_area)),
-            sent_beta, value=3600/(locinfo.field_sizes[key]*cell_area))
+            sent_beta, value=0.1*3600/(locinfo.field_sizes[key]*cell_area))
+
     sent_obs_probs = pm.Container(sent_obs_probs)
     
     #### Collect variables ####
