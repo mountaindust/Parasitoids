@@ -56,7 +56,7 @@ class Params():
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (6, 3, 18, 3)
         # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (4,4,0)
+        self.Dparams = (21,16,0)
         
         
         ### general flight parameters
