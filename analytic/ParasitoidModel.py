@@ -14,7 +14,7 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.2"
+__version__ = "1.1"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 from math import floor
@@ -259,8 +259,9 @@ def f_time_prob(n, a1, b1, a2, b2):
     t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
-    likelihood = 1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - \
-                    1.0 / (1. + np.exp(-b2 * (t_tild - a2)))
+    likelihood = np.fmax(1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - 
+                    1.0 / (1. + np.exp(-b2 * (t_tild - a2))),
+                    np.zeros_like(t_tild))
     # Scale the likelihood into a proper probability mass function, and return
     return likelihood/likelihood.sum()
 
@@ -270,7 +271,10 @@ def Dmat(sig_x, sig_y, rho):
     Arguments:
         - sig_x, sig_y -- Std. deviation in x and y direction respectively
         - rho -- Covariance"""
-        
+    
+    assert sig_x > 0, 'sig_x must be positive'
+    assert sig_y > 0, 'sig_y must be positive'
+    assert -1 <= rho <= 1, 'correlation must be between -1 and 1'    
     return np.array([[sig_x**2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y**2]])
     
@@ -321,7 +325,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
     Returns:
         cdf_mat: 2D array of cdf values, one for each cell"""
     
-    cdf_eps = 0.0001    # integrate until the area of the square is within
+    cdf_eps = 0.001    # integrate until the area of the square is within
                         #   cdf_eps of 1.0
     
     r = cell_length/2 # in meters. will want to integrate +/- this amount
@@ -374,24 +378,34 @@ def get_mvn_cdf_values(cell_length,mu,S):
         
     return cdf_mat
 
+
+
+class BndsError(Exception):
+    def __str__(self):
+        return 'Index error in calculating prob_mass.\n'+\
+            'Most likely, wind results in spread that goes off the domain'+\
+            ' in a single time period.'
     
-def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
-                start_time=None):
+    
+    
+def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
+                rad_dist,rad_res,start_time=None):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
     position can then be updated via convolution with this function.
     
     Arguments:
-        - day -- day since release
+        - day -- day as specified in wind data
         - wind_data -- dictionary of wind data
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
+        - Dlprams -- out-of-flow diffusion coefficients
         - mu_r -- parameter to scale distance vs. windspeed
         - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
         - rad_res -- number of cells from center to side of the domain
-        - start_time -- (optional) time at which release occurred
+        - start_time -- (optional) time at which release occurred (units=day)
         
     Returns:
         - pmf -- 2D spatial probability mass function of finding the parasitoid
@@ -407,6 +421,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
     hprob = h_flight_prob(day_wind, *hparams)
     
     S = Dmat(*Dparams) #get diffusion covarience matrix
+    Sl = Dmat(*Dlparams) # get out-of-flow diffusion covarience matrix
     
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
@@ -453,7 +468,7 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
             mu_v = np.array(day_wind[0:2])
         
         # mu_v is now in km/hr. convert to m/(n_periods)     
-        mu_v *= 1000*24/(periods/n_periods) # m/(n_periods)
+        mu_v *= 1000*24*(n_periods/periods) # m/(n_periods)
         
         # We also need to scale this by a constant which represents a scaling 
         # term that takes wind advection to flight advection.
@@ -492,32 +507,60 @@ def prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res,
         
         
         #approximate integral over time
-        # This try/except will probably need to be removed when we do the
-        #   Bayesian stuff. If things are flying clean off the map in a single
-        #   day, we want that to return a null result but not stop the program
+        # Return a unique error if the domain is not big enough so that it can
+        # be handled in context.
+        if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
+            row_min < 0 or col_min < 0:
+            raise BndsError
         try:
-            if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1]:
-                raise IndexError
-            pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
-                cdf_mat)
-        except IndexError:
-            print('Index error in calculating prob_mass.\n'+
-            'Most likely, wind is sending parasitoids clear off the domain'+
-            ' in a single time period.')
+            assert -1e-9 <= hprob[t_indx] <= 1.000000001, \
+                'hprob out of bounds at t_indx {}'.format(t_indx)
+        except AssertionError as e:
+            e.args += ('hprob[t_indx]={}'.format(hprob[t_indx]),
+                       'day={}'.format(day),'hparams={}'.format(hparams),
+                       'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+                       'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+                       'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
             raise
+        pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
+                cdf_mat)
+
 
     # pmf now has probabilities per cell of flying there.
     # 1-np.sum(ppdf) is the probability of not flying.
-    # Add this probability to a distribution around the origin cell.
-    cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),S)
-    norm_r = int(cdf_mat.shape[0]/2)
+    # Add this probability to a distribution around the origin cell, if it isn't
+    #   in roundoff territory.
     total_flight_prob = pmf.sum()
-    pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
-        (1-total_flight_prob)*cdf_mat
-    # assure it sums to one by adding any error to the center cell.
-    total_flight_prob = pmf.sum()
-    assert total_flight_prob <= 1
-    pmf[rad_res,rad_res] += 1-total_flight_prob
+    try:
+        assert pmf.min() >= -1e-8, 'pmf.min() less than zero, first block'
+        assert total_flight_prob <= 1.00001, 'flight prob > 1, first block'
+    except AssertionError as e:
+        e.args += ('total_flight_prob = {}'.format(total_flight_prob),
+            'pmf.min() = {}'.format(pmf.min()),
+            'day={}'.format(day),'hparams={}'.format(hparams),
+            'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+            'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
+        raise
+    if total_flight_prob < 0.99999:
+        cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
+        norm_r = int(cdf_mat.shape[0]/2)
+        pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
+            (1-total_flight_prob)*cdf_mat
+        # assure it sums to one by adding any error to the center cell.
+        total_flight_prob = pmf.sum()
+        try:
+            assert pmf.min() >= -1e-8, 'pmf.min() less than zero'
+            assert total_flight_prob <= 1 + 1.00001, 'flight prob > 1'
+        except AssertionError as e:
+            e.args += ('total_flight_prob = {}'.format(total_flight_prob),
+                'pmf.min() = {}'.format(pmf.min()),
+                'cdf_mat.sum() = {}'.format(cdf_mat.sum()),
+                'day={}'.format(day),'hparams={}'.format(hparams),
+                'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
+                'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
+                'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
+            raise
     
     # shrink the domain down as much as possible and return a sparse array
 

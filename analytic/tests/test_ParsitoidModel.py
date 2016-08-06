@@ -320,7 +320,8 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     mu_r1 = 0.1/24 # 6 min flight at full wind advection
     
     #pytest.set_trace()
-    pmf = PM.prob_mass(1,sing_wind_data,hparams1,D_params,mu_r1,1,*domain_info)
+    pmf = PM.prob_mass(1,sing_wind_data,hparams1,D_params,D_params,mu_r1,1,
+                    *domain_info)
     pmf = pmf.tocsr()
     
     # Find the center. pmf is always square
@@ -362,7 +363,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     
     # get the day's probability density for location of a parasitoid
     params = (*flight_consts[1:],*domain_info)
-    pmf = PM.prob_mass(day,wind_data,hparams,D_params,*params)
+    pmf = PM.prob_mass(day,wind_data,hparams,D_params,D_params,*params)
         
     # wind_data should be unchanged
     assert wind_data == wind_data_cpy
@@ -389,7 +390,7 @@ def test_prob_mass_func_generation(wind_data,g_wind_prob_params,
     
     #### Run again, but this time with noon release ####
     
-    pmf2 = PM.prob_mass(day,wind_data,hparams,D_params,*params,0.5)
+    pmf2 = PM.prob_mass(day,wind_data,hparams,D_params,D_params,*params,0.5)
     
     # should be a probability mass function
     assert math.isclose(pmf2.sum(),1)

@@ -7,9 +7,15 @@ output/
 snippets/
 config.txt
 
+# MCMC database
+*.h5
+old_mcmc/
+
 # Raw data
-*.xlsx
 *.ods
+
+# Autobackup files
+~*
 
 # Profile output
 *.prof
@@ -134,6 +140,6 @@ $RECYCLE.BIN/
 
 # Visual studio
 .vs/
-*.pyproj
+*.pyproj*
 *.sln
 *.user

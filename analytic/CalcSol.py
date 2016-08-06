@@ -195,7 +195,7 @@ def get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape):
             # get real solution
             print('Finding ifft for day {0} and reducing...'.format(n+2))
             A,bndry_flag = ifft2(cursol_hat,[dom_len,dom_len])
-            modelsol.append(r_small_vals(A),prob_model=True)
+            modelsol.append(r_small_vals(A,prob_model=True))
             # if the boundary has been reached, re-fft to enforce zero-bndry
             if bndry_flag:
                 cursol_hat = fft2(A,max_shape)

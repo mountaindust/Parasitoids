@@ -16,7 +16,7 @@ Email: cstrickland@samsi.info'''
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.4"
+__version__ = "1.1"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time
@@ -54,7 +54,7 @@ class Params():
         self.my_datasets()
         
         # domain info, (dist (m), cells) from release point to side of domain 
-        self.domain_info = (5000.0,1000) # (float, int!) (this is 5 m**2)
+        self.domain_info = (5000.0,500) # (float, int!) (this is 10 m res)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
@@ -64,20 +64,22 @@ class Params():
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
-        self.g_params = (2.2, 5)
+        self.g_params = (1.024, 3.807)
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
-        self.f_params = (6, 3, 18, 3)
-        # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (21.1,10.6,0)
+        self.f_params = (5.304, 2.307, 18.169, 1.949)
+        # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
+        self.Dparams = (215.197,113.195,0.2825)
+        # Out-of-flow diffusion coefficients
+        self.Dlparams = (21.1,10.6,0)
 
         ### general flight parameters
-        # Probability of any flight during the day under ideal circumstances
+        # Probability of wind-based flight during the day under ideal conditions
         self.lam = 1.
         # scaling flight advection to wind advection
-        self.mu_r = 1.
+        self.mu_r = 1.542
         # number of time periods (based on interp_num) in one flight
-        self.n_periods = 10 # if interp_num = 30, this is # of minutes per flight
+        self.n_periods = 30 # if interp_num = 30, this is # of minutes per flight
         
         ### satellite imagry
         # Bing/Google maps key for satellite imagery
@@ -130,7 +132,7 @@ class Params():
             # release emergence distribution
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
-            self.r_start = 0.0 #00:00 0.354 #8:30am
+            self.r_start = None # wind didn't record until midnight post release
             # total number of wasps 
             self.r_number = 130000
             
@@ -301,6 +303,10 @@ class Params():
                 strinfo = val.strip('()').split(',')
                 self.Dparams = (float(strinfo[0]),float(strinfo[1]),
                     float(strinfo[2]))
+            elif arg == 'Dlparams':
+                strinfo = val.strip('()').split(',')
+                self.Dlparams = (float(strinfo[0]),float(strinfo[1]),
+                    float(strinfo[2]))
             elif arg == 'lam':
                 self.lam = float(val)
             elif arg == 'mu_r':
@@ -311,7 +317,8 @@ class Params():
                 self.min_ndays = int(val)
             elif arg == 'maps_key':
                 self.maps_key = val
-                
+            elif arg == 'maps_service':
+                self.maps_service = val
             elif arg == 'output':
                 if val == 'True':
                     self.OUTPUT = True
@@ -364,10 +371,11 @@ class Params():
     ########    Methods for getting function parameters    ########
         
     def get_model_params(self):
-        '''Return params in order necessary to run model, 
+        '''Return params in order of ParasitoidModel.prob_mass signature, 
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
-        return (hparams,self.Dparams,self.mu_r,self.n_periods,*self.domain_info)       
+        return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.n_periods,
+            *self.domain_info)  
         
         
     def get_wind_params(self):
@@ -381,7 +389,7 @@ def main(params):
     A Params object is required, which sets up all parameters for the simulation
     '''
         
-    # This sends a message to CalcSol to not use CUDA
+    # This sends a message to CalcSol on whether or not to use CUDA
     if params.CUDA:
         globalvars.cuda = True
     else:
@@ -411,9 +419,15 @@ def main(params):
             pm_args.extend([(day,wind_data,*params.get_model_params()) 
                     for day in days[1:ndays]])
         pool = Pool()
-        pmf_list = pool.starmap(PM.prob_mass,pm_args)
-        pool.close()
-        pool.join()
+        try:
+            pmf_list = pool.starmap(PM.prob_mass,pm_args)
+        except PM.BndsError as e:
+            print('BndsError caught in ParasitoidModel.py.')
+            print(e)
+            sys.exit()
+        finally:
+            pool.close()
+            pool.join()
         for pmf in pmf_list:
             for dim in range(2):
                 if pmf.shape[dim] > max_shape[dim]:
