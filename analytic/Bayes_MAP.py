@@ -153,7 +153,7 @@ def main(RUNFLAG):
         # but there's not much to be done about this. Just remember to
         # interpret this number based on grid coarseness.
     prior_eps[em_obs_prob] = 0.0005
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.008) # probability of
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.003) # probability of
         # observing a wasp present in the grid cell given max leaf sampling
     prior_eps[grid_obs_prob] = 0.0005
 
