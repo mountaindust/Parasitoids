@@ -89,41 +89,41 @@ def main():
     
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
-    f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=6)
-    f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18)
-    f_b1_p = pm.Gamma("fb1_p",2,1,value=2,trace=False,plot=False) #alpha,beta parameterization
+    f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=5.3)
+    f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18.2)
+    f_b1_p = pm.Gamma("fb1_p",2,1,value=2.3,trace=False,plot=False) #alpha,beta parameterization
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p): 
         return f_b1_p + 1
-    f_b2_p = pm.Gamma("fb2_p",2,1,value=2,trace=False,plot=False)
+    f_b2_p = pm.Gamma("fb2_p",2,1,value=2.0,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
-    g_aw = pm.Gamma("a_w",2.2,1,value=2.2)
-    g_bw = pm.Gamma("b_w",5,1,value=5)
+    g_aw = pm.Gamma("a_w",2.2,1,value=1.0)
+    g_bw = pm.Gamma("b_w",5,1,value=3.8)
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,0.15,value=211)
-    sig_y = pm.Gamma("sig_y",15,0.15,value=106)
-    corr_p = pm.Beta("rho_p",5,5,value=0.5,trace=False,plot=False)
+    sig_x = pm.Gamma("sig_x",26,0.15,value=215)
+    sig_y = pm.Gamma("sig_y",15,0.15,value=113)
+    corr_p = pm.Beta("rho_p",5,5,value=0.6,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=21)
-    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=16)
+    sig_x_l = pm.Gamma("sig_xl",3,0.04,value=10)
+    sig_y_l = pm.Gamma("sig_yl",5,0.10,value=10)
     corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1    
-    #mu_r = pm.Normal("mu_r",1.,1,value=1.)
+    mu_r = pm.Normal("mu_r",1.,1,value=1.5)
     n_periods = pm.Poisson("t_dur",30,value=30)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
-    xi = pm.Gamma("xi",1,1,value=1) # presence to oviposition/emergence factor
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.1) # per-wasp prob of  
+    xi = pm.Gamma("xi",1,1,value=0.76) # presence to oviposition/emergence factor
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.01) # per-wasp prob of  
             # observing emergence in release field grid given max leaf collection
             # this is dependent on the size of the cell surrounding the grid point
             # ...not much to be done about this.
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.1) # probability of
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.008) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
@@ -154,7 +154,7 @@ def main():
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,n_periods],dtype=object))
+                                        lam,n_periods,mu_r],dtype=object))
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
@@ -188,12 +188,11 @@ def main():
         # Probability of any flight during the day under ideal circumstances
         params.lam = params_ary[12]
         
-        # TRY BOTH - VARYING mu_r OR n_periods
+        # TRY BOTH SCALINGS - VARYING mu_r and n_periods
         # scaling flight advection to wind advection
-        #params.mu_r = params_ary[13]
         # number of time periods (based on interp_num) in one flight
         params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
-
+        params.mu_r = params_ary[14]
         
         ### PHASE ONE ###
         # First, get spread probability for each day as a coo sparse matrix
@@ -448,7 +447,7 @@ def main():
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,
+                                corr_l_p,corr_l,n_periods,mu_r,
                                 sprd_factor,grid_obs_prob,xi,em_obs_prob,
                                 A_collected,sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
@@ -456,7 +455,7 @@ def main():
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,grid_obs_prob,
+                                corr_l_p,corr_l,n_periods,mu_r,grid_obs_prob,
                                 xi,em_obs_prob,A_collected,sent_obs_probs,
                                 params_ary,pop_model,grid_poi_rates,
                                 rel_poi_rates,sent_poi_rates,

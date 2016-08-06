@@ -98,7 +98,7 @@ def main(RUNFLAG):
     prior_eps = {}
     
     #### Model priors ####
-    lam = pm.Beta("lam",5,1,value=1.0)
+    lam = pm.Beta("lam",5,1,value=0.95)
     prior_eps[lam] = 0.01
     f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=5.3)
     prior_eps[f_a1] = 0.05
