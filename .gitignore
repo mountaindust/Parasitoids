@@ -9,6 +9,7 @@ config.txt
 
 # MCMC database
 *.h5
+old_mcmc/
 
 # Raw data
 *.ods
