@@ -16,15 +16,15 @@ Matplotlib
 Pillow (if plotting satellite imagery)  
 py.test (if running tests)  
 Reikna (if running on a GPU. Requres CUDA libraries and PyCUDA.)  
-PyMC (if running Bayesian model fitting)
-PyTables (if running Bayesian model fitting - used by hdf5 PyMC backend)
-Pandas (if running Bayesian model fitting)
+PyMC (if running Bayesian model fitting)  
+PyTables (if running Bayesian model fitting - used by hdf5 PyMC backend)  
+Pandas (if running Bayesian model fitting)  
 
 ## Introduction
 
-This code can consists of two parts: the first is the drift-diffusion model 
-(which itself can be run either as a probabilistic model or as a population 
-model), while the second is a Bayesian modeling framework for fitting the 
+This code consists of two parts: the first is the drift-diffusion model, 
+which itself can be run either as a probabilistic model or as a population 
+model, while the second is a Bayesian modeling framework for fitting the 
 drift-diffusion model parameters to data. Which file you want to run depends on 
 the functionality you would like to access.
 
@@ -43,12 +43,12 @@ within each spatial cell of the domain.
 
 Both models accept flags and keyword arguments which will be described below. 
 If a file named "config.txt" is present, Run.py will read it for keyword arguments
-as well. These should be of the form "parameter = value", and anything following
+as well. These should be of the form "parameter = value". Anything following
 a # on a line will be ignored as a comment. Any options passed via the terminal
 will override the defaults specified in config.txt.
 
-Saved model results can be plotted by typing "python Plot_Results.py <filename>" 
-where <filename> is the path to the saved simulation data, with or without the 
+Saved model results can be plotted by typing "python Plot_Results.py [filename]" 
+where [filename] is the path to the saved simulation data, with or without the 
 file extension. This program features an interactive menu with options including 
 plotting single simulation days, plotting all simulation days in succession, 
 plotting in black and white, saving model visualizations and a user specified 
@@ -85,11 +85,13 @@ it to the user to supply Pandas code that will properly parse the data and retur
 expected data structures. This Pandas code should be pasted directly into 
 Data_Import.py, which has been heavily commented to provide guidence on exactly 
 what is needed where. Assuming everything is set up properly, Data_Import.py 
-implements the LocInfo class which returns and object containing field data in a 
+implements the LocInfo class which returns an object containing data in a 
 format that can be compared to model results through the Bayesian framework 
-specified in Bayes_Run.py, which specifieds priors, runs the simulations, and 
-does the MCMC sampling, and Bayes_funcs.py, which models data collection and 
-parasitoid emergence based on the simulated population densities.
+specified in Bayes_Run.py (which specifies priors, runs the simulations, and 
+does the MCMC sampling), Bayes_MAP.py (which also specifies priors and runs
+the simulations, but does so for maximum a posteriori or normal approximation 
+estimates), and Bayes_funcs.py (which models data collection and 
+parasitoid emergence based on the simulated population densities).
 
 Once everything is properly specified, MCMC samples can be taken by typing 
 "python Bayes_Run.py" into a terminal. These samples will be saved to an hdf5 
@@ -190,10 +192,11 @@ Current defaults are specified with brackets where appropriate.
   two are for the evening logistic (center, scale).
 - Dparams=(sig_x,sig_y,correlation):
   Covarience parameters for diffusion in wind. Provide the standard deviation in
-  the x-direction, y-direction, and the correlation.
+  the x-direction and y-direction, and the correlation.
 - Dlparams=(sig_x,sig_y,correlation):
-  Covarience parameters for local diffusion. Provide the standard deviation in
-  the x-direction, y-direction, and the correlation.
+  Covarience parameters for local diffusion. The mean is assumed to be zero; 
+  provide the standard deviation in the x-direction and y-direction, 
+  and the correlation.
 - lam=lambda:
   lambda parameter describing the probability of wind-based flight during the 
   day assuming ideal conditions
@@ -241,12 +244,12 @@ collection. LocInfo in Data_Import.py handles the loading and the parsing of the
 data. Bayes_Run.py specifies priors, runs the model, and calls functions to 
 connect the model results to data. It is also the file to run if you want to
 do MCMC sampling or inspect the results. Bayes_MAP.py is similar to Bayes_Run.py
-(in fact, most of it is just a direct copy - this due to limitations in the 
-Python multiprocessing library), but runs pymc to find the maximum a posteriori
-estimate instead. Bayes_funcs.py does the job of projecting parasitoid emergence 
-from population model results, as well as gathering the expected number of wasps 
-at grid points and cardinal direction sample points. Bayes_Plot.py contains 
-functions for plotting traces and posterior distributions from mcmc samples.
+(in fact, much of it is just a direct copy), but runs pymc to find the 
+maximum a posteriori estimate instead. Bayes_funcs.py does the job of 
+projecting parasitoid emergence from population model results, as well as 
+gathering the expected number of wasps at grid points and cardinal direction 
+sample points. Bayes_Plot.py contains functions for plotting traces and 
+posterior distributions from mcmc samples.
 
 All functionality is provided via interactive menus in Bayes_Run.py and
 Bayes_MAP.py, though Bayes_MAP can can also be run via command line arguments
@@ -256,12 +259,8 @@ import pymc and Bayes_Plot.py into an IPython session to load the database and
 inspect it directly (a menu item in Bayes_Run.py does this as well). Please see 
 implementation for further details.
 
-At this time, the Bayesian modules are only tested for the Kalbar dataset, and
-thus Kalbar is hard coded into the modules Bayes_Run.py and Bayes_MAP.py. In 
-Bayes_MAP, it is necessary to specify a value in the dict prior_eps for each 
-stochastic parameter. This tells the solver what step size to use when 
-discretizing derivatives.
-
-While these modules have been tested and run as advertised, they should be 
-considered under construction while results are examined, priors possibly 
-refined, and additional functionality is added.
+At this time, the Bayesian modules are only set up and tested for the Kalbar 
+dataset, and thus Kalbar is hard coded into the modules Bayes_Run.py and 
+Bayes_MAP.py. In Bayes_MAP, it is necessary to specify a value in the dict 
+prior_eps for each stochastic parameter. This tells the solver what step size 
+to use when discretizing derivatives.
