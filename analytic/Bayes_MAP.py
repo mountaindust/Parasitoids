@@ -172,7 +172,6 @@ def main(RUNFLAG):
     #   parameter values. So we will use TruncatedNormal again.
     N = len(locinfo.sent_ids)
     sent_obs_probs = np.empty(N, dtype=object)
-    sent_obs_probs_p = np.empty(N, dtype=object)
     # fix beta for the Beta distribution
     sent_beta = 40
     # mean of Beta distribution will be A_collected/field size
