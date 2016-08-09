@@ -100,9 +100,9 @@ def main(RUNFLAG):
     #### Model priors ####
     lam = pm.Beta("lam",5,1,value=0.95)
     prior_eps[lam] = 0.01
-    f_a1 = pm.TruncatedNormal("a_1",6,1,0,9,value=5.3)
+    f_a1 = pm.TruncatedNormal("f_a1",6,1,0,9,value=5.3)
     prior_eps[f_a1] = 0.05
-    f_a2 = pm.TruncatedNormal("a_2",18,1,15,24,value=18.2)
+    f_a2 = pm.TruncatedNormal("f_a2",18,1,15,24,value=18.2)
     prior_eps[f_a2] = 0.05
     f_b1_p = pm.Gamma("fb1_p",2,1,value=2.3,trace=False,plot=False) #alpha,beta parameterization
     prior_eps[f_b1_p] = 0.05
@@ -114,16 +114,16 @@ def main(RUNFLAG):
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
-    g_aw = pm.Gamma("a_w",2.2,1,value=1.0)
+    g_aw = pm.Gamma("g_aw",2.2,1,value=1.0)
     prior_eps[g_aw] = 0.05
-    g_bw = pm.Gamma("b_w",5,1,value=3.8)
+    g_bw = pm.Gamma("g_bw",5,1,value=3.8)
     prior_eps[g_bw] = 0.1
     # flight diffusion parameters. note: mean is average over flight advection
     sig_x = pm.Gamma("sig_x",26,0.15,value=215)
     prior_eps[sig_x] = 1
     sig_y = pm.Gamma("sig_y",15,0.15,value=113)
     prior_eps[sig_y] = 1
-    corr_p = pm.Beta("rho_p",5,5,value=0.6,trace=False,plot=False)
+    corr_p = pm.Beta("corr_p",5,5,value=0.6,trace=False,plot=False)
     prior_eps[corr_p] = 0.01
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
@@ -133,7 +133,7 @@ def main(RUNFLAG):
     prior_eps[sig_x_l] = 1
     sig_y_l = pm.Gamma("sig_yl",5,0.10,value=10)
     prior_eps[sig_y_l] = 1
-    corr_l_p = pm.Beta("rho_l_p",5,5,value=0.5,trace=False,plot=False)
+    corr_l_p = pm.Beta("corr_l_p",5,5,value=0.5,trace=False,plot=False)
     prior_eps[corr_l_p] = 0.005
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):

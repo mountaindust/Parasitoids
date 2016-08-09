@@ -34,9 +34,9 @@ def plot_traces(db=db):
     plt.subplot(411)
     plt.title("Traces of unknown model parameters")
     # f: a_1,a_2
-    plt.plot(db.trace("a_1",chain=None)[:], label=r"trace of $f:a_1$",
+    plt.plot(db.trace("f_a1",chain=None)[:], label=r"trace of $f:a_1$",
              c=cmap(0.3), lw=lw)
-    plt.plot(db.trace("a_2",chain=None)[:], label=r"trace of $f:a_2$",
+    plt.plot(db.trace("f_a2",chain=None)[:], label=r"trace of $f:a_2$",
              c=cmap(0.7), lw=lw)
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
@@ -47,9 +47,9 @@ def plot_traces(db=db):
              c=cmap(0.3), lw=lw)
     plt.plot(db.trace("f_b2",chain=None)[:], label=r"trace of $f:b_2$",
              c=cmap(0.7), lw=lw)
-    plt.plot(db.trace("a_w",chain=None)[:], label=r"trace of $g:a_w$",
+    plt.plot(db.trace("g_aw",chain=None)[:], label=r"trace of $g:a_w$",
              c=cmap(0.1), lw=lw)
-    plt.plot(db.trace("b_w",chain=None)[:], label=r"trace of $g:b_w$",
+    plt.plot(db.trace("g_bw",chain=None)[:], label=r"trace of $g:b_w$",
              c=cmap(0.9), lw=lw)
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
@@ -137,12 +137,12 @@ def plot_f_g(db=db,start=0):
     plt.xlim(0,24)
     plt.hold(True)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("a_1",chain=None)[start:], histtype='stepfilled', bins=27,
-             alpha=0.85, label=r"posterior of position param $a_1$",
+    plt.hist(db.trace("f_a1",chain=None)[start:], histtype='stepfilled', bins=27,
+             alpha=0.85, label=r"posterior of position param $f_a1$",
              color=clrdict['color'], normed=True)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("a_2",chain=None)[start:], histtype='stepfilled', bins=27,
-             alpha=0.85, label=r"posterior of position param $a_2$",
+    plt.hist(db.trace("f_a2",chain=None)[start:], histtype='stepfilled', bins=27,
+             alpha=0.85, label=r"posterior of position param $f_a2$",
              color=clrdict['color'], normed=True)
     plt.hold(False)
     leg = plt.legend(loc="upper center")
@@ -169,13 +169,13 @@ def plot_f_g(db=db,start=0):
     color_cycle = ax._get_lines.prop_cycler
     plt.hold(True)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("a_w",chain=None)[start:], histtype='stepfilled', bins=25,
-             alpha=0.85, label=r"posterior of position param $a_w$",
+    plt.hist(db.trace("g_aw",chain=None)[start:], histtype='stepfilled', bins=25,
+             alpha=0.85, label=r"posterior of position param $g_aw$",
              color=clrdict['color'], normed=True)
     unused = next(color_cycle)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("b_w",chain=None)[start:], histtype='stepfilled', bins=25,
-             alpha=0.85, label=r"posterior of shape param $b_w$",
+    plt.hist(db.trace("g_bw",chain=None)[start:], histtype='stepfilled', bins=25,
+             alpha=0.85, label=r"posterior of shape param $g_bw$",
              color=clrdict['color'], normed=True)
     plt.hold(False)
     leg = plt.legend(loc="upper right")
@@ -230,11 +230,11 @@ def plot_sprd_vars(db=db,start=0):
     unused = next(color_cycle)
     clrdict = next(color_cycle)
     plt.hold(True)
-    plt.hist(db.trace("rho",chain=None)[start:], histtype='stepfilled', 
+    plt.hist(db.trace("corr",chain=None)[start:], histtype='stepfilled', 
              bins=25, alpha=0.85, label=r"posterior of wind $\rho$",
              color=clrdict['color'], normed=True)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("rho_l",chain=None)[start:], histtype='stepfilled', 
+    plt.hist(db.trace("corr_l",chain=None)[start:], histtype='stepfilled', 
              bins=25, alpha=0.85, label=r"posterior of local $\rho$",
              color=clrdict['color'], normed=True)
     plt.hold(False)
@@ -248,7 +248,7 @@ def plot_sprd_vars(db=db,start=0):
         unused = next(color_cycle)
     clrdict = next(color_cycle)
     # this is discrete data. need to bin it correctly
-    tr = db.trace("t_dur",chain=None)[start:]
+    tr = db.trace("n_periods",chain=None)[start:]
     plt.hold(True)
     plt.hist(tr, bins=np.arange(tr.min(),tr.max()+2,1)-.5,
              histtype='stepfilled',  alpha=0.85, 
