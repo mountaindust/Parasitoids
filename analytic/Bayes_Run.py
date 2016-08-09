@@ -9,9 +9,10 @@ Email: cstrickland@samsi.info
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
 __status__ = "Development"
-__version__ = "0.5"
+__version__ = "1.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
+import argparse
 import sys, time, warnings
 from io import StringIO
 import os.path
@@ -25,6 +26,13 @@ from Data_Import import LocInfo
 from CalcSol import get_populations
 import ParasitoidModel as PM
 from Bayes_funcs import *
+
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--new", help='Start new MCMC run and exit on completion.',
+    nargs=3,metavar=('iterations','burn-in','db_name'))
+group.add_argument("--resume", help='Resume sampling.',nargs=2,
+    metavar=('db_name','iterations'))
 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
@@ -57,7 +65,7 @@ class Capturing(list):
 #                                                                             #
 ###############################################################################
 
-def main():
+def main(mcmc_args=None):
 
     print('Setting up parameters and priors...')
 
@@ -87,7 +95,9 @@ def main():
     
     
     
-    #### Model priors ####
+    ######################################################################
+    #####                        Model Priors                        #####
+    ######################################################################
     lam = pm.Beta("lam",5,1,value=0.95)
     f_a1 = pm.TruncatedNormal("f_a1",6,1,0,9,value=5.3)
     f_a2 = pm.TruncatedNormal("f_a2",18,1,15,24,value=18.2)
@@ -184,7 +194,9 @@ def main():
 
     print('Getting initial model values...')
 
-    #### Run model ####
+    ######################################################################
+    #####                          Run Model                         #####
+    ######################################################################
     @pm.deterministic(plot=False,trace=False)
     def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
                   wind_data=wind_data,days=days,sprd_factor=sprd_factor):
@@ -349,6 +361,10 @@ def main():
         
     print('Parsing model output and connecting to Bayesian model...')    
     
+    ######################################################################
+    #####                   Connect Model to Data                    #####
+    ######################################################################
+    
     ### Parse the results of pop_model into separate deterministic variables ###
     '''Get Poisson probabilities for sentinal field emergence. Parameters:
         xi is constant, emerg is a list of ndarrays, betas is a 1D array of
@@ -457,7 +473,11 @@ def main():
                     observed=True, plot=False)
     card_collections = pm.Container(card_collections)
     '''
-
+    
+    ######################################################################
+    #####                   Collect Model and Run                    #####
+    ######################################################################
+    
     ### Collect model ###
     if sprd_factor is not None:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
@@ -476,7 +496,71 @@ def main():
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
 
-
+    ### Run if parameters were passed in ###
+    if mcmc_args is not None:
+        if len(mcmc_args) == 3:
+            # New run
+            nsamples = int(mcmc_args[0])
+            burn = int(mcmc_args[1])
+            fname = mcmc_args[2]
+            if fname[-3:] != '.h5':
+                fname += '.h5'
+            mcmc = pm.MCMC(Bayes_model,db='hdf5',dbname=fname,
+                        dbmode='a',dbcomplevel=0)
+            mcmc.use_step_method(pm.AdaptiveMetropolis,stoc_vars,
+                scales=step_scales,interval=500,shrink_if_necessary=True)
+            try:
+                tic = time.time()
+                print('Sampling...')
+                mcmc.sample(nsamples,burn)
+                # sampling finished. commit to database and continue
+                print('Sampling finished.')
+                print('Time elapsed: {}'.format(time.time()-tic))
+                print('Saving...')
+                #mcmc.save_state()
+                mcmc.commit()
+                print('Closing...')
+                mcmc.db.close()
+            except:
+                print('Exception: database closing...')
+                mcmc.db.close()
+                raise
+            return
+        elif len(mcmc_args) == 2:
+            # Resume run
+            fname = mcmc_args[0]
+            nsamples = int(mcmc_args[1])
+            fname = fname.strip()
+            if fname[-3:] != '.h5':
+                fname += '.h5'
+            if os.path.isfile(fname):
+                db = pm.database.hdf5.load(fname)
+                mcmc = pm.MCMC(Bayes_model,db=db)
+                mcmc.use_step_method(pm.AdaptiveMetropolis,stoc_vars,
+                    scales=step_scales,interval=500,shrink_if_necessary=True)
+                # database loaded.  
+            else:
+                print('File not found: {}'.format(fname))
+                return
+            try:
+                tic = time.time()
+                print('Sampling...')
+                mcmc.sample(nsamples)
+                # sampling finished. commit to database and continue
+                print('Sampling finished.')
+                print('Time elapsed: {}'.format(time.time()-tic))
+                print('Saving...')
+                #mcmc.save_state()
+                mcmc.commit()
+                print('Closing...')
+                mcmc.db.close()
+            except:
+                print('Exception: database closing...')
+                mcmc.db.close()
+                raise
+            return
+    
+    
     ######################################################################
     #####                   Start Interactive Menu                   #####
     ######################################################################
@@ -550,6 +634,9 @@ def main():
                 if os.path.isfile(fname):
                     db = pm.database.hdf5.load(fname)
                     mcmc = pm.MCMC(Bayes_model,db=db)
+                    mcmc.use_step_method(pm.AdaptiveMetropolis,stoc_vars,
+                        scales=step_scales,interval=500,
+                        shrink_if_necessary=True)
                     break # database loaded
                 else:
                     print('File not found.')
@@ -621,6 +708,11 @@ def main():
             print('Command not recognized.')
     
 if __name__ == "__main__":
+    args = parser.parse_args()
     with Pool() as pool:
-        main()
-        #main(sys.argv[1:])
+        if args.new is not None:
+            main(args.new)
+        elif args.resume is not None:
+            main(args.resume)
+        else:
+            main()

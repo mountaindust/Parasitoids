@@ -8,8 +8,8 @@ Email: cstrickland@samsi.info
 
 __author__ = "Christopher Strickland"
 __email__ = "cstrickland@samsi.info"
-__status__ = "Development"
-__version__ = "0.5"
+__status__ = "Release"
+__version__ = "1.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import argparse
