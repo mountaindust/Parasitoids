@@ -151,16 +151,36 @@ def main():
 
     sent_obs_probs = pm.Container(sent_obs_probs)
     
-    #### Collect variables ####
+    # Max a Posterirori estimates have consistantly returned a value of zero
+    #   for sprd_factor. So we will comment these sections.
+    # if params.dataset == 'kalbar':
+    #     # factor for kalbar initial spread
+    #     sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.3)
+    # else:
+    #     sprd_factor = None
+    sprd_factor = None
+    
+    #### Collect variables and setup block update ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
                                         lam,n_periods,mu_r],dtype=object))
-
-    if params.dataset == 'kalbar':
-        # factor for kalbar initial spread
-        sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.3)
-    else:
-        sprd_factor = None
+    # The stochastic variables in this list (and the stochastics behind the
+    #   deterministic ones) should be block updated in order to avoid the large
+    #   computational expense of evaluating the model multiple times for each
+    #   MCMC iteration. To do this, starting step variances must be definied
+    #   for each variable. This is done via a scaling dict.
+    stoc_vars = [g_aw,g_bw,f_a1,f_b1_p,f_a2,f_b2_p,sig_x,sig_y,corr_p,
+        sig_x_l,sig_y_l,corr_l_p,lam,n_periods,mu_r]
+    step_scales = {
+        g_aw:0.04, g_bw:0.08,
+        f_a1:0.25, f_b1_p:0.05, f_a2:0.25, f_b2_p:0.05,
+        sig_x:2, sig_y:2, corr_p:0.0005,
+        sig_x_l:2, sig_y_l:2, corr_l_p:0.0005,
+        lam:0.0005,
+        n_periods:1,
+        mu_r:0.005
+    }                                    
+    
 
     print('Getting initial model values...')
 
@@ -204,7 +224,7 @@ def main():
         
         ##### Kalbar wind started recording a day late. Spread the population
         #####   locally before running full model.
-        if params.dataset == 'kalbar':
+        if sprd_factor is not None:
             res = params.domain_info[0]/params.domain_info[1]
             mean_drift = np.array([-25.,15.])
             xdrift_int = int(mean_drift[0]//res)
@@ -226,13 +246,7 @@ def main():
             sbds = [int(mlen//2-shrtsprd.shape[0]//2),
                     int(mlen//2+shrtsprd.shape[0]//2+1)]
             sprd[sbds[0]:sbds[1],sbds[0]:sbds[1]] += shrtsprd*(1-sprd_factor)
-            '''
-            pmf_list = [sparse.coo_matrix(PM.get_mvn_cdf_values(
-                        params.domain_info[0]/params.domain_info[1],
-                        np.array([0.,0.]),
-                        PM.Dmat(sprd_factor*params_ary[9],
-                                sprd_factor*params_ary[10],params_ary[11])))]
-            '''
+            
             sprd[int(sprd.shape[0]//2),int(sprd.shape[0]//2)] += max(0,1-sprd.sum())
             pmf_list = [sparse.coo_matrix(sprd)]
         else:
@@ -242,8 +256,8 @@ def main():
         try:
             pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
         except PM.BndsError as e:
-            print('BndsErr caught. at {}'.format(
-                time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
+            #print('BndsErr caught. at {}'.format(
+            #    time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
             # return output full of zeros, but of correct type/size
             release_emerg = []
             for nframe,dframe in enumerate(locinfo.release_DataFrames):
@@ -263,10 +277,11 @@ def main():
                 card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
             '''
             return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
-        except Exception as e:
-            print('Unrecognized exception in pool with PM.prob_mass!!')
-            print(e)
-            raise
+        # Exceptions do not seem to affect mcmc, so they don't need tight debugging
+        # except Exception as e:
+        #     print('Unrecognized exception in pool with PM.prob_mass!!')
+        #     print(e)
+        #     raise
         ######################
         for pmf in pmf_list:
             for dim in range(2):
@@ -288,7 +303,7 @@ def main():
         # Pass the probability list, pmf_list, and other info to convolution solver.
         #   This will return the finished population model.
         with Capturing() as output:
-            if params.dataset == 'kalbar':
+            if sprd_factor is not None:
                 # extend day count by one
                 days_ext = [days[0]-1]
                 days_ext.extend(days)
@@ -327,9 +342,9 @@ def main():
         ##    Each list entry corresponds to a sampling day (one array)
         ##    Each column corresponds to a step in a cardinal direction
         ##    Each row corresponds to a cardinal direction
-        print('{:03.1f} sec./model at {}'.format(time.time() - modeltic,
-            time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
-        sys.stdout.flush()
+        # print('{:03.1f} sec./model at {}'.format(time.time() - modeltic,
+        #     time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
+        # sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
         
     print('Parsing model output and connecting to Bayesian model...')    
@@ -444,21 +459,21 @@ def main():
     '''
 
     ### Collect model ###
-    if params.dataset == 'kalbar':
+    if sprd_factor is not None:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,mu_r,
-                                sprd_factor,grid_obs_prob,xi,em_obs_prob,
-                                A_collected,sent_obs_probs,params_ary,pop_model,
+                                corr_l_p,corr_l,n_periods,mu_r,sprd_factor,
+                                grid_obs_prob,xi,em_obs_prob,A_collected,
+                                sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,mu_r,grid_obs_prob,
-                                xi,em_obs_prob,A_collected,sent_obs_probs,
-                                params_ary,pop_model,grid_poi_rates,
-                                rel_poi_rates,sent_poi_rates,
+                                corr_l_p,corr_l,n_periods,mu_r,
+                                grid_obs_prob,xi,em_obs_prob,A_collected,
+                                sent_obs_probs,params_ary,pop_model,
+                                grid_poi_rates,rel_poi_rates,sent_poi_rates,
                                 grid_obs,rel_collections,sent_collections])
 
 
@@ -504,6 +519,8 @@ def main():
         ##### RUN FIRST MCMC HERE #####
         mcmc = pm.MCMC(Bayes_model,db='hdf5',dbname=fname,
                         dbmode='a',dbcomplevel=0)
+        mcmc.use_step_method(pm.AdaptiveMetropolis,stoc_vars,scales=step_scales,
+            interval=500,shrink_if_necessary=True)
         try:
             tic = time.time()
             print('Sampling...')
