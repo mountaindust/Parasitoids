@@ -689,6 +689,7 @@ def main(mcmc_args=None):
             # Run chain
             try:
                 tic = time.time()
+                print('Sampling...')
                 mcmc.sample(nsamples)
                 # sampling finished. commit to database and continue
                 print('Sampling finished.')
