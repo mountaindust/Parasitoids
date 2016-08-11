@@ -82,6 +82,12 @@ class LocInfo(object):
         #       samples: sampling effort at each point via direct observation
         #       collection: collection effort at each point (for emergence)
         self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
+        ### The grid needs to be rotated so that it aligns with a nearby road
+        theta = -33/180*math.pi
+        rot_mat = np.array([[math.cos(theta),-math.sin(theta)],
+                            [math.sin(theta), math.cos(theta)]])
+        for n,xy in enumerate(self.grid_data[['xcoord','ycoord']].values):
+            self.grid_data.loc[n:n+1,('xcoord','ycoord')] = rot_mat@xy
         #####
         ### Get row/column indices from xcoord and ycoord in grid_data
         res = domain_info[0]/domain_info[1] # cell length in meters
@@ -116,6 +122,10 @@ class LocInfo(object):
         #       self.releasefield_id
         #       self.release_DataFrames
         self.get_releasefield_emergence(location)
+        ### Again, grid needs to be rotated so that it aligns with a nearby road
+        for dframe in self.release_DataFrames:
+            for n,xy in enumerate(dframe[['xcoord','ycoord']].values):
+                dframe.loc[n:n+1,('xcoord','ycoord')] = rot_mat@xy
         #####
         ### Further parsing, including sorting the DataFrame
         self.emerg_grids = []
@@ -140,6 +150,9 @@ class LocInfo(object):
         #       self.grid_obs_DataFrame
         #       self.grid_obs_datesPR
         self.get_grid_observations(location)
+        ### Again, grid needs to be rotated so that it aligns with a nearby road
+        for n,xy in enumerate(self.grid_obs_DataFrame[['xcoord','ycoord']].values):
+            self.grid_obs_DataFrame.loc[n:n+1,('xcoord','ycoord')] = rot_mat@xy
         #####
         ### Form a data structure that can be compared to popdensity_grid
         self.grid_obs = np.zeros((self.grid_cells.shape[0],
