@@ -125,7 +125,7 @@ class Params():
         elif self.dataset == 'kalbar':
             self.site_name = 'data/kalbar'
             self.start_time = '00:00'
-            self.coord = (-27.945752,152.58474)
+            self.coord = (-27.947131,152.584171) #(-27.945752,152.58474)
             ### release information
             # release duration (days)
             self.r_dur = 1
