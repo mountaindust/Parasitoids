@@ -506,11 +506,24 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         
         
         #approximate integral over time
-        # Return a unique error if the domain is not big enough so that it can
-        # be handled in context.
-        if row_max+1>pmf.shape[0] or col_max+1>pmf.shape[1] or \
-            row_min < 0 or col_min < 0:
-            raise BndsError
+        # Try to handle domain edges with zero boundary conditions, but return 
+        # a unique error if this doesn't work
+        cdf_rs = 0
+        cdf_re = cdf_mat.shape[0]
+        cdf_cs = 0
+        cdf_ce = cdf_mat.shape[1]
+        if row_max+1>pmf.shape[0]:
+            cdf_re -= row_max+1-pmf.shape[0]
+            row_max = pmf.shape[0]-1
+        if col_max+1>pmf.shape[1]:
+            cdf_ce -= col_max+1-pmf.shape[1]
+            col_max = pmf.shape[1]-1
+        if row_min < 0:
+            cdf_rs -= row_min
+            row_min = 0
+        if col_min < 0:
+            cdf_cs -= col_min
+            col_min = 0
         try:
             assert -1e-9 <= hprob[t_indx] <= 1.000000001, \
                 'hprob out of bounds at t_indx {}'.format(t_indx)
@@ -521,8 +534,11 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                        'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
                        'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
             raise
-        pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
-                cdf_mat)
+        try:
+            pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
+                cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce])
+        except IndexError:
+            raise BndsError
 
 
     # pmf now has probabilities per cell of flying there.
