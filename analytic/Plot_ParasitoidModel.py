@@ -34,8 +34,8 @@ class Params():
         
         ### I/O
         self.rad_dist = 8000.0 #dist from release pt to side of the domain (meters)
-        self.rad_res = 1600 #number of cells from center to side of domain
-        # these default number correspond to each cell being 5 m**2
+        self.rad_res = 200 #number of cells from center to side of domain
+        # these default number correspond to each cell being 40 m**2
         
         
         # these should only be changed through set_site_name
@@ -56,7 +56,9 @@ class Params():
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (6, 3, 18, 3)
         # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (21,16,0)
+        self.Dparams = (210,160,0)
+        # Out-of-flow diffusion coefficients
+        self.Dlparams = (21.1,10.6,0)
         
         
         ### general flight parameters
@@ -136,11 +138,13 @@ def plot_prob_mass(params=params,day=1):
     wind_data = params.wind_data
     hparams = (params.lam,*params.g_params,*params.f_params)
     Dparams = params.Dparams
+    Dlparams = params.Dlparams
     mu_r = params.mu_r
     n_periods = params.n_periods
     rad_dist = params.rad_dist
     rad_res = params.rad_res
-    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,mu_r,n_periods,rad_dist,rad_res)
+    pmf = PM.prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
+                       rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
     
