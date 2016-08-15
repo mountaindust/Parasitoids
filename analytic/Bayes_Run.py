@@ -127,7 +127,7 @@ def main(mcmc_args=None):
         return corr_l_p*2 - 1    
     mu_r = pm.Normal("mu_r",1.,1,value=1.5)
     n_periods = pm.Poisson("n_periods",30,value=30)
-    #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
+    alpha_pow = pm.Gamma("alpha",2,1,value=1) # time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=0.76) # presence to oviposition/emergence factor
     em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.01) # per-wasp prob of  
             # observing emergence in release field grid given max leaf collection
@@ -173,7 +173,7 @@ def main(mcmc_args=None):
     #### Collect variables and setup block update ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,n_periods,mu_r],dtype=object))
+                                        lam,n_periods,mu_r,alpha_pow],dtype=object))
     # The stochastic variables in this list (and the stochastics behind the
     #   deterministic ones) should be block updated in order to avoid the large
     #   computational expense of evaluating the model multiple times for each
@@ -225,6 +225,8 @@ def main(mcmc_args=None):
         # number of time periods (based on interp_num) in one flight
         params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
         params.mu_r = params_ary[14]
+        # alpha exponent
+        params.alpha_pow = params_ary[15]
         
         ### PHASE ONE ###
         # First, get spread probability for each day as a coo sparse matrix
@@ -482,7 +484,7 @@ def main(mcmc_args=None):
     if sprd_factor is not None:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,mu_r,sprd_factor,
+                                corr_l_p,corr_l,n_periods,mu_r,alpha_pow,sprd_factor,
                                 grid_obs_prob,xi,em_obs_prob,A_collected,
                                 sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
@@ -490,7 +492,7 @@ def main(mcmc_args=None):
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,n_periods,mu_r,
+                                corr_l_p,corr_l,n_periods,mu_r,alpha_pow,
                                 grid_obs_prob,xi,em_obs_prob,A_collected,
                                 sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,

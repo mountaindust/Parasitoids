@@ -56,9 +56,11 @@ class Params():
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
         self.f_params = (6, 3, 18, 3)
         # Diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (210,160,0)
+        self.Dparams = (211,160,0)
         # Out-of-flow diffusion coefficients
         self.Dlparams = (21.1,10.6,0)
+        # alpha parameter in h redistribution function
+        self.alpha_pow = 1
         
         
         ### general flight parameters
@@ -123,7 +125,7 @@ def plot_h_flight_prob(params=params,day=1):
     day_wind = params.wind_data[day]
     lam = params.lam
     day_time = np.linspace(0,24,day_wind.shape[0]+1)[:-1]
-    hparams = (params.lam,*params.g_params,*params.f_params)
+    hparams = (params.lam,*params.g_params,*params.f_params,params.alpha_pow)
     h = PM.h_flight_prob(day_wind,*hparams)
     plt.ion()
     plt.figure()
@@ -136,7 +138,7 @@ def plot_h_flight_prob(params=params,day=1):
 #### Test p function, which gives the 2-D probability density####
 def plot_prob_mass(params=params,day=1):
     wind_data = params.wind_data
-    hparams = (params.lam,*params.g_params,*params.f_params)
+    hparams = (params.lam,*params.g_params,*params.f_params,params.alpha_pow)
     Dparams = params.Dparams
     Dlparams = params.Dlparams
     mu_r = params.mu_r

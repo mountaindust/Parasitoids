@@ -54,7 +54,7 @@ class Params():
         self.my_datasets()
         
         # domain info, (dist (m), cells) from release point to side of domain 
-        self.domain_info = (6000.0,120) # (float, int!) (this is 10 m res)
+        self.domain_info = (6000.0,120) # (float, int!) (this is 50 m res)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
@@ -72,6 +72,8 @@ class Params():
         self.Dparams = (215.197,113.195,0.2825)
         # Out-of-flow diffusion coefficients
         self.Dlparams = (21.1,10.6,0)
+        # alpha parameter in h redistribution function
+        self.alpha_pow = 1
 
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
@@ -307,6 +309,8 @@ class Params():
                 strinfo = val.strip('()').split(',')
                 self.Dlparams = (float(strinfo[0]),float(strinfo[1]),
                     float(strinfo[2]))
+            elif arg == 'alpha_pow':
+                self.alpha_pow = float(val)
             elif arg == 'lam':
                 self.lam = float(val)
             elif arg == 'mu_r':
@@ -373,7 +377,7 @@ class Params():
     def get_model_params(self):
         '''Return params in order of ParasitoidModel.prob_mass signature, 
         minus day & wind_data'''
-        hparams = (self.lam,*self.g_params,*self.f_params)
+        hparams = (self.lam,*self.g_params,*self.f_params,self.alpha_pow)
         return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.n_periods,
             *self.domain_info)  
         

@@ -277,7 +277,7 @@ def Dmat(sig_x, sig_y, rho):
     return np.array([[sig_x**2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y**2]])
     
-def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
+def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2, alpha_pow):
     """Returns probability density of flying (take-off) during a given day's wind.
     This is given by f times g times the constant lambda. Lambda can be thought
     of as the probability of flight during a day with constant ideal wind
@@ -287,11 +287,12 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
         - lam -- constant
         - aw,bw -- g function constants
         - a1,b1,a2,b2 -- f function constants
+        - alpha_pow -- alpha in the redistribution function
     
     Note: day_wind[0,:] = np.array([windx,windy,windr])"""
     
     n = day_wind.shape[0] #number of wind data entries in the day
-    alpha_pow = 1 # new parameter?
+    #alpha_pow = 1 # new parameter?
     #get just the windr values
     try:
         windr = day_wind[:,2]
@@ -397,7 +398,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     Arguments:
         - day -- day as specified in wind data
         - wind_data -- dictionary of wind data
-        - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
+        - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2,alpha_pow)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
         - Dlprams -- out-of-flow diffusion coefficients
         - mu_r -- parameter to scale distance vs. windspeed

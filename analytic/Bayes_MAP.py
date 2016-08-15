@@ -142,7 +142,8 @@ def main(RUNFLAG):
     mu_r = pm.Normal("mu_r",1.,1,value=1.5)
     prior_eps[mu_r] = 0.05
     params.n_periods = 30
-    #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
+    alpha_pow = pm.Gamma("alpha",2,1,value=1) # time exponent in ParasitoidModel.h_flight_prob
+    prior_eps[alpha_pow] = 0.1
     xi = pm.Gamma("xi",1,1,value=0.76) # presence to oviposition/emergence factor
     prior_eps[xi] = 0.05
     
@@ -189,7 +190,7 @@ def main(RUNFLAG):
     #### Collect variables ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
-                                        lam,mu_r],dtype=object))
+                                        lam,mu_r,alpha_pow],dtype=object))
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
@@ -226,6 +227,8 @@ def main(RUNFLAG):
         
         # scaling flight advection to wind advection
         params.mu_r = params_ary[13]
+        # alpha exponent
+        params.alpha_pow = params_ary[14]
 
         
         ### PHASE ONE ###
@@ -481,7 +484,7 @@ def main(RUNFLAG):
     if params.dataset == 'kalbar':
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,
+                                corr_l_p,corr_l,mu_r,alpha_pow,
                                 sprd_factor,grid_obs_prob,
                                 xi,em_obs_prob,A_collected,
                                 sent_obs_probs,params_ary,pop_model,
@@ -490,7 +493,7 @@ def main(RUNFLAG):
     else:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
                                 sig_x,sig_y,corr_p,corr,sig_x_l,sig_y_l,
-                                corr_l_p,corr_l,mu_r,grid_obs_prob,
+                                corr_l_p,corr_l,mu_r,alpha_pow,grid_obs_prob,
                                 xi,em_obs_prob,A_collected,
                                 sent_obs_probs,params_ary,pop_model,
                                 grid_poi_rates,rel_poi_rates,sent_poi_rates,
