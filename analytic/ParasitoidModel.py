@@ -515,15 +515,19 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         cdf_ce = cdf_mat.shape[1]
         if row_max+1>pmf.shape[0]:
             cdf_re -= row_max+1-pmf.shape[0]
+            cdf_re = max(0,cdf_re)
             row_max = pmf.shape[0]-1
         if col_max+1>pmf.shape[1]:
             cdf_ce -= col_max+1-pmf.shape[1]
+            cdf_ce = max(cdf_ce,0)
             col_max = pmf.shape[1]-1
         if row_min < 0:
             cdf_rs -= row_min
+            cdf_rs = max(cdf_rs,0)
             row_min = 0
         if col_min < 0:
             cdf_cs -= col_min
+            cdf_cs = max(cdf_cs,0)
             col_min = 0
         try:
             assert -1e-9 <= hprob[t_indx] <= 1.000000001, \
@@ -538,7 +542,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         try:
             pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce])
-        except IndexError:
+        except ValueError:
             raise BndsError
 
 
