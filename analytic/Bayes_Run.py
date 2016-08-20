@@ -87,7 +87,7 @@ def main(mcmc_args=None):
     params.ndays = len(days)
     
     # reduce domain
-    params.domain_info = (6000.0,120) #50 m sided cells
+    params.domain_info = (8000.0,320) #25 m sided cells
     domain_res = params.domain_info[0]/params.domain_info[1]
     cell_area = domain_res**2
 
