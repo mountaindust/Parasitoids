@@ -180,7 +180,8 @@ def plot_all(modelsol,params,locinfo=None):
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res'''
+        params: Params object from Run.py
+        locinfo: if provided, is used to plot field polygons'''
     
     domain_info = params.domain_info
     cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
@@ -257,8 +258,9 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
     Args:
         sol: day solution, sparse
         day: day identifier (for text identification)
-        domain_info: rad_dist, rad_res
+        params: Params object from Run.py
         saveonly: (string) if not None, don't plot - save to location in saveonly
+        locinfo: if provided, is used to plot field polygons
         '''
 
     bw = None
@@ -377,7 +379,9 @@ def create_mp4(modelsol,params,filename,locinfo=None):
     
     Args:
         modelsol: list of daily solutions, sparse
-        domain_info: rad_dist, rad_res'''
+        params: Params object from Run.py
+        filename: location to save mp4
+        locinfo: if provided, is used to plot field polygons'''
     
     print('Creating spread model video',end="")
     sys.stdout.flush()
@@ -485,6 +489,19 @@ def create_mp4(modelsol,params,filename,locinfo=None):
             blit=False,interval=850)
     anim.save(filename+'.mp4',dpi=140,bitrate=500)
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
+    
+    
+    
+def compare_to_data(modelsol,params,locinfo):
+    '''Compare model results to data, as contained in locinfo
+    
+    Args:
+        modelsol: list of daily solutions, sparse
+        params: Params object from Run.py
+        locinfo: LocInfo object from Data_Import.py
+        '''
+        
+    pass
     
     
     

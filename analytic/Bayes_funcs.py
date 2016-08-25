@@ -7,6 +7,15 @@ Email: cstrickland@samsi.info
 
 import numpy as np
 
+### Oviposition to emergence time is definied here ###
+# Specify the maximum incubation time and a numpy array. The last entry in the
+#   numpy array is assumed to correspond to the max incubation time, so that
+#   max_incubation_time - (incubation_time.size - 1) would give you the minimum
+#   incubation time.
+# We will assume incubation is 14 to 20 days, uniformly distributed.
+incubation_time = np.ones(7)/7 #14-20 inclusive
+max_incubation_time = 20
+
 def popdensity_to_emergence(modelsol,locinfo):
     '''Translate population model to corresponding expected number of wasps in
     a given location whose oviposition would result in a given emergence date. 
@@ -16,11 +25,6 @@ def popdensity_to_emergence(modelsol,locinfo):
     # Assume collections are done at the beginning of the day, observations
     #   of collection data at the end of the day. So, oviposition is not possible
     #   on the day of collection, but emergence is.
-    
-    ### Oviposition to emergence time ###
-    # We will assume this is 14 to 20 days, uniformly distributed.
-    incubation_time = np.ones(7)/7 #14-20 inclusive
-    max_incubation_time = 20
     
     ### Project release field grid ###
     release_emerg = []
