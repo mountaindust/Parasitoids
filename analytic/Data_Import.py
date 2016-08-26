@@ -410,6 +410,8 @@ class LocInfo(object):
         WHAT IS REQURIED:
             self.release_date: pandas Timestamp of release date (no time of day)
             self.collection_datesPR: a list of TimeDelta collection dates PR
+                collections are assumed to happen at the beginning of the day
+                emergence is assumed checked at the end of each following day
             self.sent_DataFrames: a list of pandas DataFrames, one for each
                                     collection date.
         EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
@@ -489,6 +491,8 @@ class LocInfo(object):
                                     collection date.
             (Note: we assume the collection dates are the same as for the
                 sentinel fields)
+            collections are assumed to happen at the beginning of the day
+                emergence is assumed checked at the end of each following day
         EACH DATAFRAME MUST INCLUDE THE FOLLOWING COLUMNS:
             xcoord: distance east from release point in meters (grid collection point)
             ycoord: distance north from release point in meters (grid collection point)

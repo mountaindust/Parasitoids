@@ -492,19 +492,6 @@ def create_mp4(modelsol,params,filename,locinfo=None):
     
     
     
-def compare_to_data(modelsol,params,locinfo):
-    '''Compare model results to data, as contained in locinfo
-    
-    Args:
-        modelsol: list of daily solutions, sparse
-        params: Params object from Run.py
-        locinfo: LocInfo object from Data_Import.py
-        '''
-        
-    pass
-    
-    
-    
 def main(argv):
     '''Function for plotting a previous result.
     
