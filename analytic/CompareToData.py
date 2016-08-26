@@ -3,6 +3,7 @@
 publication quality figures.
 '''
 
+import argparse
 import numpy as np
 from scipy import sparse
 from mpl_toolkits.mplot3d import Axes3D
@@ -11,8 +12,18 @@ import matplotlib.cm as cm
 import matplotlib.patches as patches
 import Run
 from Plot_Result import get_satellite, r_small_vals
+from Data_Import import LocInfo
 
-base_clrmp = cm.get_cmap('viridis')
+##### argparse #####
+parser = argparse.ArgumentParser()
+# require a model output filename
+parser.add_argument("filename",
+    help="path to model output that should be compared to data")
+parser.add_argument("--bw", help="plot in black/white", action="store_true")
+
+
+##### Colormap stuff #####
+base_clrmp = cm.get_cmap('viridis') # nice colors
 # alter this colormap with alpha values
 dict_list = []
 for x in zip(*base_clrmp.colors):
@@ -22,7 +33,8 @@ cdict['alpha'] = ((0.0,0.65,0.3),
                   (1.0,0.65,0.3))
 plt.register_cmap(name='alpha_viridis',data=cdict)
 clrmp = cm.get_cmap('alpha_viridis')
-clrmp.set_bad('w',alpha=0)
+clrmp.set_bad('w',alpha=0) # colormap for showing parasitoid spread
+
 
 
 def main(modelsol,params,locinfo,bw=None):
@@ -197,4 +209,52 @@ def main(modelsol,params,locinfo,bw=None):
         
     plt.show()
         
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    if args.filename.rstrip()[-5:] == '.json':
+        args.filename = args.filename[:-5]
+    elif args.filename.rstrip()[-4:] == '.npz':
+        args.filename = args.filename[:-4]
         
+    # load parameters
+    params = Run.Params()
+    params.file_read_chg(args.filename)
+    
+    # load model result
+    modelsol = []
+    with np.load(args.filename+'.npz') as npz_obj:
+        days = npz_obj['days']
+        # some code here to make loading robust to both COO and CSR.
+        CSR = False
+        for day in days:
+            V = npz_obj[str(day)+'_data']
+            if CSR:
+                indices = npz_obj[str(day)+'_ind']
+                indptr = npz_obj[str(day)+'_indptr']
+                modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
+            else:
+                try:
+                    I = npz_obj[str(day)+'_row']
+                    J = npz_obj[str(day)+'_col']
+                    modelsol.append(sparse.coo_matrix((V,(I,J)),
+                                                    shape=(dom_len,dom_len)))
+                except KeyError:
+                    CSR = True
+                    indices = npz_obj[str(day)+'_ind']
+                    indptr = npz_obj[str(day)+'_indptr']
+                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                    shape=(dom_len,dom_len)))
+                                                    
+    # load data
+    try:
+        locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
+    except:
+        print('Could not load the datasets for this location.')
+        print(params.dataset)
+        raise
+        
+    # call main
+    main(modelsol,params,locinfo,args.bw)
