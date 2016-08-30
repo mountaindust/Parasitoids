@@ -64,20 +64,20 @@ class Params():
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
-        self.g_params = (1.024, 3.807)
+        self.g_params = (0.875, 3.924)
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
-        self.f_params = (5.304, 2.307, 18.169, 1.949)
+        self.f_params = (5.193, 2.249, 18.195, 1.880)
         # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (215.197,113.195,0.2825)
+        self.Dparams = (121.186,141.058,-0.230)
         # Out-of-flow diffusion coefficients
-        self.Dlparams = (21.1,10.6,0)
+        self.Dlparams = (7.601,7.700,0.0)
 
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
         self.lam = 1.
         # scaling flight advection to wind advection
-        self.mu_r = 1.542
+        self.mu_r = 2.271
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 30 # if interp_num = 30, this is # of minutes per flight
         

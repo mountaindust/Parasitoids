@@ -497,9 +497,9 @@ class LocInfo(object):
             xcoord: distance east from release point in meters (grid collection point)
             ycoord: distance north from release point in meters (grid collection point)
             datePR: Num of days the emergence occured post-release (dtype=Timedelta)
-            E_total: Total number of wasp emergences in that field on that date
-            All_total: Total number of all emergences in that field on that date
-                        (this will later be summed to obtain emergences per
+            E_total: Total number of wasp emergences at that point on that date
+            All_total: Total number of all emergences at that point on that date
+                        (this could later be summed to obtain emergences per
                          field/collection)
         '''
         

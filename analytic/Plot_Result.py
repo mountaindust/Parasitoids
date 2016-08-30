@@ -237,7 +237,7 @@ def plot_all(modelsol,params,locinfo=None):
         plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
         res = int(params.domain_info[0]//params.domain_info[1])
-        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
+        plt.text(0.01,0.05,'{0}x{0} m cells'.format(res),color='w',
         ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar = plt.colorbar()
         cbar.solids.set_edgecolor("face")
@@ -355,7 +355,7 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
     plt.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
         ha='right',va='center',transform=ax.transAxes,fontsize=16)
     res = int(params.domain_info[0]//params.domain_info[1])
-    plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
+    plt.text(0.01,0.05,'{0}x{0} m cells'.format(res),color='w',
         ha='left',va='center',transform=ax.transAxes,fontsize=12)
     cbar = plt.colorbar()
     cbar.solids.set_edgecolor("face")
@@ -461,7 +461,7 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         ax.text(0.95,0.95,'Origin: {:.3}'.format(oval),color='w',
             ha='right',va='center',transform=ax.transAxes,fontsize=16)
         res = int(params.domain_info[0]//params.domain_info[1])
-        plt.text(0.01,0.05,'{0}x{0} m resolution'.format(res),color='w',
+        plt.text(0.01,0.05,'{0}x{0} m cells'.format(res),color='w',
             ha='left',va='center',transform=ax.transAxes,fontsize=12)
         cbar.mappable = pcl
         cbar.update_bruteforce(pcl)
