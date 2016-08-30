@@ -13,8 +13,8 @@ import numpy as np
 #   max_incubation_time - (incubation_time.size - 1) would give you the minimum
 #   incubation time.
 # We will assume incubation is 14 to 20 days, uniformly distributed.
-incubation_time = np.ones(7)/7 #14-20 inclusive
-max_incubation_time = 20
+incubation_time = np.ones(10)/10 #14-23 inclusive
+max_incubation_time = 23
 
 def popdensity_to_emergence(modelsol,locinfo):
     '''Translate population model to corresponding expected number of wasps in
@@ -58,16 +58,17 @@ def popdensity_to_emergence(modelsol,locinfo):
             n = 0 # row/col count
             # in each one, go through grid points projecting emergence date
             #   potentials per adult wasp per cell.
+            max_post_col = day+max_incubation_time-collection_day
+            min_post_col = max(0,max_post_col-incubation_time.size)
+            span_len = max_post_col-min_post_col
             for r,c in locinfo.emerg_grids[nframe]:
                 ###                Project forward and store                 ###
                 ### This function is a mapping from feasible                 ###
                 ###   oviposition dates to array of feasible emergence dates ###
                 # day represents feasible oviposition days, [start,collect)
                 e_distrib = modelsol[day][r,c]*incubation_time
-                max_post_col = day+max_incubation_time-collection_day+1
-                min_post_col = max(0,max_post_col-incubation_time.size)
-                span_len = max_post_col-min_post_col
-                emerg_proj[n,min_post_col:max_post_col] += e_distrib[-span_len:]
+                emerg_proj[n,min_post_col:max_post_col+1] += e_distrib[-span_len:]
+                # time is now measured in days post collection
                 ################################################################
                 n += 1
                 
@@ -76,7 +77,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
         modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[nframe]),
                                         len(obs_datesPR)))
-        col_indices = obs_datesPR - collection_day
+        col_indices = obs_datesPR - collection_day # days post collection
         modelsol_grid_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]
@@ -111,6 +112,9 @@ def popdensity_to_emergence(modelsol,locinfo):
         # go through feasible oviposition days
         for day in range(start_day,collection_day):
             # for each day, aggregate the population in each sentinel field
+            max_post_col = day+max_incubation_time-collection_day
+            min_post_col = max(0,max_post_col-incubation_time.size)
+            span_len = max_post_col-min_post_col
             for n,field_id in enumerate(locinfo.sent_ids):
                 ###     Sum the field cells, project forward and store       ###
                 ### This function can be more complicated if we want to try  ###
@@ -119,10 +123,7 @@ def popdensity_to_emergence(modelsol,locinfo):
                 field_total = modelsol[day][locinfo.field_cells[field_id][:,0],
                                     locinfo.field_cells[field_id][:,1]].sum()
                 e_distrib = field_total*incubation_time
-                max_post_col = day+max_incubation_time-collection_day+1
-                min_post_col = max(0,max_post_col-incubation_time.size)
-                span_len = max_post_col-min_post_col
-                emerg_proj[n,min_post_col:max_post_col] += e_distrib[-span_len:]
+                emerg_proj[n,min_post_col:max_post_col+1] += e_distrib[-span_len:]
                 ################################################################
         
         # now consolidate these days into just the days data was collected.
@@ -130,7 +131,7 @@ def popdensity_to_emergence(modelsol,locinfo):
         obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
         modelsol_field_emerg = np.zeros((len(locinfo.sent_ids),
                                         len(obs_datesPR)))
-        col_indices = obs_datesPR - collection_day
+        col_indices = obs_datesPR - collection_day # days post collection
         modelsol_field_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]
