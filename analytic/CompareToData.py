@@ -14,6 +14,7 @@ from matplotlib.ticker import MultipleLocator
 import Run
 from Plot_Result import get_satellite, r_small_vals
 from Data_Import import LocInfo
+import Bayes_funcs
 
 ##### argparse #####
 parser = argparse.ArgumentParser()
@@ -48,13 +49,6 @@ def main(modelsol,params,locinfo,bw=False):
         locinfo: LocInfo object from Data_Import.py
         bw: set this to something not None for b/w
         '''
-    # Assume here that an emerging parasitoid (in the data) came from the 
-    #   average incubation time. This is both easier to explain and easier
-    #   to implement.
-        
-    import Bayes_funcs
-    avg_incubation = Bayes_funcs.max_incubation_time - \
-        np.floor(Bayes_funcs.incubation_time.size/2)
         
     # Compare both release field and sentinel fields
     allfields_ids = [locinfo.releasefield_id]
@@ -72,40 +66,25 @@ def main(modelsol,params,locinfo,bw=False):
     obs_dates_TD = dframe['datePR'].unique() # timedelta objects
     # ...and in integer form
     obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-    # walk these dates backward the average incubation period, cutting off
-    #   at day 0. It is assumed that collection happened in the morning, and
-    #   emergence observations occur at the end of each day. Thus, the last day
-    #   oviposition was possible was the day BEFORE the collection day. 
-    #   Since model results are given at the end of each day PR (same as 
-    #   emergence observations), one day of incubation corresponds directly to 
-    #   one model day. We assume incubation is longer than zero days in all cases.
-    ovi_datesPR = np.maximum(obs_datesPR - avg_incubation,
-                             np.zeros(obs_datesPR.size)).astype('int')
+
     # for release field, add up grid observations
     dframe_rel = locinfo.release_DataFrames[0]
     obs_rel_dates_TD = dframe_rel['datePR'].unique()
     obs_rel_datesPR = dframe_rel['datePR'].map(lambda t: t.days).unique()
-    ovi_rel_datesPR = np.maximum(obs_rel_datesPR - avg_incubation,
-                                 np.zeros(obs_rel_datesPR.size)).astype('int')
-    # set up presence array - rows are fields, columns are presence dates
-    sent_ovi_array = np.zeros((len(allfields_ids),
-                              max(ovi_datesPR[-1],ovi_rel_datesPR[-1])+1))
+    
+    # set up emergence array - rows are fields, columns are emergence dates
+    obs_emerg_array = np.zeros((len(allfields_ids),
+                    max(obs_datesPR[-1],obs_rel_datesPR[-1])-collection_date+1))
     # first row is for release field
     for n,obs_date in enumerate(obs_rel_dates_TD):
-        sent_ovi_array[0,ovi_rel_datesPR[n]] = \
+        obs_emerg_array[0,obs_rel_datesPR[n]-collection_date] = \
             dframe_rel[dframe_rel['datePR'] == obs_date]['E_total'].sum()
     # the rest are for the sentinel fields
     for n,obs_date in enumerate(obs_dates_TD):
-        sent_ovi_array[1:,ovi_datesPR[n]] = \
+        obs_emerg_array[1:,obs_datesPR[n]-collection_date] = \
             dframe[dframe['datePR'] == obs_date]['E_total'].values
-    # cut the oviposition array at the collection date
-    if sent_ovi_array.shape[1] > collection_date:
-        sent_ovi_array = sent_ovi_array[:,:collection_date]
-    if sent_ovi_array.shape[1] < collection_date:
-        sent_ovi_array = np.pad(sent_ovi_array,((0,0),(0,
-            collection_date - sent_ovi_array.shape[1])),'constant')
-    # now sent_ovi_array can be directy compared to the density of wasps in each
-    #   field on the same day PR
+    # now obs_emerg_array can be directy compared to a projection of emergence 
+    #   in each field on the same day PR
     
     ##### Calculate the density of wasps in each field on each day #####
     # Get the size of each cell in m**2
@@ -122,6 +101,18 @@ def main(modelsol,params,locinfo,bw=False):
             field_total = modelsol[day][locinfo.field_cells[field_id][:,0],
                                     locinfo.field_cells[field_id][:,1]].sum()
             model_field_densities[n,day] = field_total/field_sizes_m[field_id]
+    # Now for each day, project forward to emergence using the function info
+    #   specified in Bayes_funcs.
+    proj_emerg_densities = np.zeros((len(allfields_ids),
+                           collection_date+Bayes_funcs.max_incubation_time))
+    max_incubation_time = Bayes_funcs.max_incubation_time
+    min_incubation_time = max_incubation_time-len(Bayes_funcs.incubation_time)+1
+    for day in range(collection_date):
+        proj_emerg_densities[:,day+min_incubation_time:day+max_incubation_time+1]\
+            += np.outer(model_field_densities[:,day],Bayes_funcs.incubation_time)
+    # cut everything before the collection date
+    proj_emerg_densities = proj_emerg_densities[:,collection_date:]
+    
             
     ##### Plot comparison #####
     # The first two columns can be stills of the model at 3, 6, 9 and 
@@ -233,21 +224,23 @@ def main(modelsol,params,locinfo,bw=False):
     minorLocator = MultipleLocator(2)
     
     ## Plot sentinel field data and model ##
+    emerg_dates = np.arange(collection_date,
+                            collection_date+proj_emerg_densities.shape[1])
     for ii,subplt in enumerate(sp3d):
         ax = fig.add_subplot(subplt,projection='3d')
         if subplt == sp3d[0]:
             # put the data on the top plot
             color_list = np.linspace(0.95,0.05,len(zcoord)) # color setup
             for n,z in enumerate(zcoord):
-                ax.bar(range(collection_date),sent_ovi_array[n,:],
+                ax.bar(emerg_dates,obs_emerg_array[n,:],
                     zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7)
-            ax.set_zlabel('Projected observations\n(from data)')
+            ax.set_zlabel('Emergence observations')
         else:
             # model densities
             for n,z in enumerate(zcoord):
-                ax.bar(np.arange(collection_date),model_field_densities[n,:]*100,
+                ax.bar(emerg_dates,proj_emerg_densities[n,:]*100,
                     zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7)
-            ax.set_zlabel('\n'+r'Modeled adults/100m$^2$')
+            ax.set_zlabel('\n'+r'Projected emergence/100m$^2$')
         ax.set_xlabel('Fields')
         ax.set_ylabel('Days PR')
         # re-tick x-axis
