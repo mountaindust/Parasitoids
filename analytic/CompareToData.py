@@ -42,6 +42,9 @@ clrmp.set_bad('w',alpha=0) # colormap for showing parasitoid spread
 
 def main(modelsol,params,locinfo,bw=False):
     '''Compare model results to data, as contained in locinfo
+    TODO: This function should also spit out R**2 values for the model densities
+    at grid points compared to observed adult counts on the three days this data
+    was collected.
     
     Args:
         modelsol: list of daily solutions, sparse
