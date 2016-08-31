@@ -12,9 +12,10 @@ import numpy as np
 #   numpy array is assumed to correspond to the max incubation time, so that
 #   max_incubation_time - (incubation_time.size - 1) would give you the minimum
 #   incubation time.
-# We will assume incubation is 14 to 20 days, uniformly distributed.
-incubation_time = np.ones(10)/10 #14-23 inclusive
-max_incubation_time = 23
+# We will assume incubation is 19 to 25 days, distributed approximately
+#   according to a normal distribution with variance of 2.
+incubation_time = np.array([0.05,0.1,0.2,0.3,0.2,0.1,0.05]) #19-25 inclusive
+max_incubation_time = 25
 
 def popdensity_to_emergence(modelsol,locinfo):
     '''Translate population model to corresponding expected number of wasps in
@@ -59,8 +60,8 @@ def popdensity_to_emergence(modelsol,locinfo):
             # in each one, go through grid points projecting emergence date
             #   potentials per adult wasp per cell.
             max_post_col = day+max_incubation_time-collection_day
-            min_post_col = max(0,max_post_col-incubation_time.size)
-            span_len = max_post_col-min_post_col
+            min_post_col = max(0,max_post_col+1-incubation_time.size)
+            span_len = max_post_col-min_post_col+1
             for r,c in locinfo.emerg_grids[nframe]:
                 ###                Project forward and store                 ###
                 ### This function is a mapping from feasible                 ###
@@ -78,10 +79,13 @@ def popdensity_to_emergence(modelsol,locinfo):
         modelsol_grid_emerg = np.zeros((len(locinfo.emerg_grids[nframe]),
                                         len(obs_datesPR)))
         col_indices = obs_datesPR - collection_day # days post collection
+        # each observation day includes emergences on the day itself and any days
+        #   since the last observation day.
         modelsol_grid_emerg[:,0] = emerg_proj[:,0:col_indices[0]+1].sum(axis=1)
         for n,col in enumerate(col_indices[1:]):
             col_last = col_indices[n]
             modelsol_grid_emerg[:,n+1] = emerg_proj[:,col_last+1:col+1].sum(axis=1)
+        # we will lose any projected emergences past the last observation date.
         release_emerg.append(modelsol_grid_emerg)
         
     ### Project sentinel field emergence ###
@@ -113,8 +117,8 @@ def popdensity_to_emergence(modelsol,locinfo):
         for day in range(start_day,collection_day):
             # for each day, aggregate the population in each sentinel field
             max_post_col = day+max_incubation_time-collection_day
-            min_post_col = max(0,max_post_col-incubation_time.size)
-            span_len = max_post_col-min_post_col
+            min_post_col = max(0,max_post_col+1-incubation_time.size)
+            span_len = max_post_col-min_post_col+1 #correct fencepost error
             for n,field_id in enumerate(locinfo.sent_ids):
                 ###     Sum the field cells, project forward and store       ###
                 ### This function can be more complicated if we want to try  ###
