@@ -115,6 +115,16 @@ def main(modelsol,params,locinfo,bw=False):
             += np.outer(model_field_densities[:,day],Bayes_funcs.incubation_time)
     # cut everything before the collection date
     proj_emerg_densities = proj_emerg_densities[:,collection_date:]
+    # check that proj_emerg_densities.shape[1]>=obs_emerg_array.shape[1] and pad
+    #   the latter one if necessary so that they are the same size.
+    #   The idea here: we can project probability of emergence beyond what we
+    #   happened to observe, but we should be projecting at least as far as obs
+    assert proj_emerg_densities.shape[1] >= obs_emerg_array.shape[1], \
+        'Emergence projection should cover the observations!'
+    if proj_emerg_densities.shape[1] > obs_emerg_array.shape[1]:
+        obs_emerg_array = np.pad(obs_emerg_array,
+            ((0,0),(0,proj_emerg_densities.shape[1]-obs_emerg_array.shape[1])),
+            'constant')
     
             
     ##### Plot comparison #####
