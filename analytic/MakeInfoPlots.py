@@ -85,6 +85,9 @@ def main(bw=False):
         color='w',fontsize=11)
     ax.set_xlabel('West-East (meters)')
     ax.set_ylabel('North-South (meters)')
+    # label plot
+    ax.text(0.01,0.95,'a)',color='w',ha='left',va='center',
+            transform=ax.transAxes,fontsize=16)
     
     ### Diffusion visualization ###
     ax = fig.add_subplot(122)
@@ -118,6 +121,9 @@ def main(bw=False):
                         extent=plot_limits)
     ax.set_xlabel('West-East (meters)')
     ax.set_ylabel('North-South (meters)')
+    # label plot
+    ax.text(0.01,0.95,'b)',color='w',ha='left',va='center',
+            transform=ax.transAxes,fontsize=16)
     plt.tight_layout()
     plt.show()
     
