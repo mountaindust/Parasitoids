@@ -81,7 +81,7 @@ def main(bw=False):
     # show info
     ax.text(1600*avg_wind[0]-200,1600*avg_wind[1]+500,
         'Avg. wind speed/direction:\n'+
-        '{:.1f} km/hr\n{} degrees'.format(avg_wind[2],theta),
+        '{:.1f} km/hr\n{} degrees from east'.format(avg_wind[2],theta),
         color='w',fontsize=11)
     ax.set_xlabel('West-East (meters)')
     ax.set_ylabel('North-South (meters)')
