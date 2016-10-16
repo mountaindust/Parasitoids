@@ -9,6 +9,7 @@ Email: cstrickland@samsi.info
 
 import sys
 import warnings
+from collections import OrderedDict
 import numpy as np
 import pymc as pm
 import matplotlib.pyplot as plt
@@ -25,63 +26,84 @@ plt.ion()
 
 
 def plot_traces(db=db):
-    '''Plot the traces of the unknown variables to check for convergence'''
-    lw=1 #line width
-    
+    '''Plot the traces of the unknown variables to check for convergence.
+    Also compute several convergence methods and print them out.'''
+    lw = 1 #line width
+
+    # Specify variables to include in each figure and subplot
+    #   Each sublist is a figure. Each OrderedDict is a subplot with the
+    #   key as the trace name and the val as the LaTeX string name.
+    var_names = []
+    var_names.append([OrderedDict([('f_a1', r'$f:a_1$'), ('f_a2', r'$f:a_2$')])])
+    var_names[0].append(OrderedDict([('f_b1', r'$f:b_1$'), ('f_b2', r'$f:b_2$'),
+                                     ('g_aw', r'$g:a_w$'), ('g_bw', r'$g:b_w$')]))
+    var_names[0].append(OrderedDict([('sig_x', r'$\sigma_x$'), ('sig_y', r'$\sigma_y$'),
+                                     ('sig_xl', r'local $\sigma_x$'),
+                                     ('sig_yl', r'local $\sigma_y$')]))
+    var_names[0].append(OrderedDict([('corr', r'$\rho$'), ('corr_l', r'local $\rho$'),
+                                     ('lam', r'$\lambda$')]))
+    var_names.append([OrderedDict([('xi', r'$\xi$'), ('em_obs_prob', r'emerg obs prob'),
+                                   ('grid_obs_prob', r'grid obs prob')])])
+    sent_names = []
+    for name in db.trace_names[0]:
+        if name[:13] == 'sent_obs_prob':
+            id = name[-1]
+            sent_names.append((name, id))
+    var_names[1].append(OrderedDict(sent_names))
+
     plt.figure()
     plt.hold(True)
-    
+
+    f_clrs = [0.3, 0.7]
+    g_clrs = [0.1, 0.9]
+    sig_clrs = [0.01, 0.99, 0.25, 0.75]
+    corr_lam_clrs = [0.01, 0.25, 0.5]
+    probs_clrs = [0.01, 0.5, 0.99]
+
     plt.subplot(411)
     plt.title("Traces of unknown model parameters")
     # f: a_1,a_2
-    plt.plot(db.trace("f_a1",chain=None)[:], label=r"trace of $f:a_1$",
-             c=cmap(0.3), lw=lw)
-    plt.plot(db.trace("f_a2",chain=None)[:], label=r"trace of $f:a_2$",
-             c=cmap(0.7), lw=lw)
+    cnt = 0
+    for name, label in var_names[0][0].items():
+        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                 c=cmap(f_clrs[cnt]), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
     
     # f: b_1,b_2, g: a_w,b_w
     plt.subplot(412)
-    plt.plot(db.trace("f_b1",chain=None)[:], label=r"trace of $f:b_1$",
-             c=cmap(0.3), lw=lw)
-    plt.plot(db.trace("f_b2",chain=None)[:], label=r"trace of $f:b_2$",
-             c=cmap(0.7), lw=lw)
-    plt.plot(db.trace("g_aw",chain=None)[:], label=r"trace of $g:a_w$",
-             c=cmap(0.1), lw=lw)
-    plt.plot(db.trace("g_bw",chain=None)[:], label=r"trace of $g:b_w$",
-             c=cmap(0.9), lw=lw)
+    cnt = 0
+    for name, label in var_names[0][1].items():
+        if cnt < 2:
+            plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                     c=cmap(f_clrs[cnt]), lw=lw)
+        else:
+            plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                     c=cmap(g_clrs[cnt-2]), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
     
     # sig_x,sig_y,sig_x_l,sig_y_l
     plt.subplot(413)
-    plt.plot(db.trace("sig_x",chain=None)[:], label=r"trace of $\sigma_x$",
-             c=cmap(0.01), lw=lw)
-    plt.plot(db.trace("sig_y",chain=None)[:], label=r"trace of $\sigma_y$",
-             c=cmap(0.99), lw=lw)
-    plt.plot(db.trace("sig_xl",chain=None)[:], label=r"trace of local $\sigma_x$",
-             c=cmap(0.25), lw=lw)
-    plt.plot(db.trace("sig_yl",chain=None)[:], label=r"trace of local $\sigma_y$",
-             c=cmap(0.75), lw=lw)
+    cnt = 0
+    for name, label in var_names[0][2].items():
+        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                 c=cmap(sig_clrs[cnt]), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
     
     # corr,corr_l,lam
     plt.subplot(414)
     # previous versions did not have a hypervariable rho_p, so rho is plotted
-    try:
-        plt.plot(db.trace("rho",chain=None)[:], label=r"trace of $\rho$",
-                c=cmap(0.01), lw=lw)
-        plt.plot(db.trace("rho_l",chain=None)[:], label=r"trace of local $\rho$",
-                c=cmap(0.25), lw=lw)
-    except KeyError:
-        plt.plot(db.trace("corr",chain=None)[:], label=r"trace of $\rho$",
-                c=cmap(0.01), lw=lw)
-        plt.plot(db.trace("corr_l",chain=None)[:], label=r"trace of local $\rho$",
-                c=cmap(0.25), lw=lw)
-    plt.plot(db.trace("lam",chain=None)[:], label=r"trace of $\lambda$",
-             c=cmap(0.5), lw=lw)
+
+    cnt = 0
+    for name, label in var_names[0][3].items():
+        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                 c=cmap(corr_lam_clrs[cnt]), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper left")
     leg.get_frame().set_alpha(0.7)
     
@@ -96,33 +118,34 @@ def plot_traces(db=db):
     plt.subplot(211)
     plt.title("Traces of unknown Bayesian model parameters")
     # xi, em_obs_prob, grid_obs_prob
-    plt.plot(db.trace("xi",chain=None)[:], label=r"trace of $\xi$",
-             c=cmap(0.01), lw=lw)
-    plt.plot(db.trace("em_obs_prob",chain=None)[:], 
-             label=r"trace of emerg obs prob", c=cmap(0.5), lw=lw)
-    plt.plot(db.trace("grid_obs_prob",chain=None)[:], 
-             label=r"trace of grid obs prob", c=cmap(0.99), lw=lw)
+    cnt = 0
+    for name, label in var_names[1][0].items():
+        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
+                 c=cmap(probs_clrs[cnt]), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
     
     # sent_obs_probs
     plt.subplot(212)
-    n = 0
-    for name in db.trace_names[0]:
-        if name[:13] == 'sent_obs_prob':
-            id = name[-1]
-            plt.plot(db.trace(name,chain=None)[:], 
-                     label="trace of obs prob field {}".format(id),
-                     c=cmap(.10+n*.16), lw=lw)
-            n += 1
+    cnt = 0
+    for name, label in var_names[1][1].items():
+        plt.plot(db.trace(name, chain=None)[:], label="trace of prob field "+label,
+                 c=cmap(.10+cnt*.16), lw=lw)
+        cnt += 1
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
+
+    plt.draw()
     
-    plt.show()
+    ##### Convergence tests #####
+
+    # Geweke
+    # scores = pm.geweke(db.trace("f_a1", chain=None)[:])
 
 
 
-def plot_f_g(db=db,start=0,stop=None):
+def plot_f_g(db=db, start=0, stop=None):
     '''Plot the posterior distributions for the f and g model functions.
     
     Arguments:
