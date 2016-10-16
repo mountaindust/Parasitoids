@@ -659,6 +659,7 @@ def main(mcmc_args=None):
     print('\n')
     while True:
         print('--------------- MCMC ---------------')
+        print(" 'report': generate report on traces")
         print("'inspect': launch IPython to inspect state")
         print("    'run': conduct further sampling")
         print("   'quit': Quit")
@@ -675,7 +676,7 @@ def main(mcmc_args=None):
                 print('Exception: database closing...')
                 mcmc.db.close()
                 raise
-        elif cmd == 'run' or cmd == 'r':
+        elif cmd == 'run':
             val = input("Enter number of realizations or 'back':")
             val = val.strip()
             if val == 'back' or val == 'b':
@@ -697,6 +698,22 @@ def main(mcmc_args=None):
                 print('Saving...')
                 #mcmc.save_state()
                 mcmc.commit()
+            except:
+                print('Exception: database closing...')
+                mcmc.db.close()
+                raise
+        elif cmd == 'report':
+            try:
+                import Bayes_Plot
+                Bayes_Plot.plot_traces(db=db)
+                print('Gelman-Rubin statistics')
+                gr = pm.gelman_rubin(mcmc)
+                print(gr)
+                with open('./diagnostics/gelman-rubin.txt','w') as f:
+                    f.write('Variable        R_hat\n')
+                    f.write('---------------------\n')
+                    for key,val in gr.items():
+                        f.write(key+': {}\n'.format(val))
             except:
                 print('Exception: database closing...')
                 mcmc.db.close()

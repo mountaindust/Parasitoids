@@ -5,6 +5,7 @@ __pycache__/
 # Model output, scratch file, local-only config
 output/
 snippets/
+diagnostics/
 config.txt
 
 # MCMC database

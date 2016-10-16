@@ -7,7 +7,7 @@ Author: Christopher Strickland
 Email: cstrickland@samsi.info 
 '''
 
-import sys
+import sys, os
 import warnings
 from collections import OrderedDict
 import numpy as np
@@ -15,7 +15,7 @@ import pymc as pm
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 plt.rcParams['image.cmap'] = 'viridis'
-cmap = cm.get_cmap('viridis')
+cmap = cm.get_cmap('Accent')
 
 database_name = 'mcmcdb.h5'
 
@@ -25,7 +25,7 @@ plt.ion()
 
 
 
-def plot_traces(db=db):
+def plot_traces(db=db,path='./diagnostics',format='png'):
     '''Plot the traces of the unknown variables to check for convergence.
     Also compute several convergence methods and print them out.'''
     lw = 1 #line width
@@ -59,53 +59,18 @@ def plot_traces(db=db):
     sig_clrs = [0.01, 0.99, 0.25, 0.75]
     corr_lam_clrs = [0.01, 0.25, 0.5]
     probs_clrs = [0.01, 0.5, 0.99]
+    clrs_list = [f_clrs, f_clrs+g_clrs, sig_clrs, corr_lam_clrs, probs_clrs]
 
-    plt.subplot(411)
     plt.title("Traces of unknown model parameters")
-    # f: a_1,a_2
-    cnt = 0
-    for name, label in var_names[0][0].items():
-        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
-                 c=cmap(f_clrs[cnt]), lw=lw)
-        cnt += 1
-    leg = plt.legend(loc="upper left")
-    leg.get_frame().set_alpha(0.7)
-    
-    # f: b_1,b_2, g: a_w,b_w
-    plt.subplot(412)
-    cnt = 0
-    for name, label in var_names[0][1].items():
-        if cnt < 2:
+    for ii in range(len(var_names[0])):
+        plt.subplot(len(var_names[0]), 1, ii+1)
+        cnt = 0
+        for name, label in var_names[0][ii].items():
             plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
-                     c=cmap(f_clrs[cnt]), lw=lw)
-        else:
-            plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
-                     c=cmap(g_clrs[cnt-2]), lw=lw)
-        cnt += 1
-    leg = plt.legend(loc="upper left")
-    leg.get_frame().set_alpha(0.7)
-    
-    # sig_x,sig_y,sig_x_l,sig_y_l
-    plt.subplot(413)
-    cnt = 0
-    for name, label in var_names[0][2].items():
-        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
-                 c=cmap(sig_clrs[cnt]), lw=lw)
-        cnt += 1
-    leg = plt.legend(loc="upper left")
-    leg.get_frame().set_alpha(0.7)
-    
-    # corr,corr_l,lam
-    plt.subplot(414)
-    # previous versions did not have a hypervariable rho_p, so rho is plotted
-
-    cnt = 0
-    for name, label in var_names[0][3].items():
-        plt.plot(db.trace(name, chain=None)[:], label="trace of "+label,
-                 c=cmap(corr_lam_clrs[cnt]), lw=lw)
-        cnt += 1
-    leg = plt.legend(loc="upper left")
-    leg.get_frame().set_alpha(0.7)
+                     c=cmap(clrs_list[ii][cnt]), lw=lw)
+            cnt += 1
+        leg = plt.legend(loc="upper left")
+        leg.get_frame().set_alpha(0.7)
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -141,7 +106,41 @@ def plot_traces(db=db):
     ##### Convergence tests #####
 
     # Geweke
-    # scores = pm.geweke(db.trace("f_a1", chain=None)[:])
+    f, axarr = plt.subplots(len(var_names[0]), sharex=True)
+    axarr[0].set_title('Geweke Plots')
+    axarr[0].hold(True)
+    for ii in range(len(var_names[0])):
+        cnt = 0
+        ymax = 0
+        ymin = 0
+        for name, label in var_names[0][ii].items():
+            scores = pm.geweke(db.trace(name, chain=None)[:])
+            x, y = np.transpose(scores)
+            axarr[ii].scatter(x.tolist(), y.tolist(), label=label, 
+                        c=cmap(clrs_list[ii][cnt]))
+            ymax = max(ymax, np.max(y))
+            ymin = min(ymin, np.min(y))
+            cnt += 1
+        # Legend
+        leg = axarr[ii].legend(loc="upper left",prop={'size':9})
+        leg.get_frame().set_alpha(0.7)
+        # Labels
+        axarr[ii].set_ylabel('Z-score')
+        # Plot lines at +/- 2 std from zero
+        axarr[ii].plot((np.min(x), np.max(x)), (2, 2), '--')
+        axarr[ii].plot((np.min(x), np.max(x)), (-2, -2), '--')
+        # Plot bounds
+        axarr[ii].set_ylim(min(-2.5, ymin), max(2.5, ymax))
+        axarr[ii].set_xlim(0, np.max(x))
+    axarr[-1].set_xlabel('First iteration')
+
+    plt.hold(False)
+    if not os.path.exists(path):
+        os.mkdir(path)
+    if not path.endswith('/'):
+        path += '/'
+    plt.savefig("{}.{}".format(path+'_Geweke',format),dpi=200)
+    plt.draw()
 
 
 
