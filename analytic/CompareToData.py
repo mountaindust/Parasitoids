@@ -342,14 +342,6 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         data.append(this_data)
         model.append(this_model)
 
-    # The model is for population density while the data is for observations.
-    #   We assume the data is Poisson. Estimate the unknown parameter based on
-    #   the modeled density.
-    lam = []
-    for n in range(len(data)):
-        assert np.min(model[n]) != 0
-        lam.append(np.mean(data[n]/model[n]))
-
     #### Generate 3d plots showing the model density surface and the data ####
     # Pull out grid domain info for plotting
     xmax = np.fabs(locinfo.grid_data[['xcoord','ycoord']].values[:,0]).max()
@@ -375,7 +367,6 @@ def assess_fit(modelsol,params,locinfo,bw=False):
     # bar colors
     c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*2+2)
     c_nums = c_nums[1:-1]
-    c_nums = c_nums[::2]
 
     # surface default color
     default_cmap = cm.get_cmap('Oranges')
@@ -394,14 +385,12 @@ def assess_fit(modelsol,params,locinfo,bw=False):
     # plot labels
     labels = ['a)','b)','c)']
 
+    all_xcoord = locinfo.grid_data['xcoord'].values
+    all_ycoord = locinfo.grid_data['ycoord'].values
     fig = plt.figure(figsize=(16,6),dpi=100)
     for day, date in enumerate(locinfo.grid_obs_datesPR):
         # get the non-zero observations on this day
         date_rows = locinfo.grid_obs_DataFrame['datePR'] == date
-        # color bars according to height
-        clr_list = []
-        for obs in locinfo.grid_obs_DataFrame[date_rows]['obs_count']:
-            clr_list.append(c_nums[obs-1])
 
         ax = fig.add_subplot(1,len(obs_days),day+1,projection='3d')
         model_grid = modelsol[day][center-ycellrad:center+ycellrad+1,
@@ -417,6 +406,30 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         #   wasps/25 m**2, make this wasps/10 m**2. This will set the clip to
         #   8 wasps/10 m**2 (50*10**2/25**2)
         model_grid /= 6.25
+
+        # bars with no height
+        ax.bar3d(all_xcoord, all_ycoord, np.zeros(ngridpoints), res, res, 0)
+        ### bars with height ###
+        xcoords = locinfo.grid_obs_DataFrame[date_rows]['xcoord'].values
+        ycoords = locinfo.grid_obs_DataFrame[date_rows]['ycoord'].values
+        scaling = np.zeros_like(xcoords)
+        # get sampling effort for these coordinates
+        n = 0
+        for xcoord, ycoord in zip(xcoords,ycoords):
+            scaling[n] = locinfo.grid_data[(locinfo.grid_data['xcoord']==xcoord)
+                         & (locinfo.grid_data['ycoord']==ycoord)]['samples']
+            scaling[n] /= locinfo.grid_data['samples'].max()
+            n += 1
+        # color bars according to height
+        clr_list = []
+        for n,obs in enumerate(locinfo.grid_obs_DataFrame[date_rows]['obs_count']):
+            clr_list.append(c_nums[int(obs*scaling[n]*2-1)])
+
+        ax.bar3d(xcoords,ycoords,
+                 np.zeros(locinfo.grid_obs_DataFrame[date_rows].shape[0]),
+                 res, res,
+                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values*scaling,
+                 color=base_clrmp(clr_list),label='Data')
 
         # color the facets like the bars, using a color not in viridis where
         #   there is no bar.
@@ -443,18 +456,6 @@ def assess_fit(modelsol,params,locinfo,bw=False):
 
         ax.plot_surface(xmeshgrid,ymeshgrid,model_grid,facecolors=facet_clrs,
                         rstride=1,cstride=1,alpha=0.35,shade=True,label='Model')
-
-        # bars with no height
-        ax.bar3d(locinfo.grid_data['xcoord'].values,
-                 locinfo.grid_data['ycoord'].values,
-                 np.zeros(ngridpoints), res, res, 0)
-        ### bars with height ###
-        ax.bar3d(locinfo.grid_obs_DataFrame[date_rows]['xcoord'].values,
-                 locinfo.grid_obs_DataFrame[date_rows]['ycoord'].values,
-                 np.zeros(locinfo.grid_obs_DataFrame[date_rows].shape[0]),
-                 res, res,
-                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values,
-                 color=base_clrmp(clr_list),label='Data')
         ax.set_xlabel('West-East (meters)',fontsize=16)
         ax.set_ylabel('South-North (meters)',fontsize=16)
         ax.set_zlabel(r'Wasps/10 m$^2$',fontsize=16)
