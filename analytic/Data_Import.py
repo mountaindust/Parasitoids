@@ -1,7 +1,7 @@
 '''This module imports all data (except wind data) and stores it in LocInfo
 
-Author: Christopher Strickland  
-Email: cstrickland@samsi.info 
+Author: Christopher Strickland
+Email: cstrickland@samsi.info
 '''
 
 import time, math
@@ -32,7 +32,7 @@ class LocInfo(object):
         release_DataFrames: list of sample days, (row,column,xcoord,ycoord,
                                                   datePR,E_total,All_total)
         emerg_grids: list of (row,col) lists, grid pts used in emerg collection
-        
+
         ### Release field grid observation data ###
         grid_obs_DataFrame: DataFrame (xcoord,ycoord,datePR,obs_count)
         grid_obs_datesPR: list of obs dates PR (Timedelta)
@@ -49,19 +49,19 @@ class LocInfo(object):
         release_emerg: list of arrays
         release_collection: list of arrays, relative collection effort
         sentinel_emerg: list of arrays'''
-    
+
     def __init__(self,location,release_latlong,domain_info):
         '''
-        Args: 
+        Args:
             location: required string giving the location name.
-                        All data files must be stored in ./data with the proper 
+                        All data files must be stored in ./data with the proper
                         naming convention (see below)
             release_latlong: lat/long coord of the release point
             domain_info: Run.Params.domain_info
         '''
-        
+
         ##### Import sentinal field locations from text file #####
-        # Field labels should match those used in the emergence data 
+        # Field labels should match those used in the emergence data
         self.field_polys = LocInfo.get_fields('./data/'+location+'fields.txt',
             release_latlong) # this is a dict. keys are field labels
         ## ## Remove furthest field ## ##
@@ -72,7 +72,7 @@ class LocInfo(object):
         self.field_sizes = {}
         for key,val in self.field_cells.items():
             self.field_sizes[key] = max(val.shape)
-                
+
         ##### Import and parse full release field grid information #####
         #   What this looks like depends on your data. See implementation of
         #       self.get_release_grid for details.
@@ -82,23 +82,37 @@ class LocInfo(object):
         #       samples: sampling effort at each point via direct observation
         #       collection: collection effort at each point (for emergence)
         self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
+        # Get an outline of this grid for plotting later# find corners of the grid
+        xmax = self.grid_data['xcoord'].max() + 50
+        xmin = self.grid_data['xcoord'].min() - 50
+        ymax = self.grid_data['ycoord'].max() + 50
+        ymin = self.grid_data['ycoord'].min() - 50
+        self.grid_boundary = np.array([np.linspace(xmin,xmax),ymax*np.ones(50)])
+        self.grid_boundary = np.concatenate((self.grid_boundary,
+            np.array([np.linspace(xmin,xmax),ymin*np.ones(50)])),axis=1)
+        self.grid_boundary = np.concatenate((self.grid_boundary,
+            np.array([xmin*np.ones(50),np.linspace(ymin,ymax)])),axis=1)
+        self.grid_boundary = np.concatenate((self.grid_boundary,
+            np.array([xmax*np.ones(50),np.linspace(ymin,ymax)])),axis=1)
+
         ### The grid needs to be rotated so that it aligns with a nearby road
         theta = -33/180*math.pi
         rot_mat = np.array([[math.cos(theta),-math.sin(theta)],
                             [math.sin(theta), math.cos(theta)]])
         for n,xy in enumerate(self.grid_data[['xcoord','ycoord']].values):
             self.grid_data.loc[n:n+1,('xcoord','ycoord')] = rot_mat@xy
+        self.grid_boundary = rot_mat@self.grid_boundary
         #####
         ### Get row/column indices from xcoord and ycoord in grid_data
         res = domain_info[0]/domain_info[1] # cell length in meters
         self.grid_cells = np.array([-self.grid_data['ycoord'].values,
                                     self.grid_data['xcoord'].values])
-        self.grid_cells = (np.around(self.grid_cells/res) + 
+        self.grid_cells = (np.around(self.grid_cells/res) +
                             domain_info[1]).T.astype(int)
         # self.grid_cells is now: col 0 = row index, col 1 = col index
-        
+
         ##### Import and parse sentinel field emergence data #####
-        #   What this section looks like will be highly dependent on the 
+        #   What this section looks like will be highly dependent on the
         #       particulars of your dataset - every dataset is different.
         #       Fire up pandas in an ipython notebook and play with your data
         #       until you have what you need. Then put that procedure in the
@@ -112,7 +126,7 @@ class LocInfo(object):
         #####
         ### Get ordered list of sentinel field ids
         ### Assume all sentinel fields were used in each collection
-        
+
         self.sent_ids = list(self.sent_DataFrames[0]['id'].unique())
 
         ##### Import and parse release field emergence data #####
@@ -180,7 +194,7 @@ class LocInfo(object):
         #       self.step_size
         self.get_card_observations(location)
         #####
-        ### Sort each DataFrame and form a data structure that can be compared 
+        ### Sort each DataFrame and form a data structure that can be compared
         ### to popdensity_grid
         self.card_obs = []
         for dframe in self.card_obs_DataFrames:
@@ -196,7 +210,7 @@ class LocInfo(object):
             card_obs[2,:east.size] = east
             card_obs[3,:west.size] = west
             self.card_obs.append(card_obs)
-                                        
+
         ##### Gather data in a form that can be quickly compared to the #####
         #####   output of popdensity_to_emergence                       #####
         # Want three lists: release emerg, collection effort, sentinel emerg
@@ -247,39 +261,39 @@ class LocInfo(object):
         form of lists of vertices, the locations of which are given in x,y
         coordinates away from the release point. This function then returns a dict
         of matplotlib Path objects which allow point testing for inclusion.
-    
+
         Args:
             filename: file name to open
             center: lat/long coord of the release point
-        
+
         Returns:
             polys: dict of Path objects'''
-    
+
         def latlong_tocoord(center,lat,long):
             '''Translate a lat/long coordinate into an (x,y) coordinate pair where
             center is the origin.
-        
+
             Args:
                 center: subscritable lat/long location of the origin
                 lat: latitude to translate
                 long: longitude to translate
-            
+
             Returns:
                 (x,y): x,y coordinate from center, in meters'''
-            
+
             R = 6378100 #Radius of the Earth in meters at equator
-        
+
             o_lat = math.radians(center[0]) #origin lat in radians
             o_long = math.radians(center[1]) #origin long in radians
             lat = math.radians(lat)
             long = math.radians(long)
-        
+
             # Equirectangular approximation
             x = R*(long-o_long)*math.cos((o_lat+lat)/2)
             y = R*(lat-o_lat)
-        
+
             return (x,y)
-    
+
         polys = {}
         with open(filename,'r') as f:
             verts = []
@@ -307,7 +321,7 @@ class LocInfo(object):
                         id = line
                     else:
                         vals = line.split(',')
-                    
+
                         verts.append(latlong_tocoord(
                                     center,float(vals[0]),float(vals[1])))
                         if len(codes) == 0:
@@ -319,23 +333,23 @@ class LocInfo(object):
             verts.append((0.,0.)) # ignored
             codes.append(Path.CLOSEPOLY)
             polys[id] = Path(verts,codes)
-        
+
         return polys
-    
- 
-    
+
+
+
     @staticmethod
     def get_field_cells(polys,domain_info):
         '''Get a dict of lists of cell indices that represent each field.
-    
+
         Args:
             polys: Dict of Path objects representing each field
             domain_info: (dist (m), cells) from release point to side of domain
                             (as in the Run.Params class)
-                        
+
         Returns:
             fields: dict containing lists (fields) cells indices'''
-    
+
         fields = {}
         res = domain_info[0]/domain_info[1] #cell resolution
         # construct a list of all x,y coords (in meters) for the center of each cell
@@ -348,23 +362,23 @@ class LocInfo(object):
             fields[id] = np.argwhere(
                 poly.contains_points(centers).reshape(
                 domain_info[1]*2+1,domain_info[1]*2+1))
-    
+
         # fields is row,col information assuming the complete domain.
         return fields
-        
-            
-    
-    @staticmethod            
+
+
+
+    @staticmethod
     def get_release_grid(filename):
         '''Read in data on the release field's grid and sampling effort.
         This will need to be edited depending on what your data looks like.
         Data is expected to contain info about the data collection points in the
             release field. Something in the other loaded columns needs to give
-            an indication of the sampling (direct observation) effort, to be 
-            parsed and stored in self.grid_samples, and the collection 
-            (for later emergence) effort, to be parsed and stored in 
+            an indication of the sampling (direct observation) effort, to be
+            parsed and stored in self.grid_samples, and the collection
+            (for later emergence) effort, to be parsed and stored in
             self.grid_collection.
-            
+
         Returns:
             DataFrame with the following columns:
                 xcoord: distance east from release point in meters
@@ -372,7 +386,7 @@ class LocInfo(object):
                 samples: sampling effort at each point via direct observation
                 collection: collection effort at each point (for emergence)
         '''
-        
+
         grid_data = []
         with open(filename,'r') as f:
             for line in f:
@@ -392,15 +406,15 @@ class LocInfo(object):
         # if no data is missing, this will have dim=2
         assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
             'Likely, a line in {} is incomplete.'.format(filename)
-            
+
         # column 2 and 3 are redundant for our purposes
         grid_data = np.delete(grid_data,2,axis=1)
-        
+
         # Convert to pandas dataframe
         grid_info = pd.DataFrame(grid_data,
                             columns=['xcoord','ycoord','samples','collection'])
         return grid_info
-        
+
     def get_sentinel_emergence(self,location):
         '''Get data relating to sentinel field emergence observations.
         This implementation will need to change completely according to the
@@ -423,7 +437,7 @@ class LocInfo(object):
                          field/collection)
         BE SURE TO SORT EACH DATAFRAME AND RESET THE INDICES BEFORE RETURNING!
         '''
-        
+
         if location == 'kalbar':
             # location of data excel file
             data_loc = 'data/sampling_details.xlsx'
@@ -438,14 +452,14 @@ class LocInfo(object):
             #self.collection_dates = [pd.Timestamp('2005-05-31')]
             # initialize list of sentinel emergence DataFrames
             self.sent_DataFrames = []
-            
+
             ### Pandas
             # load the sentinel fields sheet
             sentinel_fields_data = pd.read_excel(
                                     data_loc,sheetname='Kal-sentinels-raw')
             # rename the headings with spaces in them
             sentinel_fields_data.rename(
-                    columns={"Field descrip":"descrip","date emerged":"date", 
+                    columns={"Field descrip":"descrip","date emerged":"date",
                             "Field ID (jpgs)": "id",
                             "Field ID (paper)":"paperid"}, inplace=True)
             sentinel_fields_data.drop('descrip',1,inplace=True)
@@ -463,21 +477,21 @@ class LocInfo(object):
             # get the dates post-release
             sentinel_fields_data['datePR'] = \
                         sentinel_fields_data['date'] - self.release_date
-            
+
             ### Sort DataFrame
             sentinel_fields_data.sort_values(['datePR','id'],inplace=True)
             sentinel_fields_data.reset_index(inplace=True,drop=True)
-                                    
+
             ## ## Remove furthest field ## ##
             # sentinel_fields_data = sentinel_fields_data[
                                     # sentinel_fields_data['id'] != 'G']
-            
+
             ### Store DataFrame in list
             self.sent_DataFrames.append(sentinel_fields_data)
-            
+
         else:
             raise NotImplementedError
-        
+
     def get_releasefield_emergence(self,location):
         '''Get data relating to release field emergence observations.
         This implementation will need to change completely according to the
@@ -502,7 +516,7 @@ class LocInfo(object):
                         (this could later be summed to obtain emergences per
                          field/collection)
         '''
-        
+
         if location == 'kalbar':
             # location of data excel file
             data_loc = 'data/sampling_details.xlsx'
@@ -510,7 +524,7 @@ class LocInfo(object):
             self.releasefield_id = 'A'
             # initialize list of sentinel emergence DataFrames
             self.release_DataFrames = []
-            
+
             ### Pandas
             # load the sentinel fields sheet
             release_field_data = pd.read_excel(
@@ -533,15 +547,15 @@ class LocInfo(object):
                 release_field_data[['Efemales','Emales']].sum(axis=1)
             release_field_data['datePR'] = \
                 release_field_data['date emerged'] - self.release_date
-            
+
             ### Remove origin collection data (not well defined)
             release_field_data = release_field_data[\
                 (release_field_data['xcoord'] != 0) & \
                 (release_field_data['ycoord'] != 0)]
-                
+
             ### Store DataFrame in list
             self.release_DataFrames.append(release_field_data)
-            
+
         else:
             raise NotImplementedError
 
@@ -573,7 +587,7 @@ class LocInfo(object):
             # load the grid adult counts sheet
             grid_obs = pd.read_excel(data_loc,sheetname='adult counts field A')
             # rename the headings with spaces in them
-            grid_obs.rename(columns={"x coor":"x","y coor":"y", 
+            grid_obs.rename(columns={"x coor":"x","y coor":"y",
                                      "num leaves viewed": "leaves",
                                      "num hayati":"obs_count"}, inplace=True)
             # we don't really care about the leaf num columns

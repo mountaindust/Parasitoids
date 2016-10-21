@@ -5,7 +5,7 @@ publication quality figures.
 
 import argparse
 import numpy as np
-from scipy import sparse
+from scipy import sparse, stats
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -23,6 +23,8 @@ parser.add_argument("filename",
     help="path to model output that should be compared to data")
 parser.add_argument("--bw", help="plot in black/white", action="store_true")
 parser.add_argument("-b","--banner",help="plot banner figure",
+    action="store_true")
+parser.add_argument("-a","--assess",help="assess model fit to grid obs",
     action="store_true")
 
 
@@ -47,23 +49,23 @@ def main(modelsol,params,locinfo,bw=False):
     TODO: This function should also spit out R**2 values for the model densities
     at grid points compared to observed adult counts on the three days this data
     was collected.
-    
+
     Args:
         modelsol: list of daily solutions, sparse
         params: Params object from Run.py
         locinfo: LocInfo object from Data_Import.py
         bw: set this to something not None for b/w
         '''
-        
+
     # Compare both release field and sentinel fields
     allfields_ids = [locinfo.releasefield_id]
     allfields_ids.extend(locinfo.sent_ids)
-    
+
     # if multiple collections were made for emergence, just compare results for
     #   the first one.
     sent_col_num = 0
     grid_col_num = 0
-    
+
     ##### Gather sentinal fields data #####
     dframe = locinfo.sent_DataFrames[0]
     collection_date = locinfo.collection_datesPR[0].days
@@ -76,7 +78,7 @@ def main(modelsol,params,locinfo,bw=False):
     dframe_rel = locinfo.release_DataFrames[0]
     obs_rel_dates_TD = dframe_rel['datePR'].unique()
     obs_rel_datesPR = dframe_rel['datePR'].map(lambda t: t.days).unique()
-    
+
     # set up emergence array - rows are fields, columns are emergence dates
     obs_emerg_array = np.zeros((len(allfields_ids),
                     max(obs_datesPR[-1],obs_rel_datesPR[-1])-collection_date+1))
@@ -88,9 +90,9 @@ def main(modelsol,params,locinfo,bw=False):
     for n,obs_date in enumerate(obs_dates_TD):
         obs_emerg_array[1:,obs_datesPR[n]-collection_date] = \
             dframe[dframe['datePR'] == obs_date]['E_total'].values
-    # now obs_emerg_array can be directy compared to a projection of emergence 
+    # now obs_emerg_array can be directy compared to a projection of emergence
     #   in each field on the same day PR
-    
+
     ##### Calculate the density of wasps in each field on each day #####
     # Get the size of each cell in m**2
     cell_dist = params.domain_info[0]/params.domain_info[1]
@@ -98,7 +100,7 @@ def main(modelsol,params,locinfo,bw=False):
     field_sizes_m = {}
     for key,val in locinfo.field_sizes.items():
         field_sizes_m[key] = val*cell_size
-    # Collect the number of wasps in each field on each day up to 
+    # Collect the number of wasps in each field on each day up to
     #   collection_date and calculate the wasps' density
     model_field_densities = np.zeros((len(allfields_ids),collection_date))
     for day in range(collection_date):
@@ -127,21 +129,26 @@ def main(modelsol,params,locinfo,bw=False):
         obs_emerg_array = np.pad(obs_emerg_array,
             ((0,0),(0,proj_emerg_densities.shape[1]-obs_emerg_array.shape[1])),
             'constant')
-    
-            
+
+
     ##### Plot comparison #####
-    # The first two columns can be stills of the model at 3, 6, 9 and 
+    # The first two columns can be stills of the model at 3, 6, 9 and
     #   19 days PR, corresponding to data collection days. The last column
     #   should be two 3D histograms with the above data.
-    plot_days = [1,4,7,17] # 0 = 2 day PR b/c model starts 1 day late and 
+    plot_days = [1,4,7,17] # 0 = 2 day PR b/c model starts 1 day late and
                            #    counts by end-of-days
+    locinfo_dates = []
+    for date in locinfo.grid_obs_datesPR:
+        locinfo_dates.append(date.days-1)
+    assert plot_days[:3] == locinfo_dates, 'Incorrect plot days!'
+
     subplots = [231,234,232,235]
     sp3d = [233,236]
     labels = ['a)','b)','c)','d)','e)','f)']
-    
+
     # assume domain is square, probably odd.
     midpt = params.domain_info[1]
-    
+
     ax1 = []
     fig = plt.figure(figsize=(16,9),dpi=100)
     ## Plot model result maps ##
@@ -178,7 +185,7 @@ def main(modelsol,params,locinfo,bw=False):
         if sat_img is None:
             if bw is False: #color
                 pc = ax1[ii].pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmin=mask_val,
-                                   vmax=sprd_max,alpha=1)             
+                                   vmax=sprd_max,alpha=1)
             else: #black and white
                 pc = ax1[ii].pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
                                    vmin=mask_val,vmax=sprd_max,alpha=1)
@@ -234,7 +241,7 @@ def main(modelsol,params,locinfo,bw=False):
         # cbar = fig.colorbar(pc,cax=ax)
         # cbar.solids.set_edgecolor("face")
         # cbar.set_label('Wasps per cell')
-        
+
         # label plots
         ax1[ii].text(0.01,0.95,labels[ii],color='w',ha='left',va='center',
                 transform=ax1[ii].transAxes,fontsize=18)
@@ -242,12 +249,12 @@ def main(modelsol,params,locinfo,bw=False):
         ax1[ii].xaxis.set_tick_params(labelsize=14)
         ax1[ii].yaxis.set_tick_params(labelsize=14)
         ## Finish plotting model maps ##
-    
+
     # Lay out histograms relative to distance from release
     zcoord = [0,300,550,850,2000,2900,3500]
     majorLocator = MultipleLocator(4)
     minorLocator = MultipleLocator(2)
-    
+
     ## Plot sentinel field data and model ##
     emerg_dates = np.arange(collection_date,
                             collection_date+proj_emerg_densities.shape[1])
@@ -279,11 +286,11 @@ def main(modelsol,params,locinfo,bw=False):
         # set label sizes
         ax2[ii].yaxis.set_tick_params(labelsize=14)
         ax2[ii].zaxis.set_tick_params(labelsize=14)
-        
+
         # label plots
         ax2[ii].text2D(0.01,0.95,labels[ii+4],color='k',ha='left',va='center',
                 transform=ax2[ii].transAxes,fontsize=18)
-        
+
     plt.tight_layout(pad=0.25)
     # adjust size and position of the 3D plots
     for ii in range(len(sp3d)):
@@ -296,29 +303,194 @@ def main(modelsol,params,locinfo,bw=False):
         pos2 = [pos1.x0+0.01, pos1.y0, pos1.width, pos1.height]
         ax1[ii].set_position(pos2)
     plt.show()
-        
-        
-        
-def banner(modelsol,params,locinfo,bw=False):
-    '''Compare model results to data, as contained in locinfo, but give a
-    simplified banner plot, e.g. for a research statement.
-    
+
+
+
+def assess_fit(modelsol,params,locinfo,bw=False):
+    '''Compare model results to observation data, as contained in locinfo,
+    and return plots and statistics assessing the model's fit to data
+
     Args:
         modelsol: list of daily solutions, sparse
         params: Params object from Run.py
         locinfo: LocInfo object from Data_Import.py
         bw: set this to something not None for b/w
-        '''
-        
+    '''
+
+    # Assess the model at data collection days.
+    obs_days = []
+    for date in locinfo.grid_obs_datesPR:
+        obs_days.append(date.days-1)
+
+    # Collect model pop numbers on the grid for each observation day
+    grid_counts = Bayes_funcs.popdensity_grid(modelsol,locinfo)
+
+    # Separate out model and data for different collection efforts
+    # Assume that the same effort distribution was used each collection day
+    efforts, counts = np.unique(locinfo.grid_samples[:,0],return_counts=True)
+    data = []
+    model = []
+    for eff,cnt in zip(efforts,counts):
+        this_data = np.zeros((cnt,len(obs_days)))
+        this_model = np.zeros((cnt,len(obs_days)))
+        n = 0
+        for ii,this_effort in enumerate(locinfo.grid_samples[:,0]):
+            if this_effort == eff:
+                this_data[n,:] = locinfo.grid_obs[ii,:]
+                this_model[n,:] = grid_counts[ii,:]
+                n += 1
+        data.append(this_data)
+        model.append(this_model)
+
+    # The model is for population density while the data is for observations.
+    #   We assume the data is Poisson. Estimate the unknown parameter based on
+    #   the modeled density.
+    lam = []
+    for n in range(len(data)):
+        assert np.min(model[n]) != 0
+        lam.append(np.mean(data[n]/model[n]))
+
+    #### Generate 3d plots showing the model density surface and the data ####
+    # Pull out grid domain info for plotting
+    xmax = np.fabs(locinfo.grid_data[['xcoord','ycoord']].values[:,0]).max()
+    ymax = np.fabs(locinfo.grid_data[['xcoord','ycoord']].values[:,1]).max()
+    # We assume this is more or less centered around the origin. Add padding.
+    xmax *= 1.2
+    ymax *= 1.2
+    # Model resolution and center
+    res = params.domain_info[0]/params.domain_info[1]
+    center = params.domain_info[1]
+    # Cell extents in x and y direction
+    xcellrad = np.ceil(xmax/res)
+    ycellrad = np.ceil(ymax/res)
+    # Meshes
+    xmesh = np.arange(0,xmax+res,res)
+    xmesh = np.concatenate((-xmesh[:0:-1],xmesh))
+    ymesh = np.arange(0,ymax+res,res)
+    ymesh = np.concatenate((-ymesh[:0:-1],ymesh))
+    ymesh = ymesh[::-1]
+    xmeshgrid, ymeshgrid = np.meshgrid(xmesh,ymesh)
+    ngridpoints = locinfo.grid_data.shape[0]
+
+    # bar colors
+    c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*2+2)
+    c_nums = c_nums[1:-1]
+    c_nums = c_nums[::2]
+
+    # surface default color
+    default_cmap = cm.get_cmap('Oranges')
+    default_clr = default_cmap(0.45)
+
+    # find grid boundary cells
+    bndry_cells = np.zeros_like(xmeshgrid)
+    for x, y in locinfo.grid_boundary.T:
+        ii = np.argmin(np.abs(ymesh - y))
+        jj = np.argmin(np.abs(xmesh - x))
+        bndry_cells[ii,jj] += 1
+
+    # grid boundary color
+    bndry_clr = default_cmap(0.2)
+
+    # plot labels
+    labels = ['a)','b)','c)']
+
+    fig = plt.figure(figsize=(16,6),dpi=100)
+    for day, date in enumerate(locinfo.grid_obs_datesPR):
+        # get the non-zero observations on this day
+        date_rows = locinfo.grid_obs_DataFrame['datePR'] == date
+        # color bars according to height
+        clr_list = []
+        for obs in locinfo.grid_obs_DataFrame[date_rows]['obs_count']:
+            clr_list.append(c_nums[obs-1])
+
+        ax = fig.add_subplot(1,len(obs_days),day+1,projection='3d')
+        model_grid = modelsol[day][center-ycellrad:center+ycellrad+1,
+                                   center-xcellrad:center+xcellrad+1].toarray()
+        # the middle point (and possibly some adjacent points) will be far
+        #   larger than other locations. clip these.
+        clipval = 50
+        for ii in range(model_grid.shape[0]):
+            for jj in range(model_grid.shape[1]):
+                if model_grid[ii,jj] > clipval:
+                    model_grid[ii,jj] = clipval
+        # Now scale so that the bar heights will be visible. Scale is currently
+        #   wasps/25 m**2, make this wasps/10 m**2. This will set the clip to
+        #   8 wasps/10 m**2 (50*10**2/25**2)
+        model_grid /= 6.25
+
+        # color the facets like the bars, using a color not in viridis where
+        #   there is no bar.
+        facet_clrs = np.empty_like(xmeshgrid,dtype=object)
+        for ii,x in enumerate(xmesh):
+            for jj,y in enumerate(ymesh):
+                xlow = x-res/2
+                xhigh = x+res/2
+                ylow = y-res/2
+                yhigh = y+res/2
+                for row in locinfo.grid_obs_DataFrame[date_rows].iterrows():
+                    if xlow <= row[1]['xcoord'] < xhigh and\
+                            ylow <= row[1]['ycoord'] < yhigh and\
+                            facet_clrs[jj,ii] is None:
+                        facet_clrs[jj,ii] = base_clrmp(c_nums[
+                            row[1]['obs_count']-1])
+                if facet_clrs[jj,ii] is None:
+                    # check for grid boundary, color it different
+                    if bndry_cells[jj,ii] > 0:
+                        facet_clrs[jj,ii] = bndry_clr
+                if facet_clrs[jj,ii] is None:
+                    # assign default color
+                    facet_clrs[jj,ii] = default_clr
+
+        ax.plot_surface(xmeshgrid,ymeshgrid,model_grid,facecolors=facet_clrs,
+                        rstride=1,cstride=1,alpha=0.35,shade=True,label='Model')
+
+        # bars with no height
+        ax.bar3d(locinfo.grid_data['xcoord'].values,
+                 locinfo.grid_data['ycoord'].values,
+                 np.zeros(ngridpoints), res, res, 0)
+        ### bars with height ###
+        ax.bar3d(locinfo.grid_obs_DataFrame[date_rows]['xcoord'].values,
+                 locinfo.grid_obs_DataFrame[date_rows]['ycoord'].values,
+                 np.zeros(locinfo.grid_obs_DataFrame[date_rows].shape[0]),
+                 res, res,
+                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values,
+                 color=base_clrmp(clr_list),label='Data')
+        ax.set_xlabel('West-East (meters)',fontsize=16)
+        ax.set_ylabel('South-North (meters)',fontsize=16)
+        ax.set_zlabel(r'Wasps/10 m$^2$',fontsize=16)
+        # set view
+        ax.view_init(24,-41)
+        # add label
+        ax.text2D(0.05,0.95,labels[day],color='k',ha='left',va='center',
+                transform=ax.transAxes,fontsize=18)
+        if day == 1:
+            ax.set_title('Model vs.\n parasitoid observation data',fontsize=18)
+
+    plt.tight_layout(pad=1)
+    plt.show()
+
+
+
+def banner(modelsol,params,locinfo,bw=False):
+    '''Compare model results to data, as contained in locinfo, but give a
+    simplified banner plot, e.g. for a research statement.
+
+    Args:
+        modelsol: list of daily solutions, sparse
+        params: Params object from Run.py
+        locinfo: LocInfo object from Data_Import.py
+        bw: set this to something not None for b/w
+    '''
+
     # Compare both release field and sentinel fields
     allfields_ids = [locinfo.releasefield_id]
     allfields_ids.extend(locinfo.sent_ids)
-    
+
     # if multiple collections were made for emergence, just compare results for
     #   the first one.
     sent_col_num = 0
     grid_col_num = 0
-    
+
     ##### Gather sentinal fields data #####
     dframe = locinfo.sent_DataFrames[0]
     collection_date = locinfo.collection_datesPR[0].days
@@ -331,7 +503,7 @@ def banner(modelsol,params,locinfo,bw=False):
     dframe_rel = locinfo.release_DataFrames[0]
     obs_rel_dates_TD = dframe_rel['datePR'].unique()
     obs_rel_datesPR = dframe_rel['datePR'].map(lambda t: t.days).unique()
-    
+
     # set up emergence array - rows are fields, columns are emergence dates
     obs_emerg_array = np.zeros((len(allfields_ids),
                     max(obs_datesPR[-1],obs_rel_datesPR[-1])-collection_date+1))
@@ -343,9 +515,9 @@ def banner(modelsol,params,locinfo,bw=False):
     for n,obs_date in enumerate(obs_dates_TD):
         obs_emerg_array[1:,obs_datesPR[n]-collection_date] = \
             dframe[dframe['datePR'] == obs_date]['E_total'].values
-    # now obs_emerg_array can be directy compared to a projection of emergence 
+    # now obs_emerg_array can be directy compared to a projection of emergence
     #   in each field on the same day PR
-    
+
     ##### Calculate the density of wasps in each field on each day #####
     # Get the size of each cell in m**2
     cell_dist = params.domain_info[0]/params.domain_info[1]
@@ -353,7 +525,7 @@ def banner(modelsol,params,locinfo,bw=False):
     field_sizes_m = {}
     for key,val in locinfo.field_sizes.items():
         field_sizes_m[key] = val*cell_size
-    # Collect the number of wasps in each field on each day up to 
+    # Collect the number of wasps in each field on each day up to
     #   collection_date and calculate the wasps' density
     model_field_densities = np.zeros((len(allfields_ids),collection_date))
     for day in range(collection_date):
@@ -382,21 +554,21 @@ def banner(modelsol,params,locinfo,bw=False):
         obs_emerg_array = np.pad(obs_emerg_array,
             ((0,0),(0,proj_emerg_densities.shape[1]-obs_emerg_array.shape[1])),
             'constant')
-            
-            
+
+
     ##### Plot comparison #####
-    # The first two columns can be stills of the model at 3, 6, 9 and 
+    # The first two columns can be stills of the model at 3, 6, 9 and
     #   19 days PR, corresponding to data collection days. The last column
     #   should be two 3D histograms with the above data.
-    plot_days = [1,4,7] # 0 = 2 day PR b/c model starts 1 day late and 
+    plot_days = [1,4,7] # 0 = 2 day PR b/c model starts 1 day late and
                            #    counts by end-of-days
     subplots = [141,142,143]
     sp3d = [144]
     labels = ['a)','b)','c)','d)']
-    
+
     # assume domain is square, probably odd.
     midpt = params.domain_info[1]
-    
+
     ax1 = []
     fig = plt.figure(figsize=(18,4.5),dpi=100)
     ## Plot model result maps ##
@@ -433,7 +605,7 @@ def banner(modelsol,params,locinfo,bw=False):
         if sat_img is None:
             if bw is False: #color
                 pc = ax1[ii].pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmin=mask_val,
-                                   vmax=sprd_max,alpha=1)             
+                                   vmax=sprd_max,alpha=1)
             else: #black and white
                 pc = ax1[ii].pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
                                    vmin=mask_val,vmax=sprd_max,alpha=1)
@@ -489,7 +661,7 @@ def banner(modelsol,params,locinfo,bw=False):
         # cbar = fig.colorbar(pc,cax=ax)
         # cbar.solids.set_edgecolor("face")
         # cbar.set_label('Wasps per cell')
-        
+
         # label plots
         ax1[ii].text(0.01,0.95,labels[ii],color='w',ha='left',va='center',
                 transform=ax1[ii].transAxes,fontsize=18)
@@ -497,12 +669,12 @@ def banner(modelsol,params,locinfo,bw=False):
         ax1[ii].xaxis.set_tick_params(labelsize=14)
         ax1[ii].yaxis.set_tick_params(labelsize=14)
         ## Finish plotting model maps ##
-    
+
     # Lay out histograms relative to distance from release
     zcoord = [0,300,550,850,2000,2900,3500]
     majorLocator = MultipleLocator(4)
     minorLocator = MultipleLocator(2)
-    
+
     ## Plot sentinel field data and model ##
     emerg_dates = np.arange(collection_date,
                             collection_date+proj_emerg_densities.shape[1])
@@ -527,11 +699,11 @@ def banner(modelsol,params,locinfo,bw=False):
         # set label sizes
         ax2[ii].yaxis.set_tick_params(labelsize=14)
         ax2[ii].zaxis.set_tick_params(labelsize=14)
-        
+
         # label plots
         ax2[ii].text2D(0.01,0.95,labels[ii+3],color='k',ha='left',va='center',
                 transform=ax2[ii].transAxes,fontsize=18)
-                
+
     plt.tight_layout(pad=0.3)
     # adjust size and position of the 3D plots
     for ii in range(len(sp3d)):
@@ -546,8 +718,8 @@ def banner(modelsol,params,locinfo,bw=False):
         pos2 = [pos1.x0+0.008+(ii-1)*0.008, pos1.y0, pos1.width, pos1.height]
         ax1[ii].set_position(pos2)
     plt.show()
-            
-            
+
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -555,12 +727,12 @@ if __name__ == "__main__":
         args.filename = args.filename[:-5]
     elif args.filename.rstrip()[-4:] == '.npz':
         args.filename = args.filename[:-4]
-        
+
     # load parameters
     params = Run.Params()
     params.file_read_chg(args.filename)
     dom_len = params.domain_info[1]*2 + 1
-    
+
     # load model result
     modelsol = []
     with np.load(args.filename+'.npz') as npz_obj:
@@ -586,7 +758,7 @@ if __name__ == "__main__":
                     indptr = npz_obj[str(day)+'_indptr']
                     modelsol.append(sparse.csr_matrix((V,indices,indptr),
                                                     shape=(dom_len,dom_len)))
-                                                    
+
     # load data
     try:
         locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
@@ -594,9 +766,11 @@ if __name__ == "__main__":
         print('Could not load the datasets for this location.')
         print(params.dataset)
         raise
-        
+
     # call main
     if args.banner:
         banner(modelsol,params,locinfo,args.bw)
+    elif args.assess:
+        assess_fit(modelsol,params,locinfo,args.bw)
     else:
         main(modelsol,params,locinfo,args.bw)
