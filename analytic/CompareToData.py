@@ -458,16 +458,16 @@ def assess_fit(modelsol,params,locinfo,bw=False):
                         rstride=1,cstride=1,alpha=0.35,shade=True,label='Model')
         ax.set_xlabel('West-East (meters)',fontsize=16)
         ax.set_ylabel('South-North (meters)',fontsize=16)
-        ax.set_zlabel(r'Wasps/10 m$^2$',fontsize=16)
+        ax.set_zlabel(r'num/10 m$^2$ & observed',fontsize=16)
         # set view
         ax.view_init(24,-41)
         # add label
-        ax.text2D(0.05,0.95,labels[day],color='k',ha='left',va='center',
+        ax.text2D(0.05,0.85,labels[day],color='k',ha='left',va='center',
                 transform=ax.transAxes,fontsize=18)
         if day == 1:
-            ax.set_title('Model vs.\n parasitoid observation data',fontsize=18)
+            ax.set_title('Model vs.\n parasitoid observation data',fontsize=21)
 
-    plt.tight_layout(pad=1)
+    plt.tight_layout(pad=1.5)
     plt.show()
 
 
