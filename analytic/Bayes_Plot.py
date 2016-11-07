@@ -3,8 +3,8 @@
 '''
 This module is for plotting the posterior distributions from Bayes_Run.py
 
-Author: Christopher Strickland  
-Email: cstrickland@samsi.info 
+Author: Christopher Strickland
+Email: cstrickland@samsi.info
 '''
 
 import sys, os
@@ -17,13 +17,8 @@ import matplotlib.cm as cm
 plt.rcParams['image.cmap'] = 'viridis'
 cmap = cm.get_cmap('Accent')
 
-database_name = 'mcmcdb.h5'
-
-db = pm.database.hdf5.load(database_name)
-
 plt.ion()
-
-
+db = None
 
 def plot_traces(db=db,path='./diagnostics',format='png'):
     '''Plot the traces of the unknown variables to check for convergence.
@@ -71,15 +66,15 @@ def plot_traces(db=db,path='./diagnostics',format='png'):
             cnt += 1
         leg = plt.legend(loc="upper left")
         leg.get_frame().set_alpha(0.7)
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
-    
+
     plt.figure()
     plt.hold(True)
-    
+
     plt.subplot(211)
     plt.title("Traces of unknown Bayesian model parameters")
     # xi, em_obs_prob, grid_obs_prob
@@ -90,7 +85,7 @@ def plot_traces(db=db,path='./diagnostics',format='png'):
         cnt += 1
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     # sent_obs_probs
     plt.subplot(212)
     cnt = 0
@@ -102,7 +97,7 @@ def plot_traces(db=db,path='./diagnostics',format='png'):
     leg.get_frame().set_alpha(0.7)
 
     plt.draw()
-    
+
     ##### Convergence tests #####
 
     # Geweke
@@ -116,7 +111,7 @@ def plot_traces(db=db,path='./diagnostics',format='png'):
         for name, label in var_names[0][ii].items():
             scores = pm.geweke(db.trace(name, chain=None)[:])
             x, y = np.transpose(scores)
-            axarr[ii].scatter(x.tolist(), y.tolist(), label=label, 
+            axarr[ii].scatter(x.tolist(), y.tolist(), label=label,
                         c=cmap(clrs_list[ii][cnt]))
             ymax = max(ymax, np.max(y))
             ymin = min(ymin, np.min(y))
@@ -146,7 +141,7 @@ def plot_traces(db=db,path='./diagnostics',format='png'):
 
 def plot_f_g(db=db, start=0, stop=None):
     '''Plot the posterior distributions for the f and g model functions.
-    
+
     Arguments:
         db: database object
         start: where to begin in the trace (with all chains taken together)
@@ -202,51 +197,51 @@ def plot_f_g(db=db, start=0, stop=None):
     plt.hold(False)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
-        
-        
-        
+
+
+
 def plot_sprd_vars(db=db,start=0,stop=None):
     '''Plot posteriors of covariance variables for local/wind diffusion, and for
        flight time.
-    
+
     Arguments:
         db: database object
         start: where to begin in the trace (with all chains taken together)
     '''
-    
+
     plt.figure()
     ax = plt.subplot(411)
     plt.title("Posterior distribs for diffusion covariance & flight time")
     plt.hold(True)
-    plt.hist(db.trace("sig_x",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("sig_x",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of wind $\sigma_x$",
              normed=True)
-    plt.hist(db.trace("sig_y",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("sig_y",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of wind $\sigma_y$",
              normed=True)
     plt.hold(False)
     plt.xlim(0,300)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(412)
     plt.hold(True)
-    plt.hist(db.trace("sig_xl",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("sig_xl",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of local $\sigma_x$",
              normed=True)
-    plt.hist(db.trace("sig_yl",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("sig_yl",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of local $\sigma_y$",
              normed=True)
     plt.hold(False)
     plt.xlim(0,300)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(413)
     color_cycle = ax._get_lines.prop_cycler
     # get some new colors
@@ -254,18 +249,18 @@ def plot_sprd_vars(db=db,start=0,stop=None):
     unused = next(color_cycle)
     clrdict = next(color_cycle)
     plt.hold(True)
-    plt.hist(db.trace("corr",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("corr",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of wind $\rho$",
              color=clrdict['color'], normed=True)
     clrdict = next(color_cycle)
-    plt.hist(db.trace("corr_l",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("corr_l",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior of local $\rho$",
              color=clrdict['color'], normed=True)
     plt.hold(False)
     plt.xlim(-1,1)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(414)
     color_cycle = ax._get_lines.prop_cycler
     # get a new color
@@ -276,30 +271,30 @@ def plot_sprd_vars(db=db,start=0,stop=None):
     tr = db.trace("n_periods",chain=None)[start:stop]
     plt.hold(True)
     plt.hist(tr, bins=np.arange(tr.min(),tr.max()+2,1)-.5,
-             histtype='stepfilled',  alpha=0.85, 
-             label=r"posterior of avg flight time (min)", 
+             histtype='stepfilled',  alpha=0.85,
+             label=r"posterior of avg flight time (min)",
              color=clrdict['color'], normed=True)
     plt.hold(False)
     plt.xlim(0,80)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
-        
-        
-        
+
+
+
 def plot_sent_obs_probs(db=db,start=0,stop=None):
-    '''Plot posteriors for emergence observation probability in each 
+    '''Plot posteriors for emergence observation probability in each
     sentinel field.
-    
+
     Arguments:
         db: database object
         start: where to begin in the trace (with all chains taken together)
     '''
-    
+
     # Get sentinel field info
     N_fields = 0
     field_names = []
@@ -309,34 +304,34 @@ def plot_sent_obs_probs(db=db,start=0,stop=None):
             N_fields += 1
             field_names.append(name)
             field_ids.append(name[-1])
-    
+
     plt.figure()
     for ii in range(N_fields):
         ax = plt.subplot(N_fields,1,ii+1)
         if ii == 0:
             plt.title("Posterior distribs for sentinel field emerg obs probs")
-        plt.hist(db.trace(field_names[ii],chain=None)[start:stop], 
-                 histtype='stepfilled', bins=25, alpha=0.85, 
+        plt.hist(db.trace(field_names[ii],chain=None)[start:stop],
+                 histtype='stepfilled', bins=25, alpha=0.85,
                  label="field {}".format(field_ids[ii]),
                  normed=True)
         leg = plt.legend(loc="upper right")
         leg.get_frame().set_alpha(0.7)
-        
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
-        
-        
-        
+
+
+
 def plot_other(db=db,start=0,stop=None):
     '''Plot posteriors for lambda, xi, grid_obs_prob, em_obs_prob and A_collected
-    
+
     Arguments:
         db: database object
         start: where to begin in the trace (with all chains taken together)
     '''
-    
+
     plt.figure()
     ax = plt.subplot(411)
     plt.title(r"Posteriors for $\lambda$, $\xi$, grid_obs_prob and em_obs_prob")
@@ -344,38 +339,38 @@ def plot_other(db=db,start=0,stop=None):
              alpha=0.85, label=r"posterior for $\lambda$", normed=True)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(412)
     plt.hist(db.trace("xi",chain=None)[start:stop], histtype='stepfilled', bins=25,
              alpha=0.85, label=r"posterior for $\xi$", normed=True)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(413)
     plt.hold(True)
     plt.hist(db.trace("grid_obs_prob",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior for grid_obs_prob",
              normed=True)
-    plt.hist(db.trace("em_obs_prob",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("em_obs_prob",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label=r"posterior for em_obs_prob",
              normed=True)
     plt.hold(False)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     ax = plt.subplot(414)
-    plt.hist(db.trace("A_collected",chain=None)[start:stop], histtype='stepfilled', 
+    plt.hist(db.trace("A_collected",chain=None)[start:stop], histtype='stepfilled',
              bins=25, alpha=0.85, label="posterior for A_collected", normed=True)
     leg = plt.legend(loc="upper right")
     leg.get_frame().set_alpha(0.7)
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plt.draw()
         plt.pause(0.0001)
-    
-    
-    
+
+
+
 if __name__ == "__main__":
     nargs = len(sys.argv) - 1
     if nargs == 0:
@@ -383,15 +378,21 @@ if __name__ == "__main__":
               "followed by the module to run (with or w/o start point.")
     elif nargs > 0:
         database_name = sys.argv[1]
-        db = pm.database.hdf5.load(database_name)
-        
+        if database_name[-3:] != '.h5':
+            database_name += '.h5'
+        if os.path.isfile(database_name):
+            db = pm.database.hdf5.load(database_name)
+        else:
+            print("Invalid filename: {}".format(database_name))
+            nargs = 0
+
     if nargs > 1:
         '''Run the requested plot'''
         if nargs > 2:
             start = sys.argv[3]
         else:
             start = 0
-            
+
         if sys.argv[2] == 'plot_traces':
             plot_traces(db)
         elif sys.argv[2] == 'plot_f_g':
@@ -404,6 +405,7 @@ if __name__ == "__main__":
             plot_other(db,start)
         else:
             print('Method not found.')
+        input("Press Enter to finish...")
     elif nargs == 1:
         while True:
             '''Open an interactive menu'''
@@ -416,7 +418,7 @@ if __name__ == "__main__":
             print("(6) Quit")
             print("2-5 may be followed by a start number.")
             cmd = input(":")
-            
+
             try:
                 if cmd[0] == "1":
                     plot_traces(db)
@@ -446,3 +448,7 @@ if __name__ == "__main__":
                     print("Command not found.")
             except ValueError:
                 print("Could not parse start number {}.".format(cmd[1:].strip()))
+
+else:
+    database_name = 'mcmcdb.h5'
+    db = pm.database.hdf5.load(database_name)
