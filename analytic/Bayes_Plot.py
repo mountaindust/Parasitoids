@@ -22,6 +22,8 @@ plt.ion()
 if __name__ != "__main__":
     database_name = 'mcmcdb.h5'
     db = pm.database.hdf5.load(database_name)
+else:
+    db = None
 
 def plot_traces(db=db,path='./diagnostics',format='png'):
     '''Plot the traces of the unknown variables to check for convergence.
@@ -378,7 +380,7 @@ if __name__ == "__main__":
     nargs = len(sys.argv) - 1
     if nargs == 0:
         print("Please include the database name as an argument, optionally\n"+
-              "followed by the module to run (with or w/o start point.")
+              "followed by the module to run (with or w/o start and stop point.")
     elif nargs > 0:
         database_name = sys.argv[1]
         if database_name[-3:] != '.h5':
@@ -391,25 +393,37 @@ if __name__ == "__main__":
 
     if nargs > 1:
         '''Run the requested plot'''
-        if nargs > 2:
-            start = sys.argv[3]
+        if nargs == 3:
+            start = int(sys.argv[3])
+        elif nargs > 3:
+            start = int(sys.argv[3])
+            stop = int(sys.argv[4])
         else:
             start = 0
+            stop = None
 
         if sys.argv[2] == 'plot_traces':
             plot_traces(db)
         elif sys.argv[2] == 'plot_f_g':
-            plot_f_g(db,start)
+            plot_f_g(db,start,stop)
         elif sys.argv[2] == 'plot_sprd_vars':
-            plot_sprd_vars(db,start)
+            plot_sprd_vars(db,start,stop)
         elif sys.argv[2] == 'plot_sent_obs_probs':
-            plot_sent_obs_probs(db,start)
+            plot_sent_obs_probs(db,start,stop)
         elif sys.argv[2] == 'plot_other':
-            plot_other(db,start)
+            plot_other(db,start,stop)
         else:
             print('Method not found.')
         input("Press Enter to finish...")
     elif nargs == 1:
+        def get_args(strin):
+            args = strin[1:].strip().split()
+            if len(args) == 1:
+                args.append(None)
+            else:
+                args[1] = int(args[1])
+            args[0] = int(args[0])
+            return args
         while True:
             '''Open an interactive menu'''
             print("----------Plot MCMC Results----------")
@@ -419,7 +433,8 @@ if __name__ == "__main__":
             print("(4) Plot sentinel field posteriors")
             print("(5) Plot others")
             print("(6) Quit")
-            print("2-5 may be followed by a start number.")
+            print("2-5 may be followed by a start number and a stop number,\n"+
+                  "separted by a space.")
             cmd = input(":")
 
             try:
@@ -429,22 +444,22 @@ if __name__ == "__main__":
                     if cmd[1:].strip() == '':
                         plot_f_g(db)
                     else:
-                        plot_f_g(db,int(cmd[1:].strip()))
+                        plot_f_g(db,*get_args(cmd))
                 elif cmd[0] == "3":
                     if cmd[1:].strip() == '':
                         plot_sprd_vars(db)
                     else:
-                        plot_sprd_vars(db,int(cmd[1:].strip()))
+                        plot_sprd_vars(db,*get_args(cmd))
                 elif cmd[0] == "4":
                     if cmd[1:].strip() == '':
                         plot_sent_obs_probs(db)
                     else:
-                        plot_sent_obs_probs(db,int(cmd[1:].strip()))
+                        plot_sent_obs_probs(db,*get_args(cmd))
                 elif cmd[0] == "5":
                     if cmd[1:].strip() == '':
                         plot_other(db)
                     else:
-                        plot_other(db,int(cmd[1:].strip()))
+                        plot_other(db,*get_args(cmd))
                 elif cmd[0] == "6" or cmd[0] == "q" or cmd[0] == "Q":
                     break
                 else:
