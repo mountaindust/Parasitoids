@@ -18,7 +18,10 @@ plt.rcParams['image.cmap'] = 'viridis'
 cmap = cm.get_cmap('Accent')
 
 plt.ion()
-db = None
+
+if __name__ != "__main__":
+    database_name = 'mcmcdb.h5'
+    db = pm.database.hdf5.load(database_name)
 
 def plot_traces(db=db,path='./diagnostics',format='png'):
     '''Plot the traces of the unknown variables to check for convergence.
@@ -448,7 +451,3 @@ if __name__ == "__main__":
                     print("Command not found.")
             except ValueError:
                 print("Could not parse start number {}.".format(cmd[1:].strip()))
-
-else:
-    database_name = 'mcmcdb.h5'
-    db = pm.database.hdf5.load(database_name)
