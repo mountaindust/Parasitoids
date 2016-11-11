@@ -2,6 +2,7 @@
 Test suite for CalcSol, for use with py.test
 
 Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 """
 
 import pytest
@@ -33,7 +34,7 @@ except:
 
 ###############################################################################
 #                                                                             #
-#                              Test Fixtures                                  #  
+#                              Test Fixtures                                  #
 #                                                                             #
 ###############################################################################
 
@@ -42,7 +43,7 @@ def two_arrays():
     A = np.outer(range(10),range(1,11))
     B = np.outer(range(4,-1,-1),range(8,-1,-2))
     return (A,B)
-    
+
 @pytest.fixture(scope="module")
 def many_arrays():
     # for now, we will pad these with zeros to avoid the periodic bndry effects
@@ -59,7 +60,7 @@ def many_arrays():
     D = np.zeros((55,55))
     D[25:30,25:30] = Ddata
     return (A,B,C,D)
-    
+
 ############                    Decorators                ############
 
 cuda_run = pytest.mark.skipif(not globalvars.cuda,
@@ -76,11 +77,11 @@ def test_fftconv2(two_arrays):
     A_hat = CS.fft2(sparse.coo_matrix(A),np.array(B.shape))
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
     #make sure something new is here
-    assert not np.all(A_hat == CS.fft2(sparse.coo_matrix(A),np.array(B.shape))) 
+    assert not np.all(A_hat == CS.fft2(sparse.coo_matrix(A),np.array(B.shape)))
     assert np.all(B == two_arrays[1]) #unchanged
     assert np.allclose(fftpack.ifft2(A_hat)[:A.shape[0],:A.shape[1]].real,
         signal.convolve2d(A,B,'same'))
-    
+
 def test_convolve_same(two_arrays):
     '''Test the full convolution sequence'''
     A,B = two_arrays
@@ -95,7 +96,7 @@ def test_convolve_same(two_arrays):
     assert np.allclose(C,signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
     assert np.all(B == two_arrays[1])
-    
+
 @cuda_run
 def test_cuda_convolve(two_arrays):
     '''Test the full convolution sequence on the GPU'''
@@ -106,7 +107,7 @@ def test_cuda_convolve(two_arrays):
     cu_solver = cuda_lib.CudaSolve(As,max_shape)
     cu_solver.fftconv2(sparse.csr_matrix(B))
     C = cu_solver.get_cursol(A.shape)
-    
+
     assert np.allclose(C.toarray(),signal.fftconvolve(A,B,'same'))
     assert np.all(A == two_arrays[0])
     assert np.all(B == two_arrays[1])
@@ -119,13 +120,13 @@ def test_back_solve(many_arrays):
     CS.fftconv2(C_hat,sparse.csr_matrix(D)) # overwrites C_hat
     bckCD = CS.back_solve([sparse.csr_matrix(A),sparse.csr_matrix(B)],
         C_hat,A.shape)
-    
+
     B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
     CS.fftconv2(B_hat,sparse.csr_matrix(C))
     CS.fftconv2(B_hat,sparse.csr_matrix(D))
     BCD,flag = CS.ifft2(B_hat,B.shape)
     BCD = BCD.toarray()
-    
+
     A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
     CS.fftconv2(A_hat,sparse.csr_matrix(C))
@@ -136,7 +137,7 @@ def test_back_solve(many_arrays):
     # there's periodic boundary issues here that still need to be addressed...
     assert np.allclose(bckCD[1].toarray(),BCD)
     assert np.allclose(bckCD[0].toarray(),ABCD)
-    
+
 @cuda_run
 def test_cuda_back_solve(many_arrays):
     '''Test the back_solve method in cuda_lib'''
@@ -147,20 +148,20 @@ def test_cuda_back_solve(many_arrays):
     cu_solver.fftconv2(sparse.csr_matrix(D))
     bckCD = cu_solver.back_solve([sparse.csr_matrix(A),sparse.csr_matrix(B)],
         A.shape)
-        
+
     B_hat = CS.fft2(sparse.coo_matrix(B),A.shape)
     CS.fftconv2(B_hat,sparse.csr_matrix(C))
     CS.fftconv2(B_hat,sparse.csr_matrix(D))
     BCD,flag = CS.ifft2(B_hat,B.shape)
     BCD = BCD.toarray()
-    
+
     A_hat = CS.fft2(sparse.coo_matrix(A),A.shape)
     CS.fftconv2(A_hat,sparse.csr_matrix(B))
     CS.fftconv2(A_hat,sparse.csr_matrix(C))
     CS.fftconv2(A_hat,sparse.csr_matrix(D))
     ABCD,flag = CS.ifft2(A_hat,A.shape)
     ABCD = ABCD.toarray()
-    
+
     # there's periodic boundary issues here that still need to be addressed...
     # abs tolerance has to be jacked up here... it looks like roundoff errors
     #    in float32 build up quite a lot over several convolutions.

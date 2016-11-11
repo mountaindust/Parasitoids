@@ -519,27 +519,13 @@ def main(argv):
     modelsol = []
     with np.load(filename+'.npz') as npz_obj:
         days = npz_obj['days']
-        # some code here to make loading robust to both COO and CSR.
-        CSR = False
         for day in days:
             V = npz_obj[str(day)+'_data']
-            if CSR:
-                indices = npz_obj[str(day)+'_ind']
-                indptr = npz_obj[str(day)+'_indptr']
-                modelsol.append(sparse.csr_matrix((V,indices,indptr),
-                                                    shape=(dom_len,dom_len)))
-            else:
-                try:
-                    I = npz_obj[str(day)+'_row']
-                    J = npz_obj[str(day)+'_col']
-                    modelsol.append(sparse.coo_matrix((V,(I,J)),
-                                                    shape=(dom_len,dom_len)))
-                except KeyError:
-                    CSR = True
-                    indices = npz_obj[str(day)+'_ind']
-                    indptr = npz_obj[str(day)+'_indptr']
-                    modelsol.append(sparse.csr_matrix((V,indices,indptr),
-                                                    shape=(dom_len,dom_len)))
+            # Solution should be reconstructed as CSR sparse
+            indices = npz_obj[str(day)+'_ind']
+            indptr = npz_obj[str(day)+'_indptr']
+            modelsol.append(sparse.csr_matrix((V,indices,indptr),
+                                                shape=(dom_len,dom_len)))
 
     LOCINFO_LOADED = False
     print('----------------Model result visualizations----------------')

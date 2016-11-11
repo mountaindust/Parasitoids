@@ -3,7 +3,7 @@
 '''Test module for Data_Import and Bayes_funcs
 
 Author: Christopher Strickland
-Email: cstrickland@samsi.info
+Email: wcstrick@live.unc.edu
 '''
 
 import pytest
@@ -29,7 +29,7 @@ def locinfo(domain_info):
    center = (-27.945752,152.58474)
    return LocInfo(loc_name,center,domain_info)
 
-   
+
 ###############################################################################
 #                                                                             #
 #                                   Tests                                     #
@@ -200,7 +200,7 @@ def test_model_sampling(locinfo,modelsol,domain_info):
     card_counts = Bayes.popdensity_card(modelsol,locinfo,domain_info)
 
     # grid_counts should be comparable to locinfo.grid_obs and locinfo.grid_samples
-    assert np.all(grid_counts.shape == locinfo.grid_obs.shape == 
+    assert np.all(grid_counts.shape == locinfo.grid_obs.shape ==
                   locinfo.grid_samples.shape)
     # they should be non-negative, and something should be > 0
     assert grid_counts.max() > 0

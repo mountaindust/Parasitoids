@@ -139,7 +139,7 @@ class LocInfo(object):
         ### Again, grid needs to be rotated so that it aligns with a nearby road
         for dframe in self.release_DataFrames:
             for n,xy in enumerate(dframe[['xcoord','ycoord']].values):
-                dframe.loc[n:n+1,('xcoord','ycoord')] = rot_mat@xy
+                dframe.loc[n:n,('xcoord','ycoord')] = rot_mat@xy
         #####
         ### Further parsing, including sorting the DataFrame
         self.emerg_grids = []
@@ -552,6 +552,9 @@ class LocInfo(object):
             release_field_data = release_field_data[\
                 (release_field_data['xcoord'] != 0) & \
                 (release_field_data['ycoord'] != 0)]
+
+            ### Reorder index
+            release_field_data = release_field_data.reset_index()
 
             ### Store DataFrame in list
             self.release_DataFrames.append(release_field_data)
