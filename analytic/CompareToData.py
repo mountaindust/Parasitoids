@@ -365,7 +365,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
     ngridpoints = locinfo.grid_data.shape[0]
 
     # bar colors
-    c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*2+2)
+    c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*5*2+2)
     c_nums = c_nums[1:-1]
 
     # surface default color
@@ -418,7 +418,10 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         for xcoord, ycoord in zip(xcoords,ycoords):
             scaling[n] = locinfo.grid_data[(locinfo.grid_data['xcoord']==xcoord)
                          & (locinfo.grid_data['ycoord']==ycoord)]['samples']
-            scaling[n] /= locinfo.grid_data['samples'].max()
+            if scaling[n] == 270:
+                scaling[n] = 10/9
+            else:
+                scaling[n] = 10
             n += 1
         # color bars according to height
         clr_list = []
@@ -428,7 +431,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         ax.bar3d(xcoords,ycoords,
                  np.zeros(locinfo.grid_obs_DataFrame[date_rows].shape[0]),
                  res, res,
-                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values*scaling,
+                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values*scaling*3/10,
                  color=base_clrmp(clr_list),label='Data')
 
         # color the facets like the bars, using a color not in viridis where
@@ -458,7 +461,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
                         rstride=1,cstride=1,alpha=0.35,shade=True,label='Model')
         ax.set_xlabel('West-East (meters)',fontsize=16)
         ax.set_ylabel('South-North (meters)',fontsize=16)
-        ax.set_zlabel(r'num/10 m$^2$ & observed',fontsize=16)
+        ax.set_zlabel(r'num/10 m$^2$ model & observed',fontsize=16)
         # set view
         ax.view_init(24,-41)
         # add label
