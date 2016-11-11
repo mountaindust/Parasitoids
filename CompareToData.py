@@ -1,6 +1,9 @@
 #! /usr/bin/env python3
 '''This module is for comparing model results to data and generating
 publication quality figures.
+
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 '''
 
 import argparse

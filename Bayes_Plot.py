@@ -4,7 +4,7 @@
 This module is for plotting the posterior distributions from Bayes_Run.py
 
 Author: Christopher Strickland
-Email: cstrickland@samsi.info
+Email: wcstrick@live.unc.edu
 '''
 
 import sys, os

@@ -1,6 +1,9 @@
 #! /usr/bin/env python3
 '''This module is for generating publication quality plots that give general
 info about the experiental setup and model diffusion behaviors.
+
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 '''
 
 import numpy as np
@@ -15,10 +18,10 @@ def main(bw=False):
     '''Spit out two plots, one of the sentinel field locations, labeled, with
     the average wind direction, and the other with a visual of wind and local
     diffusion as based on parameters listed in Run.py'''
-    
+
     params = Params()
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
-    
+
     fig = plt.figure(figsize=(12,6))
     ax = fig.add_subplot(121)
     ### Field locations ###
@@ -88,7 +91,7 @@ def main(bw=False):
     # label plot
     ax.text(0.01,0.95,'a)',color='w',ha='left',va='center',
             transform=ax.transAxes,fontsize=16)
-    
+
     ### Diffusion visualization ###
     ax = fig.add_subplot(122)
     # Generate diffusion clouds based on parameters in params
@@ -126,7 +129,7 @@ def main(bw=False):
             transform=ax.transAxes,fontsize=16)
     plt.tight_layout()
     plt.show()
-    
+
 
 
 if __name__ == "__main__":

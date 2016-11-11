@@ -2,13 +2,13 @@
 
 '''This module uses PyMC to fit parameters to the model via Bayesian inference.
 
-Author: Christopher Strickland  
-Email: cstrickland@samsi.info 
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 '''
 
 __author__ = "Christopher Strickland"
-__email__ = "cstrickland@samsi.info"
-__status__ = "Development"
+__email__ = "wcstrick@live.unc.edu"
+__status__ = "Release"
 __version__ = "1.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
@@ -40,15 +40,15 @@ class Capturing(list):
     '''This class creates a list object that can be used in 'with' environments
     to capture the stdout of the enclosing functions. If used multiple times,
     it can extend itself to make a longer list containing everything.
-    
+
     Usage:
         with Capturing() as output:
             <code in which stdout is captured>
-            
+
         # subsequent usage, to extend previous output list:
         with Capturing(output) as output:
             <more code with stdout captured>'''
-            
+
     def __enter__(self):
         self._stdout = sys.stdout
         sys.stdout = self._stringio = StringIO()
@@ -85,16 +85,16 @@ def main(mcmc_args=None):
     # get wind data and day labels
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
     params.ndays = len(days)
-    
+
     # reduce domain
     params.domain_info = (8000.0,320) #25 m sided cells
     domain_res = params.domain_info[0]/params.domain_info[1]
     cell_area = domain_res**2
 
     locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
-    
-    
-    
+
+
+
     ######################################################################
     #####                        Model Priors                        #####
     ######################################################################
@@ -103,7 +103,7 @@ def main(mcmc_args=None):
     f_a2 = pm.TruncatedNormal("f_a2",20,0.3,15,24,value=23.45)
     f_b1_p = pm.Gamma("fb1_p",2,1,value=1.28,trace=False,plot=False) #alpha,beta parameterization
     @pm.deterministic(trace=True,plot=True)
-    def f_b1(f_b1_p=f_b1_p): 
+    def f_b1(f_b1_p=f_b1_p):
         return f_b1_p + 1
     f_b2_p = pm.Gamma("fb2_p",2,1,value=1.01,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
@@ -124,12 +124,12 @@ def main(mcmc_args=None):
     corr_l_p = pm.Beta("corr_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
-        return corr_l_p*2 - 1    
+        return corr_l_p*2 - 1
     mu_r = pm.Normal("mu_r",1.,1,value=2)
     n_periods = pm.Poisson("n_periods",30,value=30)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
     xi = pm.Gamma("xi",1,1,value=0.46) # presence to oviposition/emergence factor
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.058) # per-wasp prob of  
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.058) # per-wasp prob of
             # observing emergence in release field grid given max leaf collection
             # this is dependent on the size of the cell surrounding the grid point
             # ...not much to be done about this.
@@ -138,7 +138,7 @@ def main(mcmc_args=None):
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
-    
+
     #### Data collection model background for sentinel fields ####
     # Need to fix linear units for area. Meters would be best.
     # Effective collection area (constant between fields) is very uncertain
@@ -160,7 +160,7 @@ def main(mcmc_args=None):
             sent_beta, value=0.1*3600/(locinfo.field_sizes[key]*cell_area))
 
     sent_obs_probs = pm.Container(sent_obs_probs)
-    
+
     # Max a Posterirori estimates have consistantly returned a value of zero
     #   for sprd_factor. So we will comment these sections.
     # if params.dataset == 'kalbar':
@@ -169,7 +169,7 @@ def main(mcmc_args=None):
     # else:
     #     sprd_factor = None
     sprd_factor = None
-    
+
     #### Collect variables and setup block update ####
     params_ary = pm.Container(np.array([g_aw,g_bw,f_a1,f_b1,f_a2,f_b2,
                                         sig_x,sig_y,corr,sig_x_l,sig_y_l,corr_l,
@@ -189,8 +189,8 @@ def main(mcmc_args=None):
         lam:0.0005,
         n_periods:1,
         mu_r:0.005
-    }                                    
-    
+    }
+
 
     print('Getting initial model values...')
 
@@ -201,9 +201,9 @@ def main(mcmc_args=None):
     def pop_model(params=params,params_ary=params_ary,locinfo=locinfo,
                   wind_data=wind_data,days=days,sprd_factor=sprd_factor):
         '''This function acts as an interface between PyMC and the model.
-        Not only does it run the model, but it provides an emergence potential 
+        Not only does it run the model, but it provides an emergence potential
         based on the population model result projected forward from feasible
-        oviposition dates. To modify how this projection happens, edit 
+        oviposition dates. To modify how this projection happens, edit
         popdensity_to_emergence. Returned values from this function should be
         nearly ready to compare to data.
         '''
@@ -219,21 +219,21 @@ def main(mcmc_args=None):
         params.Dlparams = tuple(params_ary[9:12])
         # Probability of any flight during the day under ideal circumstances
         params.lam = params_ary[12]
-        
+
         # TRY BOTH SCALINGS - VARYING mu_r and n_periods
         # scaling flight advection to wind advection
         # number of time periods (based on interp_num) in one flight
         params.n_periods = params_ary[13] # if interp_num = 30, this is # of minutes
         params.mu_r = params_ary[14]
-        
+
         ### PHASE ONE ###
         # First, get spread probability for each day as a coo sparse matrix
         max_shape = np.array([0,0])
         pm_args = [(days[0],wind_data,*params.get_model_params(),
                 params.r_start)]
-        pm_args.extend([(day,wind_data,*params.get_model_params()) 
+        pm_args.extend([(day,wind_data,*params.get_model_params())
                 for day in days[1:params.ndays]])
-        
+
         ##### Kalbar wind started recording a day late. Spread the population
         #####   locally before running full model.
         if sprd_factor is not None:
@@ -247,8 +247,8 @@ def main(mcmc_args=None):
                         PM.Dmat(params_ary[6],params_ary[7],params_ary[8]))
             shrtsprd = PM.get_mvn_cdf_values(res,np.array([0.,0.]),
                         PM.Dmat(params_ary[9],params_ary[10],params_ary[11]))
-            
-            mlen = int(max(longsprd.shape[0],shrtsprd.shape[0]) + 
+
+            mlen = int(max(longsprd.shape[0],shrtsprd.shape[0]) +
                        max(abs(xdrift_int),abs(ydrift_int))*2)
             sprd = np.zeros((mlen,mlen))
             lbds = [int(mlen//2-longsprd.shape[0]//2),
@@ -258,7 +258,7 @@ def main(mcmc_args=None):
             sbds = [int(mlen//2-shrtsprd.shape[0]//2),
                     int(mlen//2+shrtsprd.shape[0]//2+1)]
             sprd[sbds[0]:sbds[1],sbds[0]:sbds[1]] += shrtsprd*(1-sprd_factor)
-            
+
             sprd[int(sprd.shape[0]//2),int(sprd.shape[0]//2)] += max(0,1-sprd.sum())
             pmf_list = [sparse.coo_matrix(sprd)]
         else:
@@ -299,18 +299,18 @@ def main(mcmc_args=None):
             for dim in range(2):
                 if pmf.shape[dim] > max_shape[dim]:
                     max_shape[dim] = pmf.shape[dim]
-                    
+
         r_spread = [] # holds the one-day spread for each release day.
-        
-        
+
+
         # Reshape the prob. mass function of each release day into solution form
         for ii in range(params.r_dur):
             offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
             dom_len = params.domain_info[1]*2 + 1
-            r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
+            r_spread.append(sparse.coo_matrix((pmf_list[ii].data,
                 (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
                 shape=(dom_len,dom_len)).tocsr())
-        
+
         ### PHASE TWO ###
         # Pass the probability list, pmf_list, and other info to convolution solver.
         #   This will return the finished population model.
@@ -328,9 +328,9 @@ def main(mcmc_args=None):
                 modelsol = get_populations(r_spread,pmf_list,days,params.ndays,
                                            dom_len,max_shape,params.r_dur,
                                            params.r_number,params.r_mthd())
-        
+
         # modelsol now holds the model results for this run as CSR sparse arrays
-        
+
         # get emergence potential (measured in expected number of wasps previously
         #   present whose oviposition would result in emergence on the given date)
         #   from the model result
@@ -341,7 +341,7 @@ def main(mcmc_args=None):
 
         # get the expected wasp populations in cardinal directions
         '''card_counts = popdensity_card(modelsol,locinfo,params.domain_info)'''
-        
+
         ## For the lists release_emerg and sentinel_emerg:
         ##    Each list entry corresponds to a data collection day (one array)
         ##    In each array:
@@ -358,13 +358,13 @@ def main(mcmc_args=None):
         #     time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
         # sys.stdout.flush()
         return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
-        
-    print('Parsing model output and connecting to Bayesian model...')    
-    
+
+    print('Parsing model output and connecting to Bayesian model...')
+
     ######################################################################
     #####                   Connect Model to Data                    #####
     ######################################################################
-    
+
     ### Parse the results of pop_model into separate deterministic variables ###
     '''Get Poisson probabilities for sentinal field emergence. Parameters:
         xi is constant, emerg is a list of ndarrays, betas is a 1D array of
@@ -374,11 +374,11 @@ def main(mcmc_args=None):
     for ii in range(Ncollections):
         s_ndays = len(locinfo.sent_DataFrames[ii]['datePR'].unique())
         sent_poi_rates.append(pm.Lambda('sent_poi_rate_{}'.format(ii),
-            lambda xi=xi, ndays=s_ndays, betas=sent_obs_probs, 
+            lambda xi=xi, ndays=s_ndays, betas=sent_obs_probs,
             emerg_model=pop_model[1][ii]:
             xi*emerg_model*np.tile(betas,(ndays,1)).T,trace=False))
     sent_poi_rates = pm.Container(sent_poi_rates)
-    
+
     '''Return Poisson probabilities for release field grid emergence. Parameters:
         xi is constant, emerg is a list of ndarrays. collection effort is
         specified in locinfo.'''
@@ -388,11 +388,11 @@ def main(mcmc_args=None):
         r_effort = locinfo.release_collection[ii] #fraction of max collection
         r_ndays = len(locinfo.release_DataFrames[ii]['datePR'].unique())
         rel_poi_rates.append(pm.Lambda('rel_poi_rate_{}'.format(ii),
-            lambda xi=xi, ndays=r_ndays, r_effort=r_effort, beta=em_obs_prob, 
+            lambda xi=xi, ndays=r_ndays, r_effort=r_effort, beta=em_obs_prob,
             emerg_model=pop_model[0][ii]:
             xi*emerg_model*np.tile(r_effort*beta,(ndays,1)).T,trace=False))
     rel_poi_rates = pm.Container(rel_poi_rates)
-            
+
     @pm.deterministic(plot=False,trace=False)
     def grid_poi_rates(locinfo=locinfo,beta=grid_obs_prob,
                         obs_model=pop_model[2]):
@@ -409,11 +409,11 @@ def main(mcmc_args=None):
             lambda beta=card_obs_prob, obs=obs: beta*obs))
     card_poi_rates = pm.Container(card_poi_rates)
     '''
-    
+
     # Given the expected wasp densities from pop_model, actual wasp densities
     #   are modeled as a thinned Poisson random variable about that mean.
     # Each wasp in the area then has a small probability of being seen.
-    
+
     ### Connect sentinel emergence data to model ###
     N_sent_collections = len(locinfo.sent_DataFrames)
     # Create list of collection variables
@@ -426,11 +426,11 @@ def main(mcmc_args=None):
             for m in range(sent_collections[ii].shape[1]):
                 sent_collections[ii][n,m] = pm.Poisson(
                     "sent_em_obs_{}_{}_{}".format(ii,n,m),
-                    sent_poi_rates[ii][n,m], 
-                    value=float(locinfo.sentinel_emerg[ii][n,m]), 
+                    sent_poi_rates[ii][n,m],
+                    value=float(locinfo.sentinel_emerg[ii][n,m]),
                     observed=True)
     sent_collections = pm.Container(sent_collections)
-            
+
     ### Connect release-field emergence data to model ###
     N_release_collections = len(locinfo.release_DataFrames)
     # Create list of collection variables
@@ -442,8 +442,8 @@ def main(mcmc_args=None):
             for m in range(rel_collections[ii].shape[1]):
                 rel_collections[ii][n,m] = pm.Poisson(
                     "rel_em_obs_{}_{}_{}".format(ii,n,m),
-                    rel_poi_rates[ii][n,m], 
-                    value=float(locinfo.release_emerg[ii][n,m]), 
+                    rel_poi_rates[ii][n,m],
+                    value=float(locinfo.release_emerg[ii][n,m]),
                     observed=True)
     rel_collections = pm.Container(rel_collections)
 
@@ -468,16 +468,16 @@ def main(mcmc_args=None):
             for m in range(card_collections[ii].shape[1]):
                 card_collections[ii][n,m] = pm.Poisson(
                     "card_obs_{}_{}_{}".format(ii,n,m),
-                    card_poi_rates[ii][n,m], 
-                    value=locinfo.card_obs[ii][n,m], 
+                    card_poi_rates[ii][n,m],
+                    value=locinfo.card_obs[ii][n,m],
                     observed=True, plot=False)
     card_collections = pm.Container(card_collections)
     '''
-    
+
     ######################################################################
     #####                   Collect Model and Run                    #####
     ######################################################################
-    
+
     ### Collect model ###
     if sprd_factor is not None:
         Bayes_model = pm.Model([lam,f_a1,f_a2,f_b1_p,f_b2_p,f_b1,f_b2,g_aw,g_bw,
@@ -538,7 +538,7 @@ def main(mcmc_args=None):
                 mcmc = pm.MCMC(Bayes_model,db=db)
                 mcmc.use_step_method(pm.AdaptiveMetropolis,stoc_vars,
                     scales=step_scales,interval=500,shrink_if_necessary=True)
-                # database loaded.  
+                # database loaded.
             else:
                 print('File not found: {}'.format(fname))
                 return
@@ -559,8 +559,8 @@ def main(mcmc_args=None):
                 mcmc.db.close()
                 raise
             return
-    
-    
+
+
     ######################################################################
     #####                   Start Interactive Menu                   #####
     ######################################################################
@@ -652,7 +652,7 @@ def main(mcmc_args=None):
         print('Command not recognized.')
         print('Quitting....')
         return
-        
+
     ##### MCMC Loop #####
     # This should be reached only by cmd == 'new' or 'cont' with a database.
     # It resumes sampling of a previously sampled chain.
@@ -724,7 +724,7 @@ def main(mcmc_args=None):
             break
         else:
             print('Command not recognized.')
-    
+
 if __name__ == "__main__":
     args = parser.parse_args()
     with Pool() as pool:

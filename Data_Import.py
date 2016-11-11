@@ -1,7 +1,7 @@
 '''This module imports all data (except wind data) and stores it in LocInfo
 
 Author: Christopher Strickland
-Email: cstrickland@samsi.info
+Email: wcstrick@live.unc.edu
 '''
 
 import time, math

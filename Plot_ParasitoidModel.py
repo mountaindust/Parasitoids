@@ -5,6 +5,7 @@ Plotting suite for ParasitoidModel
 Created on Fri May 08 12:12:19 2015
 
 Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 """
 
 import numpy as np
@@ -21,23 +22,23 @@ import matplotlib.pyplot as plt
 
 class Params():
     '''Class definition for parameter object.
-    
+
     Objects from this class will hold all necessary parameters for the plotting
     routines in this file. A user needs only to update a parameter in the object
     and the results will be apparent when calling the functions.'''
-    
+
     # dict of known site names and their start times
     known_sites = {'carnarvonearl': '00:30', 'kalbar': '00:00'}
-    
+
     def __init__(self):
         ### DEFAULT PARAMETERS ###
-        
+
         ### I/O
         self.rad_dist = 8000.0 #dist from release pt to side of the domain (meters)
         self.rad_res = 200 #number of cells from center to side of domain
         # these default number correspond to each cell being 40 m**2
-        
-        
+
+
         # these should only be changed through set_site_name
         self._site_name = 'data/carnarvonearl'
         self._start_time = '00:30'
@@ -46,8 +47,8 @@ class Params():
                              #30 will give 1 point = 1 min
         self.wind_data, self.days = PM.get_wind_data(
                             self._site_name,self.interp_num,self._start_time)
-        
-        
+
+
         ### Function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
@@ -59,8 +60,8 @@ class Params():
         self.Dparams = (210,160,0)
         # Out-of-flow diffusion coefficients
         self.Dlparams = (21.1,10.6,0)
-        
-        
+
+
         ### general flight parameters
         # Probability of any flight during the day under ideal circumstances
         self.lam = 1.
@@ -68,7 +69,7 @@ class Params():
         self.mu_r = 1.
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 10 # if interp_num = 30, this is # of minutes
-        
+
     def set_site_name(self,site_name):
         '''Change sites to a site name listed in self.known_sites'''
         self._start_time = self.known_sites[site_name]
@@ -76,15 +77,15 @@ class Params():
         self._emergence_data = PM.emergence_data(self._site_name)
         self.wind_data, self.days = PM.get_wind_data(
                             self._site_name,self.interp_num,self._start_time)
-        
+
     def get_site_name(self):
         return self._site_name[5:]
-        
+
     def get_start_time(self):
         return self._start_time
-        
 
-        
+
+
 # This allows running without any setup.
 params = Params()
 
@@ -102,7 +103,7 @@ def plot_g_wind_prob(params=params):
     plt.title('g func for prob of flight during given wind speed')
     # return g
 
-#### Test f function for prob. during different times of the day    
+#### Test f function for prob. during different times of the day
 def plot_f_time_prob(params=params):
     a1,b1,a2,b2 = params.f_params
     n = 24*60 #throw in a lot of increments to see a smooth 24hr plot
@@ -117,7 +118,7 @@ def plot_f_time_prob(params=params):
     plt.ylabel('probability mass of flight')
     plt.title('f func for prob of flight during time of day')
     # return f
-    
+
 #### Test h function (and therefore g and f) with data ####
 def plot_h_flight_prob(params=params,day=1):
     day_wind = params.wind_data[day]
@@ -132,7 +133,7 @@ def plot_h_flight_prob(params=params,day=1):
     plt.ylabel('probability density of flight')
     plt.title('h func for prob of flight given wind')
     # return h
-    
+
 #### Test p function, which gives the 2-D probability density####
 def plot_prob_mass(params=params,day=1):
     wind_data = params.wind_data
@@ -147,12 +148,12 @@ def plot_prob_mass(params=params,day=1):
                        rad_dist,rad_res)
     #plt.pcolormesh is not practical on the full output. consumes 3.5GB of RAM
     #will need to implement resolution sensitive plotting
-    
+
     # res is how far (# of cells) to plot away from the center
     res = (pmf.shape[0]-1)//2 # pmf is always square
-    
+
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell (meters).
-    xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 + 
+    xmesh = np.arange(-res*cell_dist-cell_dist/2,res*cell_dist+cell_dist/2 +
         cell_dist/3,cell_dist)
     # mask the view at negligible probabilities
     pmf_masked = np.ma.masked_less(pmf.toarray(),0.00001)

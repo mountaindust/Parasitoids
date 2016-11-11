@@ -10,13 +10,13 @@ multiprocessing python library. This module calls into CalcSol for the
 convolution phase of the model simulation, and later possibly Plot_Result for
 plotting the result. Saving simulations to file is handled internally.
 
-Author: Christopher Strickland  
-Email: cstrickland@samsi.info'''
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu'''
 
 __author__ = "Christopher Strickland"
-__email__ = "cstrickland@samsi.info"
+__email__ = "wcstrick@live.unc.edu"
 __status__ = "Release"
-__version__ = "1.1"
+__version__ = "1.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
 import sys, os, time
@@ -37,23 +37,23 @@ class Params():
     OUTPUT = True
     PLOT = True
     CUDA = True
-    
+
     def __init__(self):
         ### DEFAULT PARAMETERS ###
         # can be changed via command line
         # edit at will
-        
+
         ### MODEL TYPE
         self.PROB_MODEL = True
-        
+
         ### I/O
         # a couple of presets based on our data.
         # Current options: 'carnarvon' or 'kalbar' or None
-        self.dataset = 'kalbar' 
+        self.dataset = 'kalbar'
         # get parameters based on this dataset
         self.my_datasets()
-        
-        # domain info, (dist (m), cells) from release point to side of domain 
+
+        # domain info, (dist (m), cells) from release point to side of domain
         self.domain_info = (8000.0,320) # (float, int!) (this is 25 m res)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
@@ -80,15 +80,15 @@ class Params():
         self.mu_r = 2.583
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 30 # if interp_num = 30, this is # of minutes per flight
-        
+
         ### satellite imagry
         # Bing/Google maps key for satellite imagery
         self.maps_key = None
         self.maps_service = 'Google' #'Bing' or 'Google'
-        
+
         # Parallel processing parameters
         self.min_ndays = 6 # min # of days necessary to use parallel processing
-        
+
         ### check for config.txt and update these defaults accordingly
         self.default_chg()
 
@@ -103,7 +103,7 @@ class Params():
             self.r_dist = None
             self.r_start = None
             self.r_number = None
-            
+
         elif self.dataset == 'carnarvon':
             # site name and path
             self.site_name = 'data/carnarvonearl'
@@ -119,9 +119,9 @@ class Params():
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
             self.r_start = 0.354 #8:30am (assumption. not specified in paper)
-            # total number of wasps 
+            # total number of wasps
             self.r_number = 40000
-            
+
         elif self.dataset == 'kalbar':
             self.site_name = 'data/kalbar'
             self.start_time = '00:00'
@@ -133,9 +133,9 @@ class Params():
             self.r_dist = 'uniform'
             # start time on first day (as a fraction of the day)
             self.r_start = None # wind didn't record until midnight post release
-            # total number of wasps 
+            # total number of wasps
             self.r_number = 130000
-            
+
         else:
             print('Unknown dataset in Params.dataset.')
         # name and path for output files
@@ -150,42 +150,42 @@ class Params():
                 self.outfile = 'output/'+time.strftime('%m%d-%H%M')
             else:
                 self.outfile = 'output/poprun'+time.strftime('%m%d-%H%M')
-  
 
-  
+
+
     ########    Methods for multiple-day emergence    ########
-        
+
     def uniform(self,day):
         '''Uniform distribution over emergence days. 1 <= day <= self.r_dur.'''
-        
+
         return 1./self.r_dur
-        
+
     def custom(self,day):
         '''Normal distribution over emergence days. 1 <= day <= self.r_dur.'''
-        
+
         pass
-        
+
     ####
-    
+
     def r_mthd(self):
         '''Return function handle for the method to be used.
-        We do this via this method (instead of directly) so that the parameter 
+        We do this via this method (instead of directly) so that the parameter
         r_dist can be saved in the json file with the other parameters.'''
-        
+
         if self.r_dist == 'uniform':
             return self.uniform
         elif self.r_dist == 'custom':
             return self.custom
 
-            
-            
+
+
     ########    Methods for changing parameters    ########
-    
+
     def default_chg(self):
         '''Look for a file called config.txt. If present, read it in and change
         the default parameters accordingly. If the file is not there, create it
         with some user friendly comments and examples.'''
-        
+
         try:
             with open('config.txt', 'r') as f:
                 for line in f:
@@ -212,14 +212,14 @@ class Params():
         except ValueError:
             print(' in config.txt.')
             raise
-                               
-        
+
+
     def cmd_line_chg(self,args):
         '''Change parameters away from default based on command line args'''
-        
+
         # Expect args to be a list of command line arguments in the form
         #   <param name>=<new value>
-        
+
         for argstr in args:
             if argstr[0:2] == '--':
                 # Flag set by option
@@ -256,12 +256,12 @@ class Params():
                     raise ValueError('Unrecognized option {0}.'.format(argstr))
             else:
                 arg,eq,val = argstr.partition('=')
-                self.chg_param(arg,val)               
-                
-                    
+                self.chg_param(arg,val)
+
+
     def chg_param(self,arg,val):
         '''Change the parameter arg to val, where both are given as strings'''
-        
+
         try:
             if arg.lower() == 'prob_model':
                 self.prob_model = bool(val)
@@ -349,8 +349,8 @@ class Params():
             print('Could not parse {0}.'.format(arg)+
                 ' Try enclosing this argument in quotations.\n ')
             raise
-        
-                
+
+
     def file_read_chg(self,filename):
         '''Read in parameters from a file'''
         if filename.rstrip()[-5:] != '.json':
@@ -362,61 +362,61 @@ class Params():
         except FileNotFoundError as e:
             print('Could not open file {0}.'.format(filename))
             raise
-        
+
         for key in param_dict:
             setattr(self,key,param_dict[key])
 
-    
+
 
     ########    Methods for getting function parameters    ########
-        
+
     def get_model_params(self):
-        '''Return params in order of ParasitoidModel.prob_mass signature, 
+        '''Return params in order of ParasitoidModel.prob_mass signature,
         minus day & wind_data'''
         hparams = (self.lam,*self.g_params,*self.f_params)
         return (hparams,self.Dparams,self.Dlparams,self.mu_r,self.n_periods,
-            *self.domain_info)  
-        
-        
+            *self.domain_info)
+
+
     def get_wind_params(self):
         '''Return wind params to pass to PM.get_wind_data'''
         return (self.site_name,self.interp_num,self.start_time)
-        
-        
-        
+
+
+
 def main(params):
     ''' This is the main routine for running model simulations.
     A Params object is required, which sets up all parameters for the simulation
     '''
-        
+
     # This sends a message to CalcSol on whether or not to use CUDA
     if params.CUDA:
         globalvars.cuda = True
     else:
         globalvars.cuda = False
-    
+
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
-    
+
     if params.ndays >= 0:
         ndays = min(params.ndays,len(days))
     else:
         ndays = len(days)
-    
+
     # First, get spread probability for each day as a coo sparse matrix
     tic_total = time.time()
     tic = time.time()
     pmf_list = []
     max_shape = np.array([0,0])
-    
+
     if ndays >= params.min_ndays:
         print("Calculating each day's spread in parallel...")
         if params.PROB_MODEL:
-            pm_args = [(day,wind_data,*params.get_model_params()) 
+            pm_args = [(day,wind_data,*params.get_model_params())
                     for day in days[:ndays]]
         else:
             pm_args = [(days[0],wind_data,*params.get_model_params(),
                     params.r_start)]
-            pm_args.extend([(day,wind_data,*params.get_model_params()) 
+            pm_args.extend([(day,wind_data,*params.get_model_params())
                     for day in days[1:ndays]])
         pool = Pool()
         try:
@@ -450,15 +450,15 @@ def main(params):
             for dim in range(2):
                 if pmf_list[-1].shape[dim] > max_shape[dim]:
                     max_shape[dim] = pmf_list[-1].shape[dim]
-                
+
     print('Time elapsed: {0}'.format(time.time()-tic))
     if params.PROB_MODEL:
         modelsol = [] # holds actual model solutions
-        
+
         # Reshape the first probability mass function into a solution
         offset = params.domain_info[1] - pmf_list[0].shape[0]//2
         dom_len = params.domain_info[1]*2 + 1
-        modelsol.append(sparse.coo_matrix((pmf_list[0].data, 
+        modelsol.append(sparse.coo_matrix((pmf_list[0].data,
             (pmf_list[0].row+offset,pmf_list[0].col+offset)),
             shape=(dom_len,dom_len)))
 
@@ -469,22 +469,22 @@ def main(params):
         get_solutions(modelsol,pmf_list,days,ndays,dom_len,max_shape)
     else:
         r_spread = [] # holds the one-day spread for each release day.
-    
+
         # Reshape the prob. mass function of each release day into solution form
         for ii in range(params.r_dur):
             offset = params.domain_info[1] - pmf_list[ii].shape[0]//2
             dom_len = params.domain_info[1]*2 + 1
-            r_spread.append(sparse.coo_matrix((pmf_list[ii].data, 
+            r_spread.append(sparse.coo_matrix((pmf_list[ii].data,
                 (pmf_list[ii].row+offset,pmf_list[ii].col+offset)),
                 shape=(dom_len,dom_len)).tocsr())
 
-        
+
         # Pass the probability list, pmf_list, and other info to convolution solver.
         #   This will return the finished population model.
         tic = time.time()
         modelsol = get_populations(r_spread,pmf_list,days,ndays,dom_len,max_shape,
                                    params.r_dur,params.r_number,params.r_mthd())
-    
+
     # done.
     print('Done.')
 
@@ -505,7 +505,7 @@ def main(params):
                 yield (str(day)+'_ind', modelsol[n].indices)
                 yield (str(day)+'_indptr', modelsol[n].indptr)
             yield ('days',days[:ndays])
-            
+
         outgen = outputGenerator()
         # check for directory path
         dir_file = params.outfile.rsplit('/',1)
@@ -513,24 +513,24 @@ def main(params):
             if not os.path.exists(dir_file[0]):
                 os.makedirs(dir_file[0])
         np.savez(params.outfile,**{x: y for (x,y) in outgen})
-        
+
         ### save parameters ###
         with open(params.outfile+'.json','w') as fobj:
             param_dict = dict(params.__dict__)
             param_dict.pop('maps_key') # don't save key
             json.dump(param_dict,fobj)
-    
+
     ### plot result ###
     if params.PLOT:
         Plot_Result.plot_all(modelsol,params)
-    
+
 
 if __name__ == "__main__":
     ### Get and set parameters ###
     params = Params()
-    
+
     if len(sys.argv[1:]) > 0:
         params.cmd_line_chg(sys.argv[1:])
-    
+
     ### run model ###
     main(params)

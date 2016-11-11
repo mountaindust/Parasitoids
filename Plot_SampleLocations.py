@@ -6,7 +6,7 @@ and an internet connection to pull in satellite imagery. The static maps key
 should be specified in config.txt.
 
 Author: Christopher Strickland
-Email: cstrickland@samsi.info
+Email: wcstrick@live.unc.edu
 '''
 
 import numpy as np

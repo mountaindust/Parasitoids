@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 '''
-Routines for plotting the results of the model 
+Routines for plotting the results of the model
 in a resolution sensitive way
 
-Author: Christopher Strickland'''
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu'''
 
 import sys, io
 import warnings
@@ -39,14 +40,14 @@ clrmp.set_bad('w',alpha=0)
 
 
 def r_small_vals(A,negval):
-    '''Remove negligible values from the given matrix. 
+    '''Remove negligible values from the given matrix.
     This process significantly decreases the size of a solution and gives an
     accurate plot domain. Return a sparse coo matrix.'''
     if not sparse.isspmatrix_coo(A):
         A = sparse.coo_matrix(A)
-    
+
     midpt = A.shape[0]//2 #assume domain is square
-    
+
     mask = np.empty(A.data.shape,dtype=bool)
     for n,val in enumerate(A.data):
         if val < negval:
@@ -54,22 +55,22 @@ def r_small_vals(A,negval):
         else:
             mask[n] = True
     return sparse.coo_matrix((A.data[mask],(A.row[mask],A.col[mask])),A.shape)
-    
 
-    
+
+
 def latlong_trans(lat,lon,brng,dist):
     '''Translate the lat/long coordinates by baring and distance.
-    
+
     Args:
         lat: Latitude
         lon: Longitude
         brng: Bearing in radians, clockwise from the north
         dist: distance in meters
-        
+
     Returns:
         lat2: new latitude
         lon2: new longitude'''
-        
+
     R = 6378100 #Radius of the Earth in meters at equator
 
     lat1 = math.radians(lat) #Current lat point converted to radians
@@ -85,39 +86,39 @@ def latlong_trans(lat,lon,brng,dist):
     lon2 = math.degrees(lon2)
 
     return (lat2,lon2)
-    
-    
-    
+
+
+
 def resfunc(lat,zoom):
     '''Get the ground resolution in meters per pixel at a given latitude/zoom'''
-    
-    return (math.cos(lat*math.pi/180)*2*math.pi*6378137)/(256*2**zoom)
-    
 
-    
+    return (math.cos(lat*math.pi/180)*2*math.pi*6378137)/(256*2**zoom)
+
+
+
 def get_satellite(key,service,center,dist):
     '''Get Bing satellite image for plot area
-    
+
     Args:
         key: Bing maps key
         center: lat/long coordinates of release point, tuple
         dist: distance from release to side of domain, in meters
-        
+
     Returns:
         numpy array of image that can be seen with plt.imshow'''
-        
+
     global PILLOW_MSG
     if NO_PILLOW:
         if not PILLOW_MSG:
             print('Note: Python package "Pillow" not found. Continuing...')
             PILLOW_MSG = True
         return None
-    
+
     if key is None or center is None or service is None:
         return None
-    
+
     lat,long = center
-    
+
     # get zoom level so that we are within the services specified resolution
     #   dist is only half the domain size!
     zoom = 4
@@ -131,20 +132,20 @@ def get_satellite(key,service,center,dist):
         #   be the actual resolution of the image we get.
         while not dist/400 < resfunc(lat,zoom) <= dist/200:
             zoom += 1
-        
+
     # get the pixel dimensions to request
     pixel_len = int(round((dist*2+1)/resfunc(lat,zoom)))
-    
+
     # collect parameters for maps API
     if service == 'Bing':
         urlparams = urllib.parse.urlencode({
             'mapSize': '{0:d},{0:d}'.format(pixel_len),
             'format': 'jpeg',
-            'key': key})  
+            'key': key})
         url = 'http://dev.virtualearth.net/REST/v1/Imagery/Map/Aerial/'+\
             '{0:03.6f}%2C{1:03.6f}'.format(lat,long)+\
             '/{0:d}?'.format(zoom)+urlparams
-    
+
     elif service == 'Google':
         urlparams = urllib.parse.urlencode({
             'center': '{0:03.6f},{1:03.6f}'.format(lat,long),
@@ -156,11 +157,11 @@ def get_satellite(key,service,center,dist):
             'key': key
             })
         url = 'https://maps.googleapis.com/maps/api/staticmap?'+urlparams
-    
+
     else:
         print('Unknown maps service. Continuing without satellite imagery...')
         return None
-    
+
     try:
         f = urllib.request.urlopen(url)
         im = Image.open(io.BytesIO(f.read()))
@@ -169,27 +170,27 @@ def get_satellite(key,service,center,dist):
         print(e.reason)
         print('Continuing without satellite imagery...')
         return None
-        
+
     # matplotlib can plot a pillow Image object directly
     return im
-    
-    
-    
+
+
+
 def plot_all(modelsol,params,locinfo=None):
     '''Function for plotting the model solution
-    
+
     Args:
         modelsol: list of daily solutions, sparse
         params: Params object from Run.py
         locinfo: if provided, is used to plot field polygons'''
-    
+
     domain_info = params.domain_info
-    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
+    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to
                                               #neighbor cell (meters).
-    
+
     # assume domain is square, probably odd.
     midpt = domain_info[1]
-        
+
     plt.figure()
     for n,sol in enumerate(modelsol):
         #Establish a miminum for plotting based 0.00001 of the maximum
@@ -228,7 +229,7 @@ def plot_all(modelsol,params,locinfo=None):
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
                              edgecolor='r',lw=2,zorder=2))
-        
+
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
         plt.title('Parasitoid spread {0} day(s) post release'.format(n+1))
@@ -250,11 +251,11 @@ def plot_all(modelsol,params,locinfo=None):
                 plt.pause(0.0001)
                 plt.show()
 
-            
-            
+
+
 def plot(sol,day,params,saveonly=None,locinfo=None):
     '''Plot a solution for a single day
-    
+
     Args:
         sol: day solution, sparse
         day: day identifier (for text identification)
@@ -283,11 +284,11 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
         bw_chg = input('B/W? y/[n]:')
         if bw_chg.strip().lower() == 'y' or bw_chg.strip().lower() == 'yes':
             bw = True
-        
+
     domain_info = params.domain_info
-    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
+    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to
                                               #neighbor cell (meters).
-    
+
     # assume domain is square, probably odd.
     midpt = domain_info[1]
     #Establish a miminum for plotting based 0.00001 of the maximum
@@ -322,7 +323,7 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
         params.coord,xmesh[-1])
     if sat_img is None:
         if bw is None: #color
-            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)             
+            plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=clrmp,vmax=sprd_max,alpha=1)
         else: #black and white
             plt.pcolormesh(xmesh,xmesh,sol_fm,cmap=plt.get_cmap('gray'),
                         vmax=sprd_max,alpha=1)
@@ -345,7 +346,7 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
         else: #black and white
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='k',lw=2,zorder=2))      
+                             edgecolor='k',lw=2,zorder=2))
     plt.xlabel('West-East (meters)')
     plt.ylabel('North-South (meters)')
     plt.title('Parasitoid spread {0} day(s) post release'.format(day))
@@ -370,28 +371,28 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
         plt.close()
         print('...Figure saved to {}.'.format(outname+'.'+format))
         print('----------------Model result visualizations----------------')
-        
-        
-        
+
+
+
 def create_mp4(modelsol,params,filename,locinfo=None):
     '''Create and save an mp4 video of all the plots.
     The saved file name/location will be based on filename.
-    
+
     Args:
         modelsol: list of daily solutions, sparse
         params: Params object from Run.py
         filename: location to save mp4
         locinfo: if provided, is used to plot field polygons'''
-    
+
     print('Creating spread model video',end="")
     sys.stdout.flush()
     domain_info = params.domain_info
-    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to 
+    cell_dist = domain_info[0]/domain_info[1] #dist from one cell to
                                               #neighbor cell (meters).
-    
+
     # assume domain is square, probably odd.
     midpt = domain_info[1]
-    
+
     fig = plt.figure()
     ax = plt.axes()
     ax.axis([-400,400,-400,400])
@@ -410,7 +411,7 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         SAT = True
     cbar = plt.colorbar(pcl)
     cbar.set_label('Wasps per cell')
-        
+
     def animate(nsol):
         n,sol = nsol
         #remove just the pcolormesh and satellite image from before
@@ -418,7 +419,7 @@ def create_mp4(modelsol,params,filename,locinfo=None):
             col.remove()
         #also remove the text from before
         ntexts = len(ax.texts)
-        for ii in range(ntexts): 
+        for ii in range(ntexts):
             ax.texts[0].remove()
         #Establish a miminum for plotting based 0.00001 of the maximum
         mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
@@ -468,7 +469,7 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         cbar.solids.set_edgecolor("face")
         print('.',end="")
         sys.stdout.flush()
-    
+
     # if we pass modelsol as is, the first and last frames won't appear...
     #   it seems that maybe they are there and gone so fast that they never
     #   appear. Let's not only duplicate them, put pause a little longer on them.
@@ -489,12 +490,12 @@ def create_mp4(modelsol,params,filename,locinfo=None):
             blit=False,interval=850)
     anim.save(filename+'.mp4',dpi=140,bitrate=500)
     print('\n...Video saved to {0}.'.format(filename+'.mp4'))
-    
-    
-    
+
+
+
 def main(argv):
     '''Function for plotting a previous result.
-    
+
     The first argument in the list should be the location of a simulation file.
     '''
     try:
@@ -602,6 +603,6 @@ def main(argv):
             except ValueError:
                 print('Input {} not understood.'.format(val))
                 continue
-    
+
 if __name__ == "__main__":
     main(sys.argv[1:])

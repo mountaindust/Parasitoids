@@ -7,8 +7,8 @@ This module should implement the pieces of the model, including info about the
 
 Created on Sat Mar 07 20:18:32 2015
 
-Author: Christopher Strickland  
-Email: cstrickland@samsi.info  
+Author: Christopher Strickland
+Email: wcstrick@live.unc.edu
 """
 
 __author__ = "Christopher Strickland"
@@ -26,17 +26,17 @@ from CalcSol import r_small_vals
 
 def emergence_data(site_name):
     """ Reads the observed emergence data from a text file.
-    
+
     Arguments:
         - site_name -- string
-        
+
     Returns:
         - dictionary of emergence data. Contains dicts of each field, whose keys
             are the dates of sampling."""
     em = {}
 
     file_name = site_name + 'emergence.txt'
-    
+
     with open(file_name,'r') as em_file:
         #First line is column headers.
         comment_line = em_file.readline() # e.g. #date   0  22   25   ...
@@ -58,17 +58,17 @@ def emergence_data(site_name):
 
     return em
 
-    
-    
+
+
 def read_wind_file(site_name):
     """ Reads the wind data from a text file
-    
+
     Arguments:
         - site_name -- string
-        
+
     Returns:
-        - wind_data -- wind data as a dictionary of 2D ndarrays. 
-                       Keys are date since release. In each ndarray, 
+        - wind_data -- wind data as a dictionary of 2D ndarrays.
+                       Keys are date since release. In each ndarray,
                        rows are times, columns are the windx,windy,windr
         - days -- sorted list of days found in wind file"""
     file_name = site_name + 'wind.txt'
@@ -85,14 +85,14 @@ def read_wind_file(site_name):
                 windx = 0
             windy = float(splitline[2]) #y-component of wind vector
             # Remove very small values
-            if abs(windy) < 10e-5: 
+            if abs(windy) < 10e-5:
                 windy = 0
             # Magnitude of wind vector, r
             windr = np.sqrt(windx**2+windy**2)
             # Remove very small values
-            if abs(windr) < 10e-5: 
+            if abs(windr) < 10e-5:
                 windr = 0
-                
+
             # Wind angle was unused, so this block commented.
             # Theta has also been removed from the output of this function
             # # Angle of wind vector, theta
@@ -106,7 +106,7 @@ def read_wind_file(site_name):
                 # theta = np.arctan(windy/windx)
             # if windx < 0:
                 # theta = theta+np.pi
-                
+
             # Add to our wind_data dictionary.
             # Each date is an ordered list of wind data (ndarray) by hour.
             if day in wind_data:
@@ -114,61 +114,61 @@ def read_wind_file(site_name):
             else:
                 wind_data[day] = [np.array([windx,windy,windr])]
                 days.append(day)
-    
+
     #convert each list of ndarrays to a single ndarray where rows are times,
     #  columns are the windx,windy,windr. This allows fancy slicing.
     for day in wind_data:
         wind_data[day] = np.array(wind_data[day]) #lists of ndarrays become 2D
-        
+
     days.sort()
 
     return (wind_data,days)
     #this returns a dictionary of days, with each day pointing to
     #a 2-D ndarray. Rows are times, columns are the windx,windy,windr
 
-    
-    
+
+
 #there is abiguity as to whether or not midnight belongs to one day or the other
 #   In fact, one of our data sets starts at 00:00, the other at 00:30! Each,
 #   however, keeps 48 30min periods in a day. So we will have the user specify
-#   at which time the data set starts, and infer the convention used accordingly    
+#   at which time the data set starts, and infer the convention used accordingly
 def get_wind_data(site_name,interp_num,start_time):
     '''Calls read_wind_file, interpolates the data linearly.
     This function will also handle the midnight vs. 00:30 starting problem.
     We need a convention for output, so we will say that the day starts at 00:00
     and runs until 23:59.
-    
+
     This procedure will not be under MCMC, so it doesn't have to really fast.
-    
+
     Args:
         site_name: string
         interp_num: number of time points to have in each data-point interval,
             [data1,data2), including the data point itself.
         start_time: string, '00:00' or '00:30', time of first data point
-        
+
     Returns:
         wind_data: dictionary of wind arrays, one array for each day.
                    each row is one time point, each column is windx,windy,windr'''
-                   
+
     wind_data_raw,days = read_wind_file(site_name)
-    
+
     # No matter if the data starts at 00:00 or 00:30, we have a fencepost problem
     #   in linearly interpolating our data either at the beginning or the end.
     #   Fortunately, this occurs at the middle of the night, so it shouldn't
     #   make much of a difference.
-    
+
     wind_data = {}
     time_pts = wind_data_raw[days[0]].shape[0]
     scaling = np.linspace(0,1,interp_num+1)[:-1]
     scaling_mat = np.tile(scaling,(3,1)).T
     scaling_mat_dec = 1 - scaling_mat
-    
+
     if start_time == '00:00':
         for day in days[:-1]:
             interp_wind = np.zeros((time_pts*interp_num,3))
             for data_indx in range(time_pts-1):
                 interp_wind[data_indx*interp_num:(data_indx+1)*interp_num,:] = (
-                    scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                    scaling_mat_dec*wind_data_raw[day][data_indx,:] +
                     scaling_mat*wind_data_raw[day][data_indx+1,:])
                 # this calculation is incorrect for windr (triangle inequality).
             interp_wind[(time_pts-1)*interp_num:,:] = (
@@ -177,20 +177,20 @@ def get_wind_data(site_name,interp_num,start_time):
             # recalculate windr before adding to wind_data
             interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
             wind_data[day] = interp_wind
-        
+
         # last day
         interp_wind = np.zeros((time_pts*interp_num,3))
         day = days[-1]
         for data_indx in range(time_pts-1):
             interp_wind[data_indx*interp_num:(data_indx+1)*interp_num,:] = (
-                scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                scaling_mat_dec*wind_data_raw[day][data_indx,:] +
                 scaling_mat*wind_data_raw[day][data_indx+1,:])
         # recalculate windr before adding to wind_data
         interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
         # just repeat the last data point throughout the last interpolation period
         interp_wind[(time_pts-1)*interp_num:,:] = wind_data_raw[day][-1,:]
         wind_data[day] = interp_wind
-        
+
     elif start_time == '00:30':
         # in this case, we assume that midnight is included in the previous day
         interp_wind = np.zeros((time_pts*interp_num,3))
@@ -199,29 +199,29 @@ def get_wind_data(site_name,interp_num,start_time):
         interp_wind[:interp_num,:] = wind_data_raw[day][0,:]
         for data_indx in range(time_pts-1):
             interp_wind[(data_indx+1)*interp_num:(data_indx+2)*interp_num,:] = (
-                scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                scaling_mat_dec*wind_data_raw[day][data_indx,:] +
                 scaling_mat*wind_data_raw[day][data_indx+1,:])
         # recalculate windr before adding to wind_data
         interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
         wind_data[day] = interp_wind
-        
+
         # after first day
         for day in days[1:]:
             interp_wind = np.zeros((time_pts*interp_num,3))
             interp_wind[:interp_num,:] = (
-                scaling_mat_dec*wind_data_raw[day-1][-1,:] + 
+                scaling_mat_dec*wind_data_raw[day-1][-1,:] +
                 scaling_mat*wind_data_raw[day][0,:])
             for data_indx in range(time_pts-1):
                 interp_wind[(data_indx+1)*interp_num:(data_indx+2)*interp_num,:] = (
-                    scaling_mat_dec*wind_data_raw[day][data_indx,:] + 
+                    scaling_mat_dec*wind_data_raw[day][data_indx,:] +
                     scaling_mat*wind_data_raw[day][data_indx+1,:])
             # recalculate windr before adding to wind_data
             interp_wind[:,2] = np.sqrt(interp_wind[:,0]**2 + interp_wind[:,1]**2)
             wind_data[day] = interp_wind
-            
+
     else:
         raise ValueError("start_time must be either '00:00' or '00:30'")
-        
+
     return (wind_data,days)
 
 ##########    Model functions    ##########
@@ -230,7 +230,7 @@ def g_wind_prob(windr, aw, bw):
     """Returns probability of take-off under given wind conditions.
     If the wind has no effect on flight probability, returns 1.
     Otherwise, scales down from 1 to 0 as wind speed increases.
-    
+
     Arguments:
         - windr -- wind speed
         - aw -- wind speed at which flight prob. is scaled by 0.5
@@ -241,14 +241,14 @@ def g_wind_prob(windr, aw, bw):
 def f_time_prob(n, a1, b1, a2, b2):
     """Returns probability mass function of take-off based on time at n equally
     spaced times.
-    
+
     Arguments:
         - n -- number of wind data points per day available
         - a1 -- time of morning at which to return 0.5
         - b1 -- steepness of morning curve (larger numbers = steeper)
         - a2 -- time of afternoon at which to return 0.5
         - b2 -- steepness of afternoon curve (larger numbers = steeper)
-        
+
     Returns:
         - A probability mass function for take-off in each of n intervals
             during the day"""
@@ -258,7 +258,7 @@ def f_time_prob(n, a1, b1, a2, b2):
     t_tild = np.linspace(0,24-24./n,n) #divide 24 hours into n equally spaced times
     # Calculate the likelihood of flight at each time of day, giving a number
     #   between 0 and 1. Combination of two logistic functions.
-    likelihood = np.fmax(1.0 / (1. + np.exp(-b1 * (t_tild - a1))) - 
+    likelihood = np.fmax(1.0 / (1. + np.exp(-b1 * (t_tild - a1))) -
                     1.0 / (1. + np.exp(-b2 * (t_tild - a2))),
                     np.zeros_like(t_tild))
     # Scale the likelihood into a proper probability mass function, and return
@@ -266,30 +266,30 @@ def f_time_prob(n, a1, b1, a2, b2):
 
 def Dmat(sig_x, sig_y, rho):
     """Returns covarience matrix for diffusion process
-    
+
     Arguments:
         - sig_x, sig_y -- Std. deviation in x and y direction respectively
         - rho -- Covariance"""
-    
+
     assert sig_x > 0, 'sig_x must be positive'
     assert sig_y > 0, 'sig_y must be positive'
-    assert -1 <= rho <= 1, 'correlation must be between -1 and 1'    
+    assert -1 <= rho <= 1, 'correlation must be between -1 and 1'
     return np.array([[sig_x**2, rho*sig_x*sig_y],\
                      [rho*sig_x*sig_y, sig_y**2]])
-    
+
 def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     """Returns probability density of flying (take-off) during a given day's wind.
     This is given by f times g times the constant lambda. Lambda can be thought
     of as the probability of flight during a day with constant ideal wind
-    
+
     Arguments:
         - day_wind -- ndarray of wind directions
         - lam -- constant
         - aw,bw -- g function constants
         - a1,b1,a2,b2 -- f function constants
-    
+
     Note: day_wind[0,:] = np.array([windx,windy,windr])"""
-    
+
     n = day_wind.shape[0] #number of wind data entries in the day
     alpha_pow = 1 # new parameter?
     #get just the windr values
@@ -303,35 +303,35 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     t_vec = np.linspace(1,n,n)
     integral_avg = f_func*g_func/t_vec/np.max(f_func)*np.cumsum(
         (1-np.cumsum(f_func)**alpha_pow)*(f_func-f_func*g_func))
-    
+
     return f_func*g_func + integral_avg #np.array of length n
 
 def get_mvn_cdf_values(cell_length,mu,S):
-    """Get cdf values for a multivariate normal centered near (0,0) 
+    """Get cdf values for a multivariate normal centered near (0,0)
     inside regular cells. To do this fast, we use a secret Fortran mulivariate
     normal CDF (mvn) due to Dr. Alan Genz.
-    
+
     This function will return a variable sized 2D array with its shape
     dependent on the support of the normal distribution.
-    
+
     This function cannot be jit nopython compiled with numba due to mvn
-    
+
     Args:
         cell_length: length of a side of each cell (in meters)
         mu: mean of the distribution (in meters)
         S: covariance matrix
-        
+
     Returns:
         cdf_mat: 2D array of cdf values, one for each cell"""
-    
+
     cdf_eps = 0.001    # integrate until the area of the square is within
                         #   cdf_eps of 1.0
-    
+
     r = cell_length/2 # in meters. will want to integrate +/- this amount
     h = 0 # h*2+1 is the length of one side of the support in cells (int).
-    
+
     cell_length_ary = np.array([cell_length,cell_length])
-    
+
     # Integrate center cell
     low = np.array([-r,-r])
     upp = np.array([r,r])
@@ -341,11 +341,11 @@ def get_mvn_cdf_values(cell_length,mu,S):
     #   to probability mass values.
     cdf_vals = {(0,0):val}
     val_sum = val # keep track of the total sum of the integration
-    
+
     # Start loop
     while 1 - val_sum >= cdf_eps:
         h += 1 # increase the size of the domain
-        
+
         # Integrate the four corners of the square
         for ii in [-h,h]:
             for jj in [-h,h]:
@@ -355,7 +355,7 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(ii,jj)] = val
                 val_sum += val
-                
+
         # Integrate the four sides of the square
         for ii in [-h,h]:
             for jj in range(-h+1,h):
@@ -369,12 +369,12 @@ def get_mvn_cdf_values(cell_length,mu,S):
                 assert inform == 0 #integration finished with error < EPS
                 cdf_vals[(jj,ii)] = val
                 val_sum += val
-        
+
     # We've now integrated to the required accuracy. Form an ndarray.
     # We need to translate x,y coordinate pairs to row and column numbers
-    cdf_mat = np.array([[cdf_vals[(x,y)] for x in range(-h,h+1)] 
+    cdf_mat = np.array([[cdf_vals[(x,y)] for x in range(-h,h+1)]
         for y in range(h,-h-1,-1)])
-        
+
     return cdf_mat
 
 
@@ -384,16 +384,16 @@ class BndsError(Exception):
         return 'Index error in calculating prob_mass.\n'+\
             'Most likely, wind results in spread that goes off the domain'+\
             ' in a single time period.'
-    
-    
-    
+
+
+
 def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                 rad_dist,rad_res,start_time=None):
     """Returns prob mass function for a given day as an ndarray.
     This function always is calculated based on an initial condition at the
     origin. The final position of all wasps based on the previous day's
     position can then be updated via convolution with this function.
-    
+
     Arguments:
         - day -- day as specified in wind data
         - wind_data -- dictionary of wind data
@@ -405,23 +405,23 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         - rad_dist -- distance from release point to side of the domain (m)
         - rad_res -- number of cells from center to side of the domain
         - start_time -- (optional) time at which release occurred (units=day)
-        
+
     Returns:
         - pmf -- 2D spatial probability mass function of finding the parasitoid
                     in each spatial cell according to given resolution"""
-        
+
     dom_len = rad_res*2+1 #number of cells along one dimension of domain
     cell_dist = rad_dist/rad_res #dist from one cell to neighbor cell.
-        
+
     pmf = np.zeros((dom_len,dom_len))
-    
+
     day_wind = wind_data[day] #alias the current day
-    
+
     hprob = h_flight_prob(day_wind, *hparams)
-    
+
     S = Dmat(*Dparams) #get diffusion covarience matrix
     Sl = Dmat(*Dlparams) # get out-of-flow diffusion covarience matrix
-    
+
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
         periods = day_wind.shape[0] # wind data is already interpolated.
@@ -430,14 +430,14 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     else:
         periods = 1
         TEST_RUN = True
-    
+
     if start_time is None:
         start_indx = 0
     else:
         start_indx = floor(start_time*periods)
     for t_indx in range(start_indx,periods):
         ### Get the advection velocity and put in units = m/(unit time) ###
-        
+
         if (not TEST_RUN) and n_periods > 1:
             if t_indx+n_periods-1 < periods:
                 # effective flight advection over n periods in km/hr
@@ -465,29 +465,29 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         else:
             # mu_v only has one entry. Typically a testing run to check behavior
             mu_v = np.array(day_wind[0:2])
-        
-        # mu_v is now in km/hr. convert to m/(n_periods)     
+
+        # mu_v is now in km/hr. convert to m/(n_periods)
         mu_v *= 1000*24*(n_periods/periods) # m/(n_periods)
-        
-        # We also need to scale this by a constant which represents a scaling 
+
+        # We also need to scale this by a constant which represents a scaling
         # term that takes wind advection to flight advection.
         mu_v *= mu_r
         # Note: this is in (x,y) coordinates
-        
-        
+
+
         ### calculate spatial integral (in a spatially limited way) ###
-        
+
         #we know the distribution is centered around mu_v(t) at each t_indx, and
         #   that it has very limited support. Translate the normal distribution
         #   back to the origin and let get_mvn_cdf_values integrate until
         #   the support is exhausted.
-        
+
         # We will translate to the nearest cell center given by mu_v below.
         #   Pass the remainder of the translation to get_mvn_cdf_values as mu.
         cdf_mu = mu_v - np.round(mu_v/cell_dist)*cell_dist
-        
+
         cdf_mat = get_mvn_cdf_values(cell_dist,cdf_mu,S)
-        
+
         #translate mu_v from (x,y) coordinates to nearest cell-center location.
         #   [rad_res,rad_res] is the center cell of the domain.
         col_offset = int(np.round(mu_v[0]/cell_dist))
@@ -495,18 +495,18 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         row_cent = rad_res+row_offset
         col_cent = rad_res+col_offset
         adv_cent = np.array([row_cent,col_cent])
-        
+
         #now we want to plop the normal distribution around this center
-        
+
         norm_r = int(cdf_mat.shape[0]/2) #shape[0] is odd, floor half of it.
-        
+
         # Get indices in pmf array
         row_min, col_min = adv_cent - norm_r
         row_max, col_max = adv_cent + norm_r
-        
-        
+
+
         #approximate integral over time
-        # Try to handle domain edges with zero boundary conditions, but return 
+        # Try to handle domain edges with zero boundary conditions, but return
         # a unique error if this doesn't work
         cdf_rs = 0
         cdf_re = cdf_mat.shape[0]
@@ -580,7 +580,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                 'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
                 'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
             raise
-    
+
     # shrink the domain down as much as possible and return a sparse array
 
     # first, remove the really small data values from the array
