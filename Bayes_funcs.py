@@ -156,6 +156,8 @@ def popdensity_to_emergence(modelsol,locinfo):
 def popdensity_grid(modelsol,locinfo):
     '''Translate population model to corresponding expected number of wasps in
     each grid point
+    FUTURE: Make this wasps per m**2 instead, so this variable scales with
+    different cell sizes.
     '''
 
     # Assume observations are done at the beginning of the day.

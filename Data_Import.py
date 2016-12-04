@@ -79,6 +79,7 @@ class LocInfo(object):
         #   grid_data contains the following columns:
         #       xcoord: distance east from release point in meters
         #       ycoord: distance north from release point in meters
+        #       area: area sampled
         #       samples: sampling effort at each point via direct observation
         #       collection: collection effort at each point (for emergence)
         self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
@@ -407,12 +408,9 @@ class LocInfo(object):
         assert len(grid_data.shape) == 2, 'Could not convert data into 2D array.\n'+\
             'Likely, a line in {} is incomplete.'.format(filename)
 
-        # column 2 and 3 are redundant for our purposes
-        grid_data = np.delete(grid_data,2,axis=1)
-
         # Convert to pandas dataframe
         grid_info = pd.DataFrame(grid_data,
-                            columns=['xcoord','ycoord','samples','collection'])
+                            columns=['xcoord','ycoord','area','samples','collection'])
         return grid_info
 
     def get_sentinel_emergence(self,location):

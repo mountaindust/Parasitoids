@@ -368,8 +368,8 @@ def assess_fit(modelsol,params,locinfo,bw=False):
     ngridpoints = locinfo.grid_data.shape[0]
 
     # bar colors
-    c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*5*2+2)
-    c_nums = c_nums[1:-1]
+    # c_nums = np.linspace(0,1,locinfo.grid_obs_DataFrame['obs_count'].max()*2+2)
+    # c_nums = c_nums[1:-1]
 
     # surface default color
     default_cmap = cm.get_cmap('Oranges')
@@ -383,7 +383,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         bndry_cells[ii,jj] += 1
 
     # grid boundary color
-    bndry_clr = default_cmap(0.2)
+    bndry_clr = [1,0,1]#default_cmap(0.2)
 
     # plot labels
     labels = ['a)','b)','c)']
@@ -411,30 +411,40 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         model_grid /= 6.25
 
         # bars with no height
-        ax.bar3d(all_xcoord, all_ycoord, np.zeros(ngridpoints), res, res, 0)
+        ax.bar3d(all_xcoord, all_ycoord, np.zeros(ngridpoints), res, res, 0, color='0.95')
         ### bars with height ###
         xcoords = locinfo.grid_obs_DataFrame[date_rows]['xcoord'].values
         ycoords = locinfo.grid_obs_DataFrame[date_rows]['ycoord'].values
-        scaling = np.zeros_like(xcoords)
+        # scaling = np.zeros_like(xcoords)
         # get sampling effort for these coordinates
-        n = 0
-        for xcoord, ycoord in zip(xcoords,ycoords):
-            scaling[n] = locinfo.grid_data[(locinfo.grid_data['xcoord']==xcoord)
-                         & (locinfo.grid_data['ycoord']==ycoord)]['samples']
-            if scaling[n] == 270:
-                scaling[n] = 10/9
-            else:
-                scaling[n] = 10
-            n += 1
+        # n = 0
+        # for xcoord, ycoord in zip(xcoords,ycoords):
+        #     scaling[n] = locinfo.grid_data[(locinfo.grid_data['xcoord']==xcoord)
+        #                  & (locinfo.grid_data['ycoord']==ycoord)]['samples']
+        #     if scaling[n] == 270:
+        #         scaling[n] = 1
+        #     else:
+        #         scaling[n] = 1
+        #     n += 1
         # color bars according to height
+        # clr_list = []
+        # for n,obs in enumerate(locinfo.grid_obs_DataFrame[date_rows]['obs_count']):
+        #     clr_list.append(c_nums[int(obs*scaling[n]*2-1)])
+
+        # color bars according to sampling effort
         clr_list = []
-        for n,obs in enumerate(locinfo.grid_obs_DataFrame[date_rows]['obs_count']):
-            clr_list.append(c_nums[int(obs*scaling[n]*2-1)])
+        for xcoord, ycoord in zip(xcoords,ycoords):
+            scaling = int(locinfo.grid_data[(locinfo.grid_data['xcoord']==xcoord)
+                & (locinfo.grid_data['ycoord']==ycoord)]['samples'].values)
+            if scaling == 270:
+                clr_list.append(0.75)
+            else:
+                clr_list.append(0.1)
 
         ax.bar3d(xcoords,ycoords,
                  np.zeros(locinfo.grid_obs_DataFrame[date_rows].shape[0]),
                  res, res,
-                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values*scaling*3/10,
+                 locinfo.grid_obs_DataFrame[date_rows]['obs_count'].values,
                  color=base_clrmp(clr_list),label='Data')
 
         # color the facets like the bars, using a color not in viridis where
@@ -450,8 +460,15 @@ def assess_fit(modelsol,params,locinfo,bw=False):
                     if xlow <= row[1]['xcoord'] < xhigh and\
                             ylow <= row[1]['ycoord'] < yhigh and\
                             facet_clrs[jj,ii] is None:
-                        facet_clrs[jj,ii] = base_clrmp(c_nums[
-                            row[1]['obs_count']-1])
+                            if row[1]['obs_count'] > 0:
+                                scaling = int(locinfo.grid_data[
+                                    (locinfo.grid_data['xcoord']==row[1]['xcoord']) &
+                                    (locinfo.grid_data['ycoord']==row[1]['ycoord'])
+                                    ]['samples'].values)
+                                if scaling == 270:
+                                    facet_clrs[jj,ii] = base_clrmp(0.75)
+                                else:
+                                    facet_clrs[jj,ii] = base_clrmp(0.1)
                 if facet_clrs[jj,ii] is None:
                     # check for grid boundary, color it different
                     if bndry_cells[jj,ii] > 0:
