@@ -62,7 +62,7 @@ def main():
     grid_locs = np.flipud(np.ma.masked_values(grid_locs,0))
     ax.pcolormesh(xmesh,xmesh,grid_locs,cmap=cm.get_cmap('cool'),vmax=1,zorder=2)
     ax.set_xlabel('West-East (meters)')
-    ax.set_ylabel('North-South (meters)')
+    ax.set_ylabel('South-North (meters)')
     ax.set_title('Parasitoid collection site locations')
     plt.show()
 

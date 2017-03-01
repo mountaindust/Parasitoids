@@ -373,7 +373,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
 
     # surface default color
     default_cmap = cm.get_cmap('Oranges')
-    default_clr = default_cmap(0.45)
+    default_clr = (*default_cmap(0.45)[:-1], 0.3) # change the alpha
 
     # find grid boundary cells
     bndry_cells = np.zeros_like(xmeshgrid)
@@ -383,7 +383,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
         bndry_cells[ii,jj] += 1
 
     # grid boundary color
-    bndry_clr = [1,0,1]#default_cmap(0.2)
+    bndry_clr = (1, 0, 1, 0.3) #default_cmap(0.2)
 
     # plot labels
     labels = ['a)','b)','c)']
@@ -478,12 +478,13 @@ def assess_fit(modelsol,params,locinfo,bw=False):
                     facet_clrs[jj,ii] = default_clr
 
         ax.plot_surface(xmeshgrid,ymeshgrid,model_grid,facecolors=facet_clrs,
-                        rstride=1,cstride=1,alpha=0.35,shade=True,label='Model')
+                        rstride=1,cstride=1,shade=True,label='Model')
         ax.set_xlabel('West-East (meters)',fontsize=16)
         ax.set_ylabel('South-North (meters)',fontsize=16)
         ax.set_zlabel(r'num/10 m$^2$ model & observed',fontsize=16)
         # set view
-        ax.view_init(24,-41)
+        #ax.view_init(24,-41)
+        ax.view_init(elev=50,azim=-45)
         # add label
         ax.text2D(0.05,0.85,labels[day],color='k',ha='left',va='center',
                 transform=ax.transAxes,fontsize=18)
@@ -491,6 +492,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
             ax.set_title('Model vs.\n parasitoid observation data',fontsize=21)
 
     plt.tight_layout(pad=1.5)
+    plt.subplots_adjust(left=0.0, right=0.96, bottom=0.06, top=0.94)
     plt.show()
 
 

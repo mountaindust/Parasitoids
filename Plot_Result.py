@@ -530,7 +530,7 @@ def main(argv):
     LOCINFO_LOADED = False
     print('----------------Model result visualizations----------------')
     while True:
-        val = input('Enter a day number to plot, '+
+        val = input('\nEnter a day number to plot, '+
                 'or "all" to plot all.\n'+
                 '"save" or "s" and then a number will save that day to file.\n'+
                 '? will provide a list of plottable day numbers.\n'+
@@ -560,9 +560,9 @@ def main(argv):
                 from Data_Import import LocInfo
                 locinfo = LocInfo(params.dataset,params.coord,params.domain_info)
                 LOCINFO_LOADED = True
-                print('Sentinel field locations loaded.\n')
+                print('\nSentinel field locations loaded.')
             except:
-                print('Could not load sentinel field data.')
+                print('\nCould not load sentinel field data.')
                 print(sys.exc_info()[0])
                 continue
         elif val[0] == 's':
@@ -572,12 +572,17 @@ def main(argv):
                 else:
                     val = int(val[1:].strip())
             except ValueError:
-                print('Could not convert {} to an integer.'.format(val))
+                print('\nCould not convert {} to an integer.'.format(val))
                 continue
-            if LOCINFO_LOADED:
-                plot(modelsol[val-1],val,params,saveonly=filename,locinfo=locinfo)
-            else:
-                plot(modelsol[val-1],val,params,saveonly=filename)
+            try:
+                if LOCINFO_LOADED:
+                    plot(modelsol[val-1],val,params,saveonly=filename,locinfo=locinfo)
+                else:
+                    plot(modelsol[val-1],val,params,saveonly=filename)
+            except IndexError:
+                print("\n{} is out of the simulation's range.".format(val))
+                print("Possible entries are: "+str(list(range(1,len(days)+1)))[1:-1]+'.')
+                continue
         else:
             try:
                 if LOCINFO_LOADED:
@@ -585,9 +590,13 @@ def main(argv):
                 else:
                     plot(modelsol[int(val)-1],val,params)
             except KeyError:
-                print('Day {0} not found.'.format(val))
+                print('\nDay {0} not found.'.format(val))
             except ValueError:
-                print('Input {} not understood.'.format(val))
+                print('\nInput {} not understood.'.format(val))
+                continue
+            except IndexError:
+                print("\n{} is out of the simulation's range.".format(val))
+                print("Possible entries are: "+str(list(range(1,len(days)+1)))[1:-1]+'.')
                 continue
 
 if __name__ == "__main__":
