@@ -44,21 +44,21 @@ def main(bw=False):
     # field locations. Also add labels based at a position based on info in
     #   each Path object
     if not bw: #color
-        for id,poly in locinfo.field_polys.items():
+        for fid,poly in locinfo.field_polys.items():
             ax.add_patch(patches.PathPatch(poly,facecolor='none',
                             edgecolor='r',lw=2,zorder=1))
             ext = poly.get_extents()
             # Put the label somewhere in the middle of each field
-            ax.text((ext.xmin+ext.xmax)/2,(ext.ymin+ext.ymax)/2,id,
-                    fontsize=12,color='w')
+            ax.text((ext.xmin+ext.xmax)/2,(ext.ymin+ext.ymax)/2,fid,
+                    fontsize=16,color='w',weight='bold')
     else: #black and white
-        for id,poly in locinfo.field_polys.items():
+        for fid,poly in locinfo.field_polys.items():
             ax.add_patch(patches.PathPatch(poly,facecolor='none',
                             edgecolor='k',lw=2,zorder=1))
             ext = poly.get_extents()
             # Put the label somewhere in the middle of each field
-            ax.text((ext.xmin+ext.xmax)/2,(ext.ymin+ext.ymax)/2,id,
-                    fontsize=12,color='w')
+            ax.text((ext.xmin+ext.xmax)/2,(ext.ymin+ext.ymax)/2,fid,
+                    fontsize=16,color='w',weight='bold')
     # get average wind direction
     day_avg = []
     wind_data,days = PM.get_wind_data(*params.get_wind_params())
@@ -82,15 +82,15 @@ def main(bw=False):
         theta = theta+np.pi
     theta = int(np.degrees(theta))
     # show info
-    ax.text(1600*avg_wind[0]-200,1600*avg_wind[1]+500,
+    ax.text(1600*avg_wind[0]-600,1600*avg_wind[1]+500,
         'Avg. wind speed/direction:\n'+
         '{:.1f} km/hr\n{} degrees from east'.format(avg_wind[2],theta),
-        color='w',fontsize=11)
-    ax.set_xlabel('West-East (meters)')
-    ax.set_ylabel('North-South (meters)')
+        color='w',fontsize=16, weight='medium')
+    ax.set_xlabel('West-East (meters)', fontsize=12)
+    ax.set_ylabel('North-South (meters)', fontsize=12)
     # label plot
     ax.text(0.01,0.95,'a)',color='w',ha='left',va='center',
-            transform=ax.transAxes,fontsize=16)
+            transform=ax.transAxes,fontsize=18, weight='bold')
 
     ### Diffusion visualization ###
     ax = fig.add_subplot(122)
@@ -108,8 +108,8 @@ def main(bw=False):
         edgecolors='none',linewidths=1,label='Wind-based diffusion')
     ax.scatter(cloud_local[:,0],cloud_local[:,1],s=2,c='k',zorder=2,
         edgecolors='none',label='Local diffusion')
-    leg = ax.legend(loc="upper right",fontsize=11,framealpha=0.2,fancybox=True,
-                    markerscale=2)
+    leg = ax.legend(loc="upper right",fontsize=12,framealpha=0.2,fancybox=True,
+                    markerscale=4)
     for txt in leg.get_texts():
         txt.set_color('w')
     # add satellite image
@@ -122,11 +122,11 @@ def main(bw=False):
             sat_img = sat_img.convert('L') #B/W satellite image w/ dither
             ax.imshow(sat_img,zorder=0,cmap=plt.get_cmap('gray'),
                         extent=plot_limits)
-    ax.set_xlabel('West-East (meters)')
-    ax.set_ylabel('North-South (meters)')
+    ax.set_xlabel('West-East (meters)', fontsize=12)
+    ax.set_ylabel('North-South (meters)', fontsize=12)
     # label plot
     ax.text(0.01,0.95,'b)',color='w',ha='left',va='center',
-            transform=ax.transAxes,fontsize=16)
+            transform=ax.transAxes,fontsize=18, weight='bold')
     plt.tight_layout()
     plt.show()
 

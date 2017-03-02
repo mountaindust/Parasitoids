@@ -60,6 +60,9 @@ def main(modelsol,params,locinfo,bw=False):
         bw: set this to something not None for b/w
         '''
 
+    cell_dist = params.domain_info[0]/params.domain_info[1]
+    cell_size = (cell_dist)**2
+
     # Compare both release field and sentinel fields
     allfields_ids = [locinfo.releasefield_id]
     allfields_ids.extend(locinfo.sent_ids)
@@ -93,13 +96,18 @@ def main(modelsol,params,locinfo,bw=False):
     for n,obs_date in enumerate(obs_dates_TD):
         obs_emerg_array[1:,obs_datesPR[n]-collection_date] = \
             dframe[dframe['datePR'] == obs_date]['E_total'].values
+    # finally, normalize these observations by field size
+    for n,fid in enumerate(allfields_ids):
+        if n == 0:
+            # in the release field, collection was only done on the grid
+            obs_emerg_array[0,:] *= 100/locinfo.grid_data['area'].sum()
+        else:
+            obs_emerg_array[n,:] *= 10000/(locinfo.field_sizes[fid]*cell_size)
     # now obs_emerg_array can be directy compared to a projection of emergence
     #   in each field on the same day PR
 
     ##### Calculate the density of wasps in each field on each day #####
     # Get the size of each cell in m**2
-    cell_dist = params.domain_info[0]/params.domain_info[1]
-    cell_size = (cell_dist)**2
     field_sizes_m = {}
     for key,val in locinfo.field_sizes.items():
         field_sizes_m[key] = val*cell_size
@@ -171,11 +179,13 @@ def main(modelsol,params,locinfo,bw=False):
         sol_fm = np.flipud(np.ma.masked_less(
             sol_red.toarray()[midpt-rmax:midpt+rmax+1,midpt-rmax:midpt+rmax+1],
             mask_val))
-        plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
+        #plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
+        plot_limits = [-6600, 6600, -6600, 6600] # fix plot extents per
+                                                 # reviewer comment
         ax1[ii].axis(plot_limits)
-        if xmesh[-1]>=6000:
-            ax1[ii].set_xticks(np.arange(-6000,6001,3000),minor=False)
-            ax1[ii].set_yticks(np.arange(-6000,6001,3000),minor=False)
+        #if xmesh[-1]>=6000:
+        ax1[ii].set_xticks(np.arange(-6000,6001,3000),minor=False)
+        ax1[ii].set_yticks(np.arange(-6000,6001,3000),minor=False)
         #find the max value excluding the middle area
         midpt2 = sol_fm.shape[0]//2
         sol_mid = np.array(sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5])
@@ -206,16 +216,34 @@ def main(modelsol,params,locinfo,bw=False):
                                    alpha=0.65)
         # sentinel field locations
         if bw is False: #color
-            for poly in locinfo.field_polys.values():
+            for fid,poly in locinfo.field_polys.items():
                 ax1[ii].add_patch(patches.PathPatch(poly,facecolor='none',
                              edgecolor='r',lw=2,zorder=2))
+                ext = poly.get_extents()
+                # Put the label somewhere in the middle of each field
+                if fid != 'B':
+                    ax1[ii].text((ext.xmin+ext.xmax)/2,ext.ymin,fid,
+                            fontsize=12,color='w',weight='bold')
+                else:
+                    # Put some additional separation on B field label
+                    ax1[ii].text(ext.xmin, ext.ymin, fid,
+                            fontsize=12,color='w',weight='bold')
         else: #black and white
-            for poly in locinfo.field_polys.values():
+            for fid,poly in locinfo.field_polys.items():
                 ax1[ii].add_patch(patches.PathPatch(poly,facecolor='none',
                              edgecolor='k',lw=2,zorder=2))
+                ext = poly.get_extents()
+                # Put the label somewhere in the middle of each field
+                if fid != 'B':
+                    ax1[ii].text((ext.xmin+ext.xmax)/2,ext.ymin,fid,
+                            fontsize=12,color='w',weight='bold')
+                else:
+                    # Put some additional separation on B field label
+                    ax1[ii].text(ext.xmin, ext.ymin, fid,
+                            fontsize=12,color='w',weight='bold')
         # axis labels
         ax1[ii].set_xlabel('West-East (meters)',fontsize=16)
-        ax1[ii].set_ylabel('North-South (meters)',fontsize=16)
+        ax1[ii].set_ylabel('South-North (meters)',fontsize=16)
         # report the day PR
         ax1[ii].text(0.98,0.95,'{} days PR'.format(plot_days[ii]+2),color='w',
             ha='right',va='center',transform=ax1[ii].transAxes,fontsize=18)
@@ -269,14 +297,18 @@ def main(modelsol,params,locinfo,bw=False):
             color_list = np.linspace(0.95,0.05,len(zcoord)) # color setup
             for n,z in enumerate(zcoord):
                 ax2[ii].bar(emerg_dates,obs_emerg_array[n,:],
-                    zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7)
-            ax2[ii].set_zlabel('Emergence observations',fontsize=16)
+                    zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7,
+                    edgecolor='black')
+            ax2[ii].set_zlabel('\nEmergence observations\n normalized by area',
+                               fontsize=16)
         else:
             # model densities
             for n,z in enumerate(zcoord):
                 ax2[ii].bar(emerg_dates,proj_emerg_densities[n,:]*100,
-                    zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7)
-            ax2[ii].set_zlabel('\n'+r'Projected emergence/100m$^2$',fontsize=16)
+                    zs=z,zdir='x',color=qcmap(color_list[n]),alpha=0.7,
+                    edgecolor='black')
+            ax2[ii].set_zlabel('\n'+'Projected total\n'+r'emergences/100m$^2$',
+                               fontsize=16)
         ax2[ii].set_ylim(emerg_dates[0],emerg_dates[-1])
         ax2[ii].set_xlabel('Fields',fontsize=16)
         ax2[ii].set_ylabel('Days PR',fontsize=16)
@@ -479,8 +511,8 @@ def assess_fit(modelsol,params,locinfo,bw=False):
 
         ax.plot_surface(xmeshgrid,ymeshgrid,model_grid,facecolors=facet_clrs,
                         rstride=1,cstride=1,shade=True,label='Model')
-        ax.set_xlabel('West-East (meters)',fontsize=16)
-        ax.set_ylabel('South-North (meters)',fontsize=16)
+        ax.set_xlabel('\nWest-East (meters)',fontsize=16)
+        ax.set_ylabel('\nSouth-North (meters)',fontsize=16)
         ax.set_zlabel(r'num/10 m$^2$ model & observed',fontsize=16)
         # set view
         #ax.view_init(24,-41)
@@ -492,7 +524,7 @@ def assess_fit(modelsol,params,locinfo,bw=False):
             ax.set_title('Model vs.\n parasitoid observation data',fontsize=21)
 
     plt.tight_layout(pad=1.5)
-    plt.subplots_adjust(left=0.0, right=0.96, bottom=0.06, top=0.94)
+    plt.subplots_adjust(left=0.0, right=0.96, bottom=0.07, top=0.95)
     plt.show()
 
 

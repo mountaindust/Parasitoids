@@ -79,7 +79,7 @@ class LocInfo(object):
         #   grid_data contains the following columns:
         #       xcoord: distance east from release point in meters
         #       ycoord: distance north from release point in meters
-        #       area: area sampled
+        #       area: area sampled in each cell (m^2)
         #       samples: sampling effort at each point via direct observation
         #       collection: collection effort at each point (for emergence)
         self.grid_data = self.get_release_grid('./data/'+location+'releasegrid.txt')
@@ -384,6 +384,7 @@ class LocInfo(object):
             DataFrame with the following columns:
                 xcoord: distance east from release point in meters
                 ycoord: distance north from release point in meters
+                area: area sampled at each point in m^2
                 samples: sampling effort at each point via direct observation
                 collection: collection effort at each point (for emergence)
         '''
