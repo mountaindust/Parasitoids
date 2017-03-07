@@ -396,7 +396,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
 
     Arguments:
         - day -- day as specified in wind data
-        - wind_data -- dictionary of wind data
+        - wind_data -- dictionary of wind data (units: m/s)
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
         - Dlprams -- out-of-flow diffusion coefficients
@@ -440,7 +440,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
 
         if (not TEST_RUN) and n_periods > 1:
             if t_indx+n_periods-1 < periods:
-                # effective flight advection over n periods in km/hr
+                # effective flight advection over n periods in m/s
                 mu_v = np.sum(day_wind[t_indx:t_indx+n_periods,0:2],0)/n_periods
             elif day+1 in wind_data:
                 # wrap sum into next day
@@ -466,8 +466,8 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             # mu_v only has one entry. Typically a testing run to check behavior
             mu_v = np.array(day_wind[0:2])
 
-        # mu_v is now in km/hr. convert to m/(n_periods)
-        mu_v *= 1000*24*(n_periods/periods) # m/(n_periods)
+        # mu_v is now in m/s. convert to m/(n_periods)
+        mu_v *= 3600*24*(n_periods/periods) # m/(n_periods)
 
         # We also need to scale this by a constant which represents a scaling
         # term that takes wind advection to flight advection.

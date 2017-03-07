@@ -65,9 +65,11 @@ def main(bw=False):
     for day in days:
         day_avg.append(wind_data[day].mean(axis=0))
     day_avg = np.array(day_avg)
-    avg_wind = day_avg.mean(axis=0)
+    avg_wind = day_avg.mean(axis=0) # (m/s)
+    # convert to km/hr
+    avg_wind *= 3.6
     # draw arrow
-    ax.arrow(0,0,1600*avg_wind[0],1600*avg_wind[1],
+    ax.arrow(0,0,400*avg_wind[0],400*avg_wind[1],
              head_width=250,head_length=375,fc='0.8',ec='0.8')
     # get theta for avg wind direction
     if (avg_wind[0] == 0) and (avg_wind[1] == 0):
@@ -82,7 +84,7 @@ def main(bw=False):
         theta = theta+np.pi
     theta = int(np.degrees(theta))
     # show info
-    ax.text(1600*avg_wind[0]-600,1600*avg_wind[1]+500,
+    ax.text(400*avg_wind[0]-600,400*avg_wind[1]+500,
         'Avg. wind speed/direction:\n'+
         '{:.1f} km/hr\n{} degrees from east'.format(avg_wind[2],theta),
         color='w',fontsize=16, weight='medium')

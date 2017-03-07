@@ -166,9 +166,9 @@ Current defaults are specified with brackets where appropriate.
 - site_name=<file path>:
   path and name for all the necessary data to run the simulation. This usually
   looks something like 'data/<yournamehere>'. The simulation will then try to
-  load a file named 'data/<yournamehere>wind.txt' to get the wind data. If
-  running Bayes, you will also need 'data/<yournamehere>releasegrid.txt' and
-  'data/<yournamehere>fields.txt'.
+  load a file named 'data/<yournamehere>wind.txt' to get the wind data, which
+  should be specified in units of m/s. If running Bayes, you will also need 
+  'data/<yournamehere>releasegrid.txt' and 'data/<yournamehere>fields.txt'.
 - coord=(latitude,longitude):
   Lat/long coordinates of the release point. Needed for satellite images.
 - r_dur=<positive integer>:
