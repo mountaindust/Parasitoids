@@ -12,6 +12,7 @@ __status__ = "Release"
 __version__ = "1.0"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
+import warnings
 import argparse
 import sys, time, warnings
 from io import StringIO
@@ -139,7 +140,7 @@ def main(RUNFLAG):
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
-    mu_r = pm.Normal("mu_r",1.,1,value=1.5)
+    mu_r = pm.Normal("mu_r",1.,1,value=0.7)
     prior_eps[mu_r] = 0.05
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
@@ -163,9 +164,12 @@ def main(RUNFLAG):
     #### Data collection model background for sentinel fields ####
     # Need to fix linear units for area. Meters would be best.
     # Effective collection area (constant between fields) is very uncertain
-    A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
-                                    min(locinfo.field_sizes.values())*cell_area,
-                                    value=3600)  # in m**2
+    with warnings.catch_warnings():
+        # squelsh a warning based on pymc coding we don't need to worry about
+        warnings.simplefilter("ignore",RuntimeWarning)
+        A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
+                                         min(locinfo.field_sizes.values())*
+                                         cell_area,value=3600)  # in m**2
     prior_eps[A_collected] = 10
     # Each field has its own binomial probability.
     # Probabilities are likely to be small, and pm.Beta cannot handle small
