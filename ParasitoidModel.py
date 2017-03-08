@@ -148,7 +148,8 @@ def get_wind_data(site_name,interp_num,start_time):
 
     Returns:
         wind_data: dictionary of wind arrays, one array for each day.
-                   each row is one time point, each column is windx,windy,windr'''
+                   each row is one time point, each column is windx,windy,windr
+        days: list of day identifiers (ints)'''
 
     wind_data_raw,days = read_wind_file(site_name)
 
