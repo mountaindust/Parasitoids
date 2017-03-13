@@ -419,15 +419,9 @@ def main(params):
             pm_args.extend([(day,wind_data,*params.get_model_params())
                     for day in days[1:ndays]])
         pool = Pool()
-        try:
-            pmf_list = pool.starmap(PM.prob_mass,pm_args)
-        except PM.BndsError as e:
-            print('BndsError caught in ParasitoidModel.py.')
-            print(e)
-            sys.exit()
-        finally:
-            pool.close()
-            pool.join()
+        pmf_list = pool.starmap(PM.prob_mass,pm_args)
+        pool.close()
+        pool.join()
         for pmf in pmf_list:
             for dim in range(2):
                 if pmf.shape[dim] > max_shape[dim]:

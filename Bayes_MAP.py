@@ -277,34 +277,8 @@ def main(RUNFLAG):
             pmf_list = []
 
         ###################### Get pmf_list from multiprocessing
-        try:
-            pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
-        except PM.BndsError as e:
-            print('BndsErr caught: at {}'.format(
-                time.strftime("%H:%M:%S %d/%m/%Y")),end='\r')
-            # return output full of zeros, but of correct type/size
-            release_emerg = []
-            for nframe,dframe in enumerate(locinfo.release_DataFrames):
-                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                release_emerg.append(np.zeros((len(locinfo.emerg_grids[nframe]),
-                                        len(obs_datesPR))))
-            sentinel_emerg = []
-            for nframe,dframe in enumerate(locinfo.sent_DataFrames):
-                obs_datesPR = dframe['datePR'].map(lambda t: t.days).unique()
-                sentinel_emerg.append(np.zeros((len(locinfo.sent_ids),
-                                        len(obs_datesPR))))
-            grid_counts = np.zeros((locinfo.grid_cells.shape[0],
-                                    len(locinfo.grid_obs_datesPR)))
-            '''
-            card_counts = []
-            for nday,date in enumerate(locinfo.card_obs_datesPR):
-                card_counts.append(np.zeros((4,locinfo.card_obs[nday].shape[1])))
-            '''
-            return (release_emerg,sentinel_emerg,grid_counts) #,card_counts)
-        except Exception as e:
-            print('Unrecognized exception in pool with PM.prob_mass!!')
-            print(e)
-            raise
+        pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
+
         ######################
         for pmf in pmf_list:
             for dim in range(2):

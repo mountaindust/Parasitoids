@@ -16,6 +16,7 @@ __email__ = "cstrickland@samsi.info"
 __status__ = "Release"
 __copyright__ = "Copyright 2015, Christopher Strickland"
 
+import warnings
 from math import floor
 import numpy as np
 from scipy.stats import mvn
@@ -380,14 +381,6 @@ def get_mvn_cdf_values(cell_length,mu,S):
 
 
 
-class BndsError(Exception):
-    def __str__(self):
-        return 'Index error in calculating prob_mass.\n'+\
-            'Most likely, wind results in spread that goes off the domain'+\
-            ' in a single time period.'
-
-
-
 def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                 rad_dist,rad_res,start_time=None):
     """Returns prob mass function for a given day as an ndarray.
@@ -441,7 +434,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
 
         if (not TEST_RUN) and n_periods > 1:
             if t_indx+n_periods-1 < periods:
-                # effective flight advection over n periods in m/s
+                # effective flight advection over the period in m/s
                 mu_v = np.sum(day_wind[t_indx:t_indx+n_periods,0:2],0)/n_periods
             elif day+1 in wind_data:
                 # wrap sum into next day
@@ -507,8 +500,9 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
 
 
         #approximate integral over time
-        # Try to handle domain edges with zero boundary conditions, but return
-        # a unique error if this doesn't work
+        # Try to handle domain edges with zero boundary conditions. Record a
+        # loss and print a warning if this doesn't work.
+        loss = 0.0 # lost parasitoids
         cdf_rs = 0
         cdf_re = cdf_mat.shape[0]
         cdf_cs = 0
@@ -542,16 +536,28 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         try:
             pmf[row_min:row_max+1,col_min:col_max+1] += (hprob[t_indx]*
                 cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce])
+            if cdf_rs > 0 or cdf_re < cdf_mat.shape[0] or\
+               cdf_cs > 0 or cdf_ce < cdf_mat.shape[1]:
+               loss += 1-cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce].sum()*hprob[t_indx]
         except ValueError:
-            raise BndsError
+            # The wasps have exited the domain
+            warnings.warn('Index error in calculating prob_mass.\n'+
+            'Day: {}, Period: {}, mu_v: {}\n'.format(day,t_indx,mu_v)+
+            'Wind advection during this period appears to be greater'+
+            ' than the size of the domain.\n'+
+            'Wasps flying during this time will be considered lost.', 
+            RuntimeWarning)
+            loss += hprob[t_indx]
+
 
 
     # pmf now has probabilities per cell of flying there.
-    # 1-np.sum(ppdf) is the probability of not flying.
+    # 1-pmf.sum()-loss is the probability of not flying.
     # Add this probability to a distribution around the origin cell, if it isn't
     #   in roundoff territory.
-    total_flight_prob = pmf.sum()
+    total_flight_prob = pmf.sum()+loss
     try:
+        assert loss >= 0.0, 'negative loss'
         assert pmf.min() >= -1e-8, 'pmf.min() less than zero, first block'
         assert total_flight_prob <= 1.00001, 'flight prob > 1, first block'
     except AssertionError as e:
@@ -560,7 +566,8 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
             'day={}'.format(day),'hparams={}'.format(hparams),
             'Dparams={}'.format(Dparams),'Dlparams={}'.format(Dlparams),
             'mu_r={}'.format(mu_r),'n_periods={}'.format(n_periods),
-            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res))
+            'rad_dist={}'.format(rad_dist),'rad_res={}'.format(rad_res),
+            'loss={}'.format(loss))
         raise
     if total_flight_prob < 0.99999:
         cdf_mat = get_mvn_cdf_values(cell_dist,np.array([0.,0.]),Sl)
@@ -568,10 +575,10 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         pmf[rad_res-norm_r:rad_res+norm_r+1,rad_res-norm_r:rad_res+norm_r+1] += \
             (1-total_flight_prob)*cdf_mat
         # assure it sums to one by adding any error to the center cell.
-        total_flight_prob = pmf.sum()
+        total_flight_prob = pmf.sum()+loss
         try:
             assert pmf.min() >= -1e-8, 'pmf.min() less than zero'
-            assert total_flight_prob <= 1 + 1.00001, 'flight prob > 1'
+            assert total_flight_prob <= 1.00001, 'flight prob > 1'
         except AssertionError as e:
             e.args += ('total_flight_prob = {}'.format(total_flight_prob),
                 'pmf.min() = {}'.format(pmf.min()),

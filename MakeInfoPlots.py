@@ -130,6 +130,7 @@ def main(bw=False):
     ax.text(0.01,0.95,'b)',color='w',ha='left',va='center',
             transform=ax.transAxes,fontsize=18, weight='bold')
     plt.tight_layout()
+    # plt.savefig("info_plot.png",dpi=300,bbox_inches='tight')
     plt.show()
 
 
