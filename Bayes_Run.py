@@ -88,7 +88,7 @@ def main(mcmc_args=None):
     params.ndays = len(days)
 
     # reduce domain
-    params.domain_info = (8000.0,320) #25 m sided cells
+    params.domain_info = (10000.0,400) #25 m sided cells
     domain_res = params.domain_info[0]/params.domain_info[1]
     cell_area = domain_res**2
 
@@ -270,7 +270,7 @@ def main(mcmc_args=None):
 
         ###################### Get pmf_list from multiprocessing
         pmf_list.extend(pool.starmap(PM.prob_mass,pm_args))
-        
+
         for pmf in pmf_list:
             for dim in range(2):
                 if pmf.shape[dim] > max_shape[dim]:

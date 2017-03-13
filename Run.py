@@ -54,7 +54,7 @@ class Params():
         self.my_datasets()
 
         # domain info, (dist (m), cells) from release point to side of domain
-        self.domain_info = (8000.0,320) # (float, int!) (this is 25 m res)
+        self.domain_info = (10000.0,400) # (float, int!) (this is 25 m res)
         # number of interpolation points per wind data point
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30

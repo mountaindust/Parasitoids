@@ -90,7 +90,7 @@ def main(RUNFLAG):
     params.ndays = len(days)
 
     # reduce domain
-    params.domain_info = (8000.0,160) #50 m sided cells
+    params.domain_info = (10000.0,200) #50 m sided cells
     domain_res = params.domain_info[0]/params.domain_info[1]
     cell_area = domain_res**2
 
