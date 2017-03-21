@@ -105,12 +105,12 @@ def main(RUNFLAG):
     prior_eps[f_a1] = 0.1
     f_a2 = pm.TruncatedNormal("f_a2",20,0.3,15,24,value=20)
     prior_eps[f_a2] = 0.1
-    f_b1_p = pm.Gamma("fb1_p",2,1,value=2.3,trace=False,plot=False) #alpha,beta parameterization
+    f_b1_p = pm.Gamma("fb1_p",2,1,value=1.5,trace=False,plot=False) #alpha,beta parameterization
     prior_eps[f_b1_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p):
         return f_b1_p + 1
-    f_b2_p = pm.Gamma("fb2_p",2,1,value=2.0,trace=False,plot=False)
+    f_b2_p = pm.Gamma("fb2_p",2,1,value=1.5,trace=False,plot=False)
     prior_eps[f_b2_p] = 0.05
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
@@ -120,9 +120,9 @@ def main(RUNFLAG):
     g_bw = pm.Gamma("g_bw",5,1,value=3.8)
     prior_eps[g_bw] = 0.1
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,0.15,value=215)
+    sig_x = pm.Gamma("sig_x",26,0.15,value=180)
     prior_eps[sig_x] = 1
-    sig_y = pm.Gamma("sig_y",15,0.15,value=113)
+    sig_y = pm.Gamma("sig_y",15,0.15,value=150)
     prior_eps[sig_y] = 1
     corr_p = pm.Beta("corr_p",5,5,value=0.5,trace=False,plot=False)
     prior_eps[corr_p] = 0.01
@@ -130,7 +130,7 @@ def main(RUNFLAG):
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",2,0.08,value=20)
+    sig_x_l = pm.Gamma("sig_xl",2,0.08,value=10)
     prior_eps[sig_x_l] = 1
     sig_y_l = pm.Gamma("sig_yl",2,0.14,value=10)
     prior_eps[sig_y_l] = 1
@@ -140,21 +140,21 @@ def main(RUNFLAG):
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
     #pymc.MAP can only take float values, so we vary mu_r and set n_periods.
-    mu_r = pm.Normal("mu_r",1.,1,value=0.7)
+    mu_r = pm.Normal("mu_r",1.,1,value=1)
     prior_eps[mu_r] = 0.05
     params.n_periods = 30
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
-    xi = pm.Gamma("xi",1,1,value=0.76) # presence to oviposition/emergence factor
+    xi = pm.Gamma("xi",1,1,value=0.75) # presence to oviposition/emergence factor
     prior_eps[xi] = 0.05
 
     #### Observation probabilities. ####
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.01) # per-wasp prob of
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.05) # per-wasp prob of
         # observing emergence in release field grid given max leaf collection.
         # This is dependent on the size of the cell surrounding the grid point,
         # but there's not much to be done about this. Just remember to
         # interpret this number based on grid coarseness.
     prior_eps[em_obs_prob] = 0.0005
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.003) # probability of
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.005) # probability of
         # observing a wasp present in the grid cell given max leaf sampling
     prior_eps[grid_obs_prob] = 0.0005
 
@@ -169,7 +169,7 @@ def main(RUNFLAG):
         warnings.simplefilter("ignore",RuntimeWarning)
         A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
                                          min(locinfo.field_sizes.values())*
-                                         cell_area,value=3600)  # in m**2
+                                         cell_area,value=2500)  # in m**2
     prior_eps[A_collected] = 10
     # Each field has its own binomial probability.
     # Probabilities are likely to be small, and pm.Beta cannot handle small
@@ -197,7 +197,7 @@ def main(RUNFLAG):
 
     if params.dataset == 'kalbar':
         # factor for kalbar initial spread
-        sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.3)
+        sprd_factor = pm.Uniform("sprd_factor",0,1,value=0.1)
         prior_eps[sprd_factor] = 0.01
     else:
         sprd_factor = None

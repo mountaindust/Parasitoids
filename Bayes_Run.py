@@ -100,41 +100,41 @@ def main(mcmc_args=None):
     #####                        Model Priors                        #####
     ######################################################################
     lam = pm.Beta("lam",5,1,value=0.95)
-    f_a1 = pm.TruncatedNormal("f_a1",6,0.3,0,9,value=4.5)
-    f_a2 = pm.TruncatedNormal("f_a2",20,0.3,15,24,value=23.45)
-    f_b1_p = pm.Gamma("fb1_p",2,1,value=1.28,trace=False,plot=False) #alpha,beta parameterization
+    f_a1 = pm.TruncatedNormal("f_a1",6,0.3,0,9,value=6)
+    f_a2 = pm.TruncatedNormal("f_a2",20,0.3,15,24,value=20)
+    f_b1_p = pm.Gamma("fb1_p",2,1,value=1.5,trace=False,plot=False) #alpha,beta parameterization
     @pm.deterministic(trace=True,plot=True)
     def f_b1(f_b1_p=f_b1_p):
         return f_b1_p + 1
-    f_b2_p = pm.Gamma("fb2_p",2,1,value=1.01,trace=False,plot=False)
+    f_b2_p = pm.Gamma("fb2_p",2,1,value=1.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def f_b2(f_b2_p=f_b2_p):
         return f_b2_p + 1
-    g_aw = pm.Gamma("g_aw",2.2,1,value=1.19)
-    g_bw = pm.Gamma("g_bw",5,1,value=1.36)
+    g_aw = pm.Gamma("g_aw",2.2,1,value=1.0)
+    g_bw = pm.Gamma("g_bw",5,1,value=3.8)
     # flight diffusion parameters. note: mean is average over flight advection
-    sig_x = pm.Gamma("sig_x",26,0.15,value=127)
-    sig_y = pm.Gamma("sig_y",15,0.15,value=109)
-    corr_p = pm.Beta("corr_p",5,5,value=0.35,trace=False,plot=False)
+    sig_x = pm.Gamma("sig_x",26,0.15,value=180)
+    sig_y = pm.Gamma("sig_y",15,0.15,value=150)
+    corr_p = pm.Beta("corr_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr(corr_p=corr_p):
         return corr_p*2 - 1
     # local spread paramters
-    sig_x_l = pm.Gamma("sig_xl",2,0.08,value=7.59)
-    sig_y_l = pm.Gamma("sig_yl",2,0.14,value=3.31)
+    sig_x_l = pm.Gamma("sig_xl",2,0.08,value=10)
+    sig_y_l = pm.Gamma("sig_yl",2,0.14,value=10)
     corr_l_p = pm.Beta("corr_l_p",5,5,value=0.5,trace=False,plot=False)
     @pm.deterministic(trace=True,plot=True)
     def corr_l(corr_l_p=corr_l_p):
         return corr_l_p*2 - 1
-    mu_r = pm.Normal("mu_r",1.,1,value=0.7)
+    mu_r = pm.Normal("mu_r",1.,1,value=1)
     n_periods = pm.Poisson("n_periods",30,value=30)
     #alpha_pow = prev. time exponent in ParasitoidModel.h_flight_prob
-    xi = pm.Gamma("xi",1,1,value=0.46) # presence to oviposition/emergence factor
-    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.058) # per-wasp prob of
+    xi = pm.Gamma("xi",1,1,value=0.75) # presence to oviposition/emergence factor
+    em_obs_prob = pm.Beta("em_obs_prob",1,1,value=0.05) # per-wasp prob of
             # observing emergence in release field grid given max leaf collection
             # this is dependent on the size of the cell surrounding the grid point
             # ...not much to be done about this.
-    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.008) # probability of
+    grid_obs_prob = pm.Beta("grid_obs_prob",1,1,value=0.005) # probability of
             # observing a wasp present in the grid cell given max leaf sampling
 
     #card_obs_prob = pm.Beta("card_obs_prob",1,1,value=0.5) # probability of
@@ -148,7 +148,7 @@ def main(mcmc_args=None):
         warnings.simplefilter("ignore",RuntimeWarning)
         A_collected = pm.TruncatedNormal("A_collected",2500,1/2500,0,
                                          min(locinfo.field_sizes.values())*
-                                         cell_area,value=2487)  # in m**2
+                                         cell_area,value=2500)  # in m**2
     # Each field has its own binomial probability.
     # Probabilities are likely to be small, and pm.Beta cannot handle small
     #   parameter values. So we will use TruncatedNormal again.
@@ -165,7 +165,7 @@ def main(mcmc_args=None):
 
     sent_obs_probs = pm.Container(sent_obs_probs)
 
-    # Max a Posterirori estimates have consistantly returned a value of zero
+    # Max a Posterirori estimates have consistantly returned a value near zero
     #   for sprd_factor. So we will comment these sections.
     # if params.dataset == 'kalbar':
     #     # factor for kalbar initial spread

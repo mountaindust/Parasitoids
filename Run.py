@@ -59,25 +59,26 @@ class Params():
         #   since wind is given every 30 min, 30 will give 1 min per point
         self.interp_num = 30
         # set this to a number >= 0 to only run the first n days
-        self.ndays = 6
+        self.ndays = -1
 
         ### function parameters
         # take-off scaling based on wind
         # aw,bw: first scalar centers the logistic, second one stretches it.
-        self.g_params = (1.391, 4.079)
+
+        self.g_params = (1.263, 3.913)
         # take-off probability mass function based on time of day
         # a1,b1,a2,b2: a# scalar centers logistic, b# stretches it.
-        self.f_params = (5.119, 2.014, 23.999, 2.651)
+        self.f_params = (7.302, 2.614, 23.999, 2.350)
         # In-flow diffusion coefficients, sig_x, sig_y, rho (units are meters)
-        self.Dparams = (128.13,87.67,0.176)
+        self.Dparams = (171.82, 144.58, 0.253)
         # Out-of-flow diffusion coefficients
-        self.Dlparams = (7.598,3.310,0.001)
+        self.Dlparams = (7.096, 7.260, 0.000)
 
         ### general flight parameters
         # Probability of wind-based flight during the day under ideal conditions
         self.lam = 1.
         # scaling flight advection to wind advection
-        self.mu_r = 0.8400
+        self.mu_r = 1.179
         # number of time periods (based on interp_num) in one flight
         self.n_periods = 30 # if interp_num = 30, this is # of minutes per flight
 
