@@ -538,6 +538,9 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                 cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce])
             if cdf_rs > 0 or cdf_re < cdf_mat.shape[0] or\
                cdf_cs > 0 or cdf_ce < cdf_mat.shape[1]:
+               # Note: cdf_mat.sum() will typically be less than 1 by a bit, as
+               #    determined by cdf_eps. In extreme cases, this can build up
+               #    so that pmf.sum()+loss > 1.01
                loss += 1-cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce].sum()*hprob[t_indx]
         except ValueError:
             # The wasps have exited the domain
@@ -555,11 +558,12 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     # 1-pmf.sum()-loss is the probability of not flying.
     # Add this probability to a distribution around the origin cell, if it isn't
     #   in roundoff territory.
-    total_flight_prob = pmf.sum()+loss
+    pmfsum = pmf.sum()
+    total_flight_prob = pmfsum+loss
     try:
         assert loss >= 0.0, 'negative loss'
         assert pmf.min() >= -1e-8, 'pmf.min() less than zero, first block'
-        assert total_flight_prob <= 1.00001, 'flight prob > 1, first block'
+        assert pmfsum <= 1.00001, 'flight prob > 1, first block'
     except AssertionError as e:
         e.args += ('total_flight_prob = {}'.format(total_flight_prob),
             'pmf.min() = {}'.format(pmf.min()),
