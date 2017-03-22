@@ -16,6 +16,7 @@ import warnings
 import argparse
 import sys, time, warnings
 from io import StringIO
+import os
 import os.path
 import numpy as np
 from scipy import sparse
@@ -34,6 +35,8 @@ group.add_argument("--MAP", help="Find max a posteriori estimate"+
                    " and exit on completion.", action="store_true")
 group.add_argument("--norm", help="Find normal approximation and exit",
                    metavar="database_name")
+parser.add_argument("-o", "--outname", help="Name of file in which to store"+
+                    " the results.", type=str)
 # Normal approximation - we would like to explore covarience?
 # We need to add something here...
 
@@ -68,7 +71,7 @@ class Capturing(list):
 #                                                                             #
 ###############################################################################
 
-def main(RUNFLAG):
+def main(RUNFLAG, outname):
 
     print('Setting up parameters and priors...')
 
@@ -479,7 +482,7 @@ def main(RUNFLAG):
     #####              Run Methods and Interactive Menu              #####
     ######################################################################
 
-    def MAP_run():
+    def MAP_run(outname=None):
         '''Find Maximum a posteriori distribution'''
         tic = time.time()
         M = pm.MAP(Bayes_model,prior_eps)
@@ -499,7 +502,9 @@ def main(RUNFLAG):
         for var in Bayes_model.stochastics:
             print('{} = {}'.format(var,var.value))
         # Save result to file
-        with open('Max_aPosteriori_Estimate.txt','w') as fobj:
+        if outname is None:
+            outname = 'Max_aPosteriori_Estimate.txt'
+        with open(outname,'w') as fobj:
             fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
             fobj.write('Free stochastic variables: {}\n'.format(M.len))
             fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
@@ -510,11 +515,11 @@ def main(RUNFLAG):
             fobj.write('---------------Variable estimates---------------\n')
             for var in Bayes_model.stochastics:
                 fobj.write('{} = {}\n'.format(var,var.value))
-        print('Result saved to Max_aPosteriori_Estimate.txt.')
+        print('Result saved to {}.'.format(outname))
         return M
 
 
-    def norm_run(fname):
+    def norm_run(fname, outname=None):
         '''Find normal approximation'''
         try:
             tic = time.time()
@@ -539,7 +544,9 @@ def main(RUNFLAG):
             for var in bio_model.stochastics:
                 print('{} = {}'.format(var,M.C[var]))
             # Save result to file
-            with open('Normal_approx.txt','w') as fobj:
+            if outname is None:
+                outname = "Normal_approx.txt"
+            with open(outname,'w') as fobj:
                 fobj.write('Time elapsed: {}\n'.format(time.time() - tic))
                 fobj.write('Free stochastic variables: {}\n'.format(M.len))
                 fobj.write('Joint log-probability of model: {}\n'.format(M.logp))
@@ -553,7 +560,7 @@ def main(RUNFLAG):
                 fobj.write('Estimated variances: \n')
                 for var in bio_model.stochastics:
                     fobj.write('{} = {}\n'.format(var,M.C[var]))
-            print('These results have been saved to Normal_approx.txt.')
+            print('These results have been saved to {}.'.format(outname))
         except Exception as e:
             print(e)
             print('Exception: database closing...')
@@ -565,9 +572,9 @@ def main(RUNFLAG):
 
     # Parse run type
     if RUNFLAG == 'MAP_RUN':
-        M = MAP_run()
+        M = MAP_run(outname)
     elif RUNFLAG is not None:
-        M = norm_run(RUNFLAG)
+        M = norm_run(RUNFLAG, outname)
         M.db.close()
     else:
         print('----- Maximum a posteriori estimates & Normal approximations -----')
@@ -579,7 +586,7 @@ def main(RUNFLAG):
             cmd = cmd.strip()
             cmd = cmd.lower()
             if cmd == 'map':
-                M = MAP_run()
+                M = MAP_run(outname)
                 # Option to enter IPython
                 cmd_py = input('Enter IPython y/[n]:')
                 cmd_py = cmd_py.strip()
@@ -594,9 +601,9 @@ def main(RUNFLAG):
                     return
                 elif fname == 'b' or fname == 'back':
                     continue
-                else:
+                elif fname[-3:] != '.h5':
                     fname = fname+'.h5'
-                M = norm_run(fname)
+                M = norm_run(fname, outname)
                 try:
                     print('For covariances, enter IPython and request a covariance'+
                           ' matrix by passing variables in the following syntax:\n'+
@@ -632,6 +639,14 @@ if __name__ == "__main__":
         RUNFLAG = args.norm
     else:
         RUNFLAG = None
+    if args.outname is not None:
+        try:
+            fobj = open(args.outname,'w')
+            fobj.close()
+            os.remove(args.outname)
+        except:
+            print("Could not open {} for writing.".format(args.outname))
+            raise
     with Pool() as pool:
-        main(RUNFLAG)
+        main(RUNFLAG,args.outname)
         #main(sys.argv[1:])
