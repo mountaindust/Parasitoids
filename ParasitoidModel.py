@@ -429,6 +429,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         start_indx = 0
     else:
         start_indx = floor(start_time*periods)
+    WARNED = False
     for t_indx in range(start_indx,periods):
         ### Get the advection velocity and put in units = m/(unit time) ###
 
@@ -544,12 +545,15 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                loss += 1-cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce].sum()*hprob[t_indx]
         except ValueError:
             # The wasps have exited the domain
-            warnings.warn('Index error in calculating prob_mass.\n'+
-            'Day: {}, Period: {}, mu_v: {}\n'.format(day,t_indx,mu_v)+
-            'Wind advection during this period appears to be greater'+
-            ' than the size of the domain.\n'+
-            'Wasps flying during this time will be considered lost.', 
-            RuntimeWarning)
+            # Only raise a warning the first time this happens.
+            if not WARNED:
+                warnings.warn('Index error in calculating prob_mass.\n'+
+                'Day: {}, Period: {}, mu_v: {}\n'.format(day,t_indx,mu_v)+
+                'Wind advection during this period appears to be greater'+
+                ' than the size of the domain.\n'+
+                'Wasps flying during this time will be considered lost.', 
+                RuntimeWarning)
+                WARNED = True
             loss += hprob[t_indx]
 
 

@@ -17,7 +17,6 @@ import argparse
 import sys, time, warnings
 from io import StringIO
 import os
-import os.path
 import numpy as np
 from scipy import sparse
 from multiprocessing import Pool
