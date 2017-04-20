@@ -2,6 +2,9 @@
 ### Parasitoid wasp drift-diffusion model with Bayesian data modeling framework
 Please note: This code will only run in Python version 3.5 or greater.
 
+**Publication DOI**:   
+2017 Journal of the Royal Society Interface, "Inferring stratified parasitoid dispersal mechanisms and parameters from coarse data using mathematical and Bayesian methods": [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.556462.svg)](https://doi.org/10.5281/zenodo.556462)
+
 **Acknowledements**:
 This material was based upon work partially supported by the National Science
 Foundation under Grant DMS-1127914 to the Statistical and Applied Mathematical
@@ -9,7 +12,7 @@ Sciences Institute. Any opinions, findings, and conclusions or recommendations
 expressed in this material are those of the author(s) and do not necessarily
 reflect the views of the National Science Foundation.
 
-**Dependencies**
+**Dependencies**:
 Numpy
 Scipy
 Matplotlib
