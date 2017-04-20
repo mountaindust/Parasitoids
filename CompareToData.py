@@ -218,7 +218,7 @@ def main(modelsol,params,locinfo,bw=False):
         if bw is False: #color
             for fid,poly in locinfo.field_polys.items():
                 ax1[ii].add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='r',lw=2,zorder=2))
+                             edgecolor=(1,165/255,0),lw=2,zorder=2))
                 ext = poly.get_extents()
                 # Put the label somewhere in the middle of each field
                 if fid != 'B':
@@ -683,7 +683,7 @@ def banner(modelsol,params,locinfo,bw=False):
         if bw is False: #color
             for poly in locinfo.field_polys.values():
                 ax1[ii].add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='r',lw=2,zorder=2))
+                             edgecolor=(1,165/255,0),lw=2,zorder=2))
         else: #black and white
             for poly in locinfo.field_polys.values():
                 ax1[ii].add_patch(patches.PathPatch(poly,facecolor='none',

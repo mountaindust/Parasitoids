@@ -46,7 +46,7 @@ def main(bw=False):
     if not bw: #color
         for fid,poly in locinfo.field_polys.items():
             ax.add_patch(patches.PathPatch(poly,facecolor='none',
-                            edgecolor='r',lw=2,zorder=1))
+                            edgecolor=(1,165/255,0),lw=2,zorder=1))
             ext = poly.get_extents()
             # Put the label somewhere in the middle of each field
             ax.text((ext.xmin+ext.xmax)/2,(ext.ymin+ext.ymax)/2,fid,

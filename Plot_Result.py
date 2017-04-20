@@ -12,9 +12,11 @@ import math
 import urllib.parse, urllib.request
 import numpy as np
 from scipy import sparse
+import matplotlib as mpl
+if __name__ == "__main__":
+    mpl.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib as mpl
 import matplotlib.animation as animation
 import matplotlib.patches as patches
 try:
@@ -228,7 +230,7 @@ def plot_all(modelsol,params,locinfo=None):
         if locinfo is not None:
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='r',lw=2,zorder=2))
+                             edgecolor=(1,165/255,0),lw=2,zorder=2))
 
         plt.xlabel('West-East (meters)')
         plt.ylabel('North-South (meters)')
@@ -342,7 +344,7 @@ def plot(sol,day,params,saveonly=None,locinfo=None):
         if bw is None: #color
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='r',lw=2,zorder=2))
+                             edgecolor=(1,165/255,0),lw=2,zorder=2))
         else: #black and white
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
@@ -394,33 +396,21 @@ def create_mp4(modelsol,params,filename,locinfo=None):
     midpt = domain_info[1]
 
     fig = plt.figure()
-    ax = plt.axes()
-    ax.axis([-400,400,-400,400])
-    ax.set_xlabel('West-East (meters)')
-    ax.set_ylabel('North-South (meters)')
-    ax.set_title('Parasitoid spread')
     # try to get a satellite image to see if it will work
     sat_img = get_satellite(params.maps_key,params.maps_service,params.coord,500)
     if sat_img is None:
-        pcl = ax.pcolormesh([],cmap=clrmp,zorder=1,alpha=1)
+        #pcl = ax.pcolormesh([],cmap=clrmp,zorder=1,alpha=1)
         SAT = False
     else:
-        pcl = ax.pcolormesh([-400,0],[-400,0],[[0,0],[0,0]],cmap=clrmp,zorder=1)
-        ax.imshow([[]],zorder=0)
+        #pcl = ax.pcolormesh([-400,0],[-400,0],[[0,0],[0,0]],cmap=clrmp,zorder=1)
+        #ax.imshow([[]],zorder=0)
         #plt.imshow(sat_img,zorder=0,extent=plot_limits)
         SAT = True
-    cbar = plt.colorbar(pcl)
-    cbar.set_label('Wasps per cell')
 
     def animate(nsol):
         n,sol = nsol
-        #remove just the pcolormesh and satellite image from before
-        for col in ax.collections:
-            col.remove()
-        #also remove the text from before
-        ntexts = len(ax.texts)
-        for ii in range(ntexts):
-            ax.texts[0].remove()
+        plt.clf()
+        ax = plt.axes()
         #Establish a miminum for plotting based 0.00001 of the maximum
         mask_val = min(10**(np.floor(np.log10(sol.data.max()))-3),1)
         #remove all values that are too small to be plotted.
@@ -441,13 +431,16 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = np.ma.masked #mask the middle
         sprd_max = np.max(sol_fm) #find max
         sol_fm[midpt2-4:midpt2+5,midpt2-4:midpt2+5] = sol_mid #replace values
+        #start plotting
         plot_limits = [xmesh[0],xmesh[-1],xmesh[0],xmesh[-1]]
         ax.axis(plot_limits)
+        ax.set_xlabel('West-East (meters)')
+        ax.set_ylabel('North-South (meters)')
         ax.set_title('Parasitoid spread {0} day(s) post release'.format(n))
         if locinfo is not None:
             for poly in locinfo.field_polys.values():
                 ax.add_patch(patches.PathPatch(poly,facecolor='none',
-                             edgecolor='r',lw=2,zorder=2))
+                             edgecolor=(1,165/255,0),lw=2,zorder=2))
         if SAT:
             sat_img = get_satellite(params.maps_key,params.maps_service,
                 params.coord,xmesh[-1])
@@ -464,10 +457,11 @@ def create_mp4(modelsol,params,filename,locinfo=None):
         res = int(params.domain_info[0]//params.domain_info[1])
         plt.text(0.01,0.05,'{0}x{0} m cells'.format(res),color='w',
             ha='left',va='center',transform=ax.transAxes,fontsize=12)
-        cbar.mappable = pcl
-        cbar.update_bruteforce(pcl)
+        cbar = plt.colorbar(pcl)
+        cbar.set_label('Wasps per cell')
         cbar.solids.set_edgecolor("face")
-        print('.',end="")
+        print('{}'.format(n),end="")
+        #print('.',end="")
         sys.stdout.flush()
 
     # if we pass modelsol as is, the first and last frames won't appear...
@@ -485,11 +479,12 @@ def create_mp4(modelsol,params,filename,locinfo=None):
                 yield (n+1, result)
 
     # create animation
-    framegen = animGen()
-    anim = animation.FuncAnimation(fig,animate,frames=framegen,
-            blit=False,interval=850)
-    anim.save(filename+'.mp4',dpi=140,bitrate=500)
-    print('\n...Video saved to {0}.'.format(filename+'.mp4'))
+    anim = animation.FuncAnimation(fig,animate,frames=animGen,
+            blit=False,repeat=False)#,interval=850)
+    # had to switch to .avi because .mp4 was less stable with the backends
+    anim.save(filename+'.avi',dpi=140,bitrate=500,fps=1)
+    #plt.show()
+    print('\n...Video saved to {0}.'.format(filename+'.avi'))
 
 
 
