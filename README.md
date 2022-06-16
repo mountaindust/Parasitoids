@@ -63,7 +63,7 @@ operate, the release coordinates must be specified and a Bing or Google maps key
 must be provided in config.txt. You can obtain a Bing maps key for free at
 <https://www.bingmapsportal.com/> and a Google maps key for free at
 <https://developers.google.com/maps/documentation/static-maps/>. The syntax for
-specifying a map key in config.txt is "map_key = <key>". An internet connection
+specifying a map key in config.txt is "maps_key = <key>". An internet connection
 is required; no maps are cached between calls to the plotting routine. You must
 specify which service you are using via the maps_service variable - the default
 is currently Google.
