@@ -306,7 +306,7 @@ def h_flight_prob(day_wind, lam, aw, bw, a1, b1, a2, b2):
     integral_avg = f_func*g_func/t_vec/np.max(f_func)*np.cumsum(
         (1-np.cumsum(f_func)**alpha_pow)*(f_func-f_func*g_func))
 
-    return f_func*g_func + integral_avg #np.array of length n
+    return lam*(f_func*g_func + integral_avg) #np.array of length n
 
 def get_mvn_cdf_values(cell_length,mu,S):
     """Get cdf values for a multivariate normal centered near (0,0)
@@ -393,7 +393,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         - wind_data -- dictionary of wind data (units: m/s)
         - hparams -- parameters for h_flight_prob(...). (lam,aw,bw,a1,b1,a2,b2)
         - Dparams -- parameters for Dmat(...). (sig_x,sig_y,rho)
-        - Dlprams -- out-of-flow diffusion coefficients
+        - Dlparams -- out-of-flow diffusion coefficients
         - mu_r -- parameter to scale distance vs. windspeed
         - n_periods -- number of time periods in flight duration. int
         - rad_dist -- distance from release point to side of the domain (m)
@@ -416,6 +416,8 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     S = Dmat(*Dparams) #get diffusion covarience matrix
     Sl = Dmat(*Dlparams) # get out-of-flow diffusion covarience matrix
 
+    loss = 0.0 # lost parasitoidsf
+
     # Check for single (primarily for testing) vs. multiple time periods
     if day_wind.ndim > 1:
         periods = day_wind.shape[0] # wind data is already interpolated.
@@ -432,6 +434,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
     WARNED = False
     for t_indx in range(start_indx,periods):
         ### Get the advection velocity and put in units = m/(unit time) ###
+        print('Time: ' + str(t_indx) + ' of ' + str(periods))
 
         if (not TEST_RUN) and n_periods > 1:
             if t_indx+n_periods-1 < periods:
@@ -499,11 +502,9 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
         row_min, col_min = adv_cent - norm_r
         row_max, col_max = adv_cent + norm_r
 
-
         #approximate integral over time
         # Try to handle domain edges with zero boundary conditions. Record a
         # loss and print a warning if this doesn't work.
-        loss = 0.0 # lost parasitoids
         cdf_rs = 0
         cdf_re = cdf_mat.shape[0]
         cdf_cs = 0
@@ -542,7 +543,7 @@ def prob_mass(day,wind_data,hparams,Dparams,Dlparams,mu_r,n_periods,
                # Note: cdf_mat.sum() will typically be less than 1 by a bit, as
                #    determined by cdf_eps. In extreme cases, this can build up
                #    so that pmf.sum()+loss > 1.01
-               loss += 1-cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce].sum()*hprob[t_indx]
+               loss += (1-cdf_mat[cdf_rs:cdf_re,cdf_cs:cdf_ce].sum())*hprob[t_indx]
         except ValueError:
             # The wasps have exited the domain
             # Only raise a warning the first time this happens.
